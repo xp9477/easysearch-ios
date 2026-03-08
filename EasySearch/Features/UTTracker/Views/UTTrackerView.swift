@@ -36,32 +36,32 @@ public struct UTTrackerView: View {
         let exceededTargetHours = max(0, summary.totalHours - UTTrackerMetrics.targetHours)
         let weeklyProgressPercent = summary.totalHours / UTTrackerMetrics.fullWeekHours
 
-        return VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text("UT Tracker")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.secondary)
 
                 Text("本周 UT 进度")
-                    .font(.system(size: 30, weight: .bold))
+                    .font(.system(size: 24, weight: .bold))
                     .foregroundStyle(.primary)
 
                 Text(weekRangeText(for: summary))
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)
             }
 
             HStack(alignment: .lastTextBaseline, spacing: 8) {
                 Text(percentText(for: weeklyProgressPercent))
-                    .font(.system(size: 46, weight: .bold, design: .rounded))
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
 
                 Text(summary.isTargetMet ? "已达标" : "待补足")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 metricBlock(title: "本周已记", value: "\(hoursText(summary.totalHours))h")
                 metricBlock(title: "70%目标", value: "\(hoursText(UTTrackerMetrics.targetHours))h")
                 metricBlock(
@@ -79,13 +79,13 @@ public struct UTTrackerView: View {
             )
 
             Text("按每周 40h = 100% 计算，公司要求 70%，也就是 28h。")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(28)
+        .padding(20)
         .background(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
@@ -98,7 +98,7 @@ public struct UTTrackerView: View {
                 )
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
         )
     }
@@ -313,18 +313,18 @@ public struct UTTrackerView: View {
     private func metricBlock(title: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
 
             Text(value)
-                .font(.system(size: 18, weight: .bold))
+                .font(.system(size: 16, weight: .bold))
                 .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color.white.opacity(0.42))
         )
     }
@@ -333,10 +333,10 @@ public struct UTTrackerView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(title)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                 Spacer()
                 Text(detail)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
             }
 
