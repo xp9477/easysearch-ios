@@ -2,6 +2,8 @@ import SwiftUI
 
 public struct UTTrackerView: View {
     @StateObject private var viewModel = UTTrackerViewModel()
+    @StateObject private var notificationManager = UTNotificationManager.shared
+    @Environment(\.openURL) private var openURL
     @State private var selectedDate = Date()
     @State private var draftHours = UTTrackerMetrics.dailyReferenceHours
     @State private var draftNote = ""
@@ -12,10 +14,10 @@ public struct UTTrackerView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 overviewCard
-                dailyDistributionCard
                 addEntryCard
                 currentWeekEntriesCard
                 recentWeeksCard
+                notificationCard
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
@@ -24,10 +26,15 @@ public struct UTTrackerView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("UT 记录")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await notificationManager.configure()
+        }
     }
 
     private var overviewCard: some View {
         let summary = viewModel.currentWeekSummary
+        let exceededTargetHours = max(0, summary.totalHours - UTTrackerMetrics.targetHours)
+        let weeklyProgressPercent = summary.totalHours / UTTrackerMetrics.fullWeekHours
 
         return VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 10) {
@@ -45,38 +52,31 @@ public struct UTTrackerView: View {
             }
 
             HStack(alignment: .lastTextBaseline, spacing: 8) {
-                Text(percentText(for: summary.fullProgress))
+                Text(percentText(for: weeklyProgressPercent))
                     .font(.system(size: 46, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
 
-                Text("UT")
-                    .font(.system(size: 22, weight: .semibold))
+                Text(summary.isTargetMet ? "已达标" : "待补足")
+                    .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
 
             HStack(spacing: 12) {
                 metricBlock(title: "本周已记", value: "\(hoursText(summary.totalHours))h")
-                metricBlock(title: "目标线", value: "\(hoursText(UTTrackerMetrics.targetHours))h")
-                metricBlock(title: "满额线", value: "\(hoursText(UTTrackerMetrics.fullWeekHours))h")
-            }
-
-            VStack(spacing: 12) {
-                progressBlock(
-                    title: "70% 目标",
-                    progress: summary.targetProgress,
-                    detail: summary.isTargetMet
-                        ? "已达标"
-                        : "还差 \(hoursText(summary.remainingToTarget))h"
-                )
-
-                progressBlock(
-                    title: "100% 满额",
-                    progress: summary.fullProgress,
-                    detail: summary.extraBeyondFull > 0
-                        ? "超出 \(hoursText(summary.extraBeyondFull))h"
-                        : "还差 \(hoursText(summary.remainingToFull))h"
+                metricBlock(title: "70%目标", value: "\(hoursText(UTTrackerMetrics.targetHours))h")
+                metricBlock(
+                    title: summary.isTargetMet ? "超出目标" : "还差目标",
+                    value: "\(hoursText(summary.isTargetMet ? exceededTargetHours : summary.remainingToTarget))h"
                 )
             }
+
+            progressBlock(
+                title: "70% 目标",
+                progress: summary.targetProgress,
+                detail: summary.isTargetMet
+                    ? "已达标，超出 \(hoursText(exceededTargetHours))h"
+                    : "还差 \(hoursText(summary.remainingToTarget))h"
+            )
 
             Text("按每周 40h = 100% 计算，公司要求 70%，也就是 28h。")
                 .font(.system(size: 13, weight: .medium))
@@ -101,33 +101,6 @@ public struct UTTrackerView: View {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
         )
-    }
-
-    private var dailyDistributionCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(
-                eyebrow: "Week Breakdown",
-                title: "本周每日分布",
-                description: "按周一到周日汇总，单日参考值按 8h 展示。"
-            )
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(viewModel.currentWeekDaySummaries) { summary in
-                        UTDayColumn(
-                            title: viewModel.weekdaySymbol(for: summary.date),
-                            subtitle: dayLabel(for: summary.date),
-                            hoursText: "\(hoursText(summary.hours))h",
-                            progress: clamped(summary.hours / UTTrackerMetrics.dailyReferenceHours),
-                            isToday: viewModel.isToday(summary.date)
-                        )
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-        }
-        .padding(24)
-        .cardStyle()
     }
 
     private var addEntryCard: some View {
@@ -181,6 +154,76 @@ public struct UTTrackerView: View {
             .buttonStyle(.borderedProminent)
             .tint(.green)
             .disabled(draftHours <= 0)
+        }
+        .padding(24)
+        .cardStyle()
+    }
+
+    private var notificationCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            sectionHeader(
+                eyebrow: "Notifications",
+                title: "提醒通知",
+                description: "每天 20:00 提醒填写当天 UT；每周四 20:00 若本周还没到 60%，再提醒一次。"
+            )
+
+            HStack(spacing: 12) {
+                Image(systemName: notificationManager.notificationsEnabled ? "bell.badge.fill" : "bell.slash")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(notificationManager.notificationsEnabled ? .green : .secondary)
+
+                Text(notificationManager.statusText)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+            }
+
+            switch notificationManager.authorizationStatus {
+            case .notDetermined:
+                Button {
+                    Task {
+                        await notificationManager.requestAuthorization()
+                    }
+                } label: {
+                    Label("开启通知", systemImage: "bell.badge")
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
+
+            case .denied:
+                Button {
+                    guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+                    openURL(settingsURL)
+                } label: {
+                    Label("前往系统设置", systemImage: "gearshape")
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.bordered)
+                .tint(.secondary)
+
+            case .authorized, .provisional, .ephemeral:
+                Button {
+                    Task {
+                        await notificationManager.refreshStateAndSchedules()
+                    }
+                } label: {
+                    Label("重新整理提醒", systemImage: "arrow.clockwise")
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.bordered)
+                .tint(.green)
+
+            @unknown default:
+                EmptyView()
+            }
         }
         .padding(24)
         .cardStyle()
@@ -250,13 +293,13 @@ public struct UTTrackerView: View {
                                     .font(.system(size: 17, weight: .bold))
                                     .foregroundStyle(.primary)
 
-                                Text(percentText(for: summary.fullProgress))
+                                Text(summary.isTargetMet ? "已达标" : "未达标")
                                     .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(summary.isTargetMet ? .green : .secondary)
                             }
                         }
 
-                        ProgressView(value: clamped(summary.fullProgress))
+                        ProgressView(value: clamped(summary.targetProgress))
                             .tint(summary.isTargetMet ? .green : .orange)
                     }
                     .padding(.bottom, 2)
@@ -355,14 +398,6 @@ public struct UTTrackerView: View {
         return "\(start) - \(end)"
     }
 
-    private func dayLabel(for date: Date) -> String {
-        if viewModel.isToday(date) {
-            return "今天"
-        }
-
-        return date.formatted(.dateTime.day())
-    }
-
     private func entryTitle(for entry: UTEntry) -> String {
         if viewModel.isToday(entry.date) {
             return "今天"
@@ -382,51 +417,6 @@ public struct UTTrackerView: View {
 
     private func clamped(_ value: Double) -> Double {
         min(max(value, 0), 1)
-    }
-}
-
-private struct UTDayColumn: View {
-    let title: String
-    let subtitle: String
-    let hoursText: String
-    let progress: Double
-    let isToday: Bool
-
-    var body: some View {
-        VStack(spacing: 10) {
-            VStack(spacing: 4) {
-                Text(title)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(isToday ? .green : .primary)
-
-                Text(subtitle)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-
-            ZStack(alignment: .bottom) {
-                Capsule()
-                    .fill(Color.green.opacity(0.12))
-                    .frame(width: 16, height: 64)
-
-                if progress > 0 {
-                    Capsule()
-                        .fill(isToday ? Color.green : Color.green.opacity(0.72))
-                        .frame(width: 16, height: max(8, 64 * progress))
-                }
-            }
-
-            Text(hoursText)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.primary)
-        }
-        .frame(width: 68)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 14)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(isToday ? Color.green.opacity(0.08) : Color(.tertiarySystemFill))
-        )
     }
 }
 

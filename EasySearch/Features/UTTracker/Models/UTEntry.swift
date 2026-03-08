@@ -4,7 +4,13 @@ enum UTTrackerMetrics {
     static let fullWeekHours: Double = 40
     static let targetRatio: Double = 0.7
     static let targetHours: Double = fullWeekHours * targetRatio
+    static let weeklyWarningRatio: Double = 0.6
+    static let weeklyWarningHours: Double = fullWeekHours * weeklyWarningRatio
     static let dailyReferenceHours: Double = 8
+}
+
+enum UTTrackerStorage {
+    static let entriesKey = "ut_tracker_entries_v1"
 }
 
 struct UTEntry: Identifiable, Codable, Hashable {
@@ -29,24 +35,12 @@ struct UTEntry: Identifiable, Codable, Hashable {
     }
 }
 
-struct UTDaySummary: Identifiable, Hashable {
-    let date: Date
-    let hours: Double
-
-    var id: Date { date }
-}
-
 struct UTWeekSummary: Identifiable, Hashable {
     let weekStart: Date
     let weekEnd: Date
     let totalHours: Double
 
     var id: Date { weekStart }
-
-    var fullProgress: Double {
-        guard UTTrackerMetrics.fullWeekHours > 0 else { return 0 }
-        return totalHours / UTTrackerMetrics.fullWeekHours
-    }
 
     var targetProgress: Double {
         guard UTTrackerMetrics.targetHours > 0 else { return 0 }
@@ -55,14 +49,6 @@ struct UTWeekSummary: Identifiable, Hashable {
 
     var remainingToTarget: Double {
         max(0, UTTrackerMetrics.targetHours - totalHours)
-    }
-
-    var remainingToFull: Double {
-        max(0, UTTrackerMetrics.fullWeekHours - totalHours)
-    }
-
-    var extraBeyondFull: Double {
-        max(0, totalHours - UTTrackerMetrics.fullWeekHours)
     }
 
     var isTargetMet: Bool {

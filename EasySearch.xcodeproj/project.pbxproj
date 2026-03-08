@@ -27,6 +27,7 @@
 		D1A000000000000000000002 /* UTTrackerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000102 /* UTTrackerViewModel.swift */; };
 		D1A000000000000000000003 /* UTTrackerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000103 /* UTTrackerView.swift */; };
 		D1A000000000000000000004 /* UTTrackerFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000104 /* UTTrackerFeature.swift */; };
+		D1A000000000000000000005 /* UTNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000105 /* UTNotificationManager.swift */; };
 		FE398CDB8405CA4107E65C61 /* CategoryTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795E17200E5B98842C811DAF /* CategoryTabBar.swift */; };
 /* End PBXBuildFile section */
 
@@ -50,6 +51,7 @@
 		D1A000000000000000000102 /* UTTrackerViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTTrackerViewModel.swift; path = EasySearch/Features/UTTracker/ViewModels/UTTrackerViewModel.swift; sourceTree = SOURCE_ROOT; };
 		D1A000000000000000000103 /* UTTrackerView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTTrackerView.swift; path = EasySearch/Features/UTTracker/Views/UTTrackerView.swift; sourceTree = SOURCE_ROOT; };
 		D1A000000000000000000104 /* UTTrackerFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTTrackerFeature.swift; path = EasySearch/Features/UTTracker/UTTrackerFeature.swift; sourceTree = SOURCE_ROOT; };
+		D1A000000000000000000105 /* UTNotificationManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTNotificationManager.swift; path = EasySearch/Features/UTTracker/UTNotificationManager.swift; sourceTree = SOURCE_ROOT; };
 		DD2DDB34B07E1AF3F585243D /* SettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = EasySearch/Features/Settings/Views/SettingsView.swift; sourceTree = SOURCE_ROOT; };
 		E53A9599509BBCA5DB03ABC4 /* SearchViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchViewModel.swift; path = EasySearch/Features/EasySearch/ViewModels/SearchViewModel.swift; sourceTree = SOURCE_ROOT; };
 		E9AD7A5FC3ED0A3372776E30 /* AppRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppRouter.swift; path = EasySearch/Core/Navigation/AppRouter.swift; sourceTree = SOURCE_ROOT; };
@@ -174,6 +176,7 @@
 				D1A000000000000000000203 /* ViewModels */,
 				D1A000000000000000000204 /* Views */,
 				D1A000000000000000000104 /* UTTrackerFeature.swift */,
+				D1A000000000000000000105 /* UTNotificationManager.swift */,
 			);
 			path = UTTracker;
 			sourceTree = "<group>";
@@ -443,6 +446,7 @@
 				D1A000000000000000000002 /* UTTrackerViewModel.swift in Sources */,
 				D1A000000000000000000003 /* UTTrackerView.swift in Sources */,
 				D1A000000000000000000004 /* UTTrackerFeature.swift in Sources */,
+				D1A000000000000000000005 /* UTNotificationManager.swift in Sources */,
 				0FEC531B128C7323644248F0 /* UtilitiesFeature.swift in Sources */,
 				079FA5536E042C37ED839E7D /* UtilitiesView.swift in Sources */,
 			);
