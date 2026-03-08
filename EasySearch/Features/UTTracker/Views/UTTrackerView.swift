@@ -164,7 +164,7 @@ public struct UTTrackerView: View {
             sectionHeader(
                 eyebrow: "Notifications",
                 title: "提醒通知",
-                description: "每天 20:00 提醒填写当天 UT；每周四 20:00 若本周还没到 60%，再提醒一次。"
+                description: "工作日 20:00 提醒填写当天 UT；周末仅在本周未达到 70% 时提醒；每周四 20:00 若本周还没到 60%，再提醒一次。"
             )
 
             HStack(spacing: 12) {

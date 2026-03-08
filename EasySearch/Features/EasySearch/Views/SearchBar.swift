@@ -3,55 +3,59 @@ import SwiftUI
 /// 自定义搜索框组件
 struct SearchBar: View {
     @Binding var text: String
-    @FocusState private var isFocused: Bool
+    var isFocused: FocusState<Bool>.Binding
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 20, weight: .medium))
+                .font(.body.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            TextField("输入搜索内容...", text: $text)
-                .font(.system(size: 18))
-                .focused($isFocused)
-                .submitLabel(.search)
+            TextField("输入要搜索的内容", text: $text)
+                .font(.body)
+                .focused(isFocused)
+                .submitLabel(.done)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
 
             if !text.isEmpty {
                 Button {
                     text = ""
-                    isFocused = true
+                    isFocused.wrappedValue = true
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
+                        .font(.body)
                         .foregroundStyle(.secondary)
                 }
                 .transition(.scale.combined(with: .opacity))
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 4)
-                .shadow(color: .black.opacity(0.03), radius: 2, x: 0, y: 1)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(isFocused ? Color.accentColor.opacity(0.5) : Color(.separator).opacity(0.3), lineWidth: isFocused ? 2 : 1)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(isFocused.wrappedValue ? Color.accentColor.opacity(0.35) : Color(.separator).opacity(0.12), lineWidth: 1)
         )
-        .animation(.easeInOut(duration: 0.2), value: isFocused)
+        .animation(.easeInOut(duration: 0.15), value: isFocused.wrappedValue)
         .animation(.easeInOut(duration: 0.15), value: text.isEmpty)
-        .onAppear {
-            isFocused = true
-        }
     }
 }
 
 #Preview {
-    SearchBar(text: .constant(""))
+    PreviewSearchBar()
         .padding()
         .background(Color(.systemGroupedBackground))
+}
+
+private struct PreviewSearchBar: View {
+    @State private var text = ""
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        SearchBar(text: $text, isFocused: $isFocused)
+    }
 }

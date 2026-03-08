@@ -97,6 +97,11 @@ final class UTNotificationManager: NSObject, ObservableObject {
                 continue
             }
 
+            let isWeekend = calendar.isDateInWeekend(day)
+            if isWeekend && !shouldScheduleWeekendReminder(on: day, within: entries) {
+                continue
+            }
+
             guard !hasEntry(on: day, within: entries) else {
                 continue
             }
@@ -110,8 +115,13 @@ final class UTNotificationManager: NSObject, ObservableObject {
             }
 
             let content = UNMutableNotificationContent()
-            content.title = "填写今天的 UT"
-            content.body = "今天的工作 UT 还没确认，记得补一下。"
+            if isWeekend {
+                content.title = "本周 UT 还没到 70%"
+                content.body = "这周还没达到 \(targetHoursText)h，周末再确认并补录本周 UT。"
+            } else {
+                content.title = "填写今天的 UT"
+                content.body = "今天的工作 UT 还没确认，记得补一下。"
+            }
             content.sound = .default
 
             let request = UNNotificationRequest(
@@ -173,6 +183,18 @@ final class UTNotificationManager: NSObject, ObservableObject {
         entries.contains { calendar.isDate($0.date, inSameDayAs: date) }
     }
 
+    private func shouldScheduleWeekendReminder(on date: Date, within entries: [UTEntry]) -> Bool {
+        guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: date) else {
+            return true
+        }
+
+        let totalHours = entries
+            .filter { weekInterval.contains($0.date) }
+            .reduce(0) { $0 + $1.hours }
+
+        return totalHours < UTTrackerMetrics.targetHours
+    }
+
     private func loadEntries() -> [UTEntry] {
         guard let data = userDefaults.data(forKey: UTTrackerStorage.entriesKey),
               let storedEntries = try? JSONDecoder().decode([UTEntry].self, from: data) else {
@@ -188,6 +210,15 @@ final class UTNotificationManager: NSObject, ObservableObject {
         let month = components.month ?? 0
         let day = components.day ?? 0
         return "\(dailyReminderPrefix)\(year)-\(month)-\(day)"
+    }
+
+    private var targetHoursText: String {
+        let hours = UTTrackerMetrics.targetHours
+        if hours.rounded() == hours {
+            return String(Int(hours))
+        }
+
+        return String(format: "%.1f", hours)
     }
 
     private func removeManagedPendingRequests() async {

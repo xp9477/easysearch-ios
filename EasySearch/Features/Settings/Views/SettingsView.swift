@@ -3,7 +3,6 @@ import SwiftUI
 /// 设置页面 - 提供配置刷新功能
 struct SettingsView: View {
     @ObservedObject var viewModel: SearchViewModel
-    @Environment(\.dismiss) private var dismiss
     @StateObject private var cloudViewModel = HiddenCloudSyncViewModel.shared
     @State private var cloudEmail = ""
     @State private var cloudPassword = ""
@@ -145,37 +144,10 @@ struct SettingsView: View {
                     }
                 } header: {
                     Text("云端同步")
-                } footer: {
-                    Text("这里会同步 javdb 的喜欢影片与播放点，以及 4khd 的喜欢 album / 图片。")
-                }
-
-                // MARK: - 配置来源
-                Section {
-                    Link(destination: URL(string: "https://github.com/xp9477/easy-search")!) {
-                        HStack {
-                            Label("GitHub 仓库", systemImage: "link")
-                            Spacer()
-                            Image(systemName: "arrow.up.right.square")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } header: {
-                    Text("关于")
-                } footer: {
-                    Text("配置来源: xp9477/easy-search")
                 }
             }
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("完成") {
-                        dismiss()
-                    }
-                    .fontWeight(.medium)
-                }
-            }
             .alert("刷新成功", isPresented: $viewModel.refreshSuccess) {
                 Button("好的", role: .cancel) {}
             } message: {

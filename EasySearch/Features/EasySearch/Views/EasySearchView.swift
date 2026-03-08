@@ -1,107 +1,57 @@
 import SwiftUI
 
-/// 主界面 - EasySearch
 struct EasySearchView: View {
-    @StateObject private var viewModel = SearchViewModel()
-    @State private var showSettings = false
+    @ObservedObject var viewModel: SearchViewModel
+    @FocusState private var isSearchFieldFocused: Bool
+    @State private var didAutofocusOnLaunch = false
 
     var body: some View {
-        ZStack {
-            // 背景渐变
-            LinearGradient(
-                colors: [
-                    Color(.systemBackground),
-                    Color.accentColor.opacity(0.05),
-                    Color.accentColor.opacity(0.08)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-
+        NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
-                    // MARK: - Header
-                    headerView
-                        .padding(.top, 20)
+                VStack(alignment: .leading, spacing: 16) {
+                    SearchBar(text: $viewModel.searchQuery, isFocused: $isSearchFieldFocused)
 
-                    // MARK: - Search Bar
-                    SearchBar(text: $viewModel.searchQuery)
-                        .padding(.horizontal)
-
-                    // MARK: - Category Tabs
-                    CategoryTabBar(selectedCategory: $viewModel.selectedCategory)
-                        .padding(.horizontal)
-
-                    // MARK: - Engine Grid
-                    EngineGridView(
-                        engines: viewModel.filteredEngines,
-                        isEnabled: viewModel.hasValidQuery
-                    ) { engine in
-                        viewModel.performSearch(engine: engine)
+                    Picker("分类", selection: $viewModel.selectedCategory) {
+                        ForEach(SearchCategory.allCases, id: \.self) { category in
+                            Text(category.displayName).tag(category)
+                        }
                     }
-                    .padding(.horizontal)
+                    .pickerStyle(.segmented)
 
-                    // MARK: - Footer
-                    footerView
-                        .padding(.top, 20)
-                        .padding(.bottom, 40)
+                    EngineGridView(
+                        engines: viewModel.filteredEngines
+                    ) { engine in
+                        if viewModel.hasValidQuery {
+                            viewModel.performSearch(engine: engine)
+                        } else {
+                            isSearchFieldFocused = true
+                        }
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 24)
             }
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .navigationTitle("搜索")
+            .navigationBarTitleDisplayMode(.large)
             .scrollDismissesKeyboard(.interactively)
-        }
-        .overlay(alignment: .topTrailing) {
-            settingsButton
-        }
-        .sheet(isPresented: $showSettings) {
-            SettingsView(viewModel: viewModel)
-        }
-    }
-
-    // MARK: - Sub Views
-
-    private var headerView: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 0) {
-                Text("Easy")
-                    .font(.system(size: 42, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
-                Text("Search")
-                    .font(.system(size: 42, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.accentColor)
+            .onAppear {
+                autofocusSearchFieldIfNeeded()
             }
-
-            Text("一键搜索多个平台")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
         }
     }
 
-    private var settingsButton: some View {
-        Button {
-            showSettings = true
-        } label: {
-            Image(systemName: "gearshape.fill")
-                .font(.system(size: 16))
-                .foregroundStyle(.secondary)
-                .padding(12)
-                .background(
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
-                )
-        }
-        .padding(.trailing, 16)
-        .padding(.top, 8)
-    }
+    private func autofocusSearchFieldIfNeeded() {
+        guard !didAutofocusOnLaunch else { return }
+        didAutofocusOnLaunch = true
 
-    private var footerView: some View {
-        Text("Search across multiple platforms with one click")
-            .font(.footnote)
-            .foregroundStyle(.tertiary)
+        DispatchQueue.main.async {
+            isSearchFieldFocused = true
+        }
     }
 }
 
 #Preview {
-    EasySearchView()
+    EasySearchView(viewModel: SearchViewModel())
 }

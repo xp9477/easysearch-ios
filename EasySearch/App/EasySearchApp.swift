@@ -4,13 +4,11 @@ import SwiftUI
 struct EasySearchApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var registry = FeatureRegistry()
-    @StateObject private var router = AppRouter(initialDestination: "easysearch")
 
     var body: some Scene {
         WindowGroup {
-            DashboardView()
+            AppShellView()
                 .environmentObject(registry)
-                .environmentObject(router)
                 .tint(Color(red: 0.24, green: 0.47, blue: 0.96)) // EasySearch 蓝色主题
                 .task {
                     await UTNotificationManager.shared.configure()
@@ -23,5 +21,29 @@ struct EasySearchApp: App {
                     }
                 }
         }
+    }
+}
+
+private struct AppShellView: View {
+    @StateObject private var searchViewModel = SearchViewModel()
+
+    var body: some View {
+        TabView {
+            EasySearchView(viewModel: searchViewModel)
+                .tabItem {
+                    Label("搜索", systemImage: "magnifyingglass")
+                }
+
+            DashboardView()
+                .tabItem {
+                    Label("模块", systemImage: "square.grid.2x2")
+                }
+
+            SettingsView(viewModel: searchViewModel)
+                .tabItem {
+                    Label("设置", systemImage: "gearshape")
+                }
+        }
+        .appTabBarBehavior()
     }
 }

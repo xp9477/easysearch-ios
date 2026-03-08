@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EasySearch Figma Search Rethink</title>
+  <style>
+    :root {
+      --bg: #ede8de;
+      --bg-deep: #dfd8cb;
+      --surface: rgba(255, 255, 255, 0.76);
+      --surface-strong: rgba(255, 255, 255, 0.94);
+      --surface-soft: rgba(255, 255, 255, 0.5);
+      --line: rgba(24, 27, 31, 0.08);
+      --line-strong: rgba(24, 27, 31, 0.14);
+      --text: #171b21;
+      --muted: #6b7480;
+      --shadow: 0 22px 60px rgba(38, 30, 22, 0.12);
+      --blue: #3f6dff;
+      --red: #ff5d47;
+      --green: #1ea57a;
+      --orange: #ef8b1e;
+      --ink: #1f2430;
+      --radius-xl: 28px;
+      --radius-lg: 22px;
+      --radius-md: 18px;
+      --radius-sm: 14px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "SF Pro Display", "PingFang SC", "Noto Sans SC", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.55), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(190, 182, 165, 0.42), transparent 30%),
+        linear-gradient(180deg, var(--bg) 0%, #e8e2d7 100%);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .stage {
+      position: relative;
+      width: min(1240px, 100vw);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+    }
+
+    .halo {
+      position: absolute;
+      inset: auto auto 8% 8%;
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(64, 106, 255, 0.18) 0%, rgba(64, 106, 255, 0) 72%);
+      filter: blur(8px);
+      pointer-events: none;
+    }
+
+    .halo.secondary {
+      inset: 4% 10% auto auto;
+      width: 300px;
+      height: 300px;
+      background: radial-gradient(circle, rgba(239, 139, 30, 0.14) 0%, rgba(239, 139, 30, 0) 74%);
+    }
+
+    .phone {
+      width: 430px;
+      height: 932px;
+      border-radius: 42px;
+      padding: 14px;
+      background: linear-gradient(180deg, rgba(18, 21, 26, 0.12), rgba(255, 255, 255, 0.38));
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    .screen {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 30px;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 18%),
+        linear-gradient(180deg, #f6f2ea 0%, #eee8dd 100%);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+    }
+
+    .screen::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(30, 36, 42, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(30, 36, 42, 0.02) 1px, transparent 1px);
+      background-size: 20px 20px;
+      pointer-events: none;
+    }
+
+    .notch {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 126px;
+      height: 34px;
+      border-radius: 999px;
+      background: #101215;
+      z-index: 3;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      padding: 18px 18px 26px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 4px 20px;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .status-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--ink);
+    }
+
+    .signal {
+      display: flex;
+      gap: 3px;
+      align-items: end;
+    }
+
+    .signal span {
+      width: 4px;
+      border-radius: 999px;
+      background: currentColor;
+    }
+
+    .signal span:nth-child(1) { height: 7px; opacity: 0.45; }
+    .signal span:nth-child(2) { height: 10px; opacity: 0.6; }
+    .signal span:nth-child(3) { height: 13px; opacity: 0.75; }
+    .signal span:nth-child(4) { height: 16px; }
+
+    .hero {
+      display: grid;
+      gap: 16px;
+      margin-top: 6px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-transform: uppercase;
+      backdrop-filter: blur(14px);
+    }
+
+    .eyebrow-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--blue);
+      box-shadow: 0 0 0 5px rgba(63, 109, 255, 0.12);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 38px;
+      line-height: 1;
+      letter-spacing: -0.06em;
+    }
+
+    .hero-subtitle {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.5;
+      color: var(--muted);
+      max-width: 300px;
+    }
+
+    .search-box {
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 18px;
+      border-radius: var(--radius-lg);
+      background: var(--surface-strong);
+      border: 1px solid rgba(255, 255, 255, 0.92);
+      box-shadow: 0 10px 24px rgba(63, 49, 34, 0.08);
+      backdrop-filter: blur(20px);
+    }
+
+    .search-icon {
+      width: 22px;
+      height: 22px;
+      flex: 0 0 auto;
+      color: var(--blue);
+    }
+
+    .search-placeholder {
+      flex: 1;
+      font-size: 18px;
+      font-weight: 600;
+      color: rgba(23, 27, 33, 0.32);
+      letter-spacing: -0.03em;
+    }
+
+    .search-keycap {
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(23, 27, 33, 0.06);
+      border: 1px solid rgba(23, 27, 33, 0.08);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .category-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 2px;
+      overflow: hidden;
+    }
+
+    .category-pill {
+      border: 0;
+      background: rgba(255, 255, 255, 0.54);
+      color: var(--muted);
+      padding: 12px 16px;
+      min-width: 78px;
+      border-radius: 999px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      transition: 180ms ease;
+      backdrop-filter: blur(12px);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+      cursor: pointer;
+    }
+
+    .category-pill.active {
+      color: var(--text);
+      background: var(--surface-strong);
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.9),
+        0 8px 20px rgba(52, 43, 30, 0.08);
+    }
+
+    .section {
+      margin-top: 24px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .section-meta {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .featured-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .engine-card {
+      position: relative;
+      min-height: 132px;
+      padding: 16px;
+      border-radius: 26px;
+      background: var(--surface-strong);
+      border: 1px solid rgba(255, 255, 255, 0.92);
+      box-shadow: 0 18px 30px rgba(41, 33, 24, 0.08);
+      overflow: hidden;
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .engine-card::before {
+      content: "";
+      position: absolute;
+      inset: auto -8% -26% auto;
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 72%);
+    }
+
+    .engine-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 22px 34px rgba(41, 33, 24, 0.11);
+    }
+
+    .engine-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .engine-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      font-weight: 900;
+      color: white;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+    }
+
+    .engine-arrow {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.6);
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.84);
+      color: var(--ink);
+      font-size: 18px;
+    }
+
+    .engine-body {
+      margin-top: 36px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .engine-name {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.05em;
+    }
+
+    .engine-tag {
+      width: fit-content;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(23, 27, 33, 0.06);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .compact-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .compact-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.66);
+      border: 1px solid rgba(255, 255, 255, 0.84);
+      backdrop-filter: blur(12px);
+    }
+
+    .compact-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .compact-name {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .compact-type {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .spacer {
+      flex: 1;
+    }
+
+    .tab-bar-wrap {
+      display: grid;
+      place-items: center;
+      padding-top: 14px;
+    }
+
+    .tab-bar {
+      width: 244px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.84);
+      box-shadow: 0 18px 28px rgba(36, 29, 20, 0.08);
+      backdrop-filter: blur(18px);
+    }
+
+    .tab-item {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      gap: 5px;
+      padding: 10px 0 8px;
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .tab-item.active {
+      color: var(--blue);
+      background: rgba(63, 109, 255, 0.11);
+    }
+
+    .tab-icon {
+      width: 18px;
+      height: 18px;
+      opacity: 0.95;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="halo"></div>
+    <div class="halo secondary"></div>
+
+    <div class="phone">
+      <div class="screen">
+        <div class="notch"></div>
+
+        <div class="content">
+          <div class="status-bar">
+            <span>20:16</span>
+            <div class="status-right">
+              <div class="signal" aria-hidden="true">
+                <span></span><span></span><span></span><span></span>
+              </div>
+              <span>5G</span>
+              <span>87%</span>
+            </div>
+          </div>
+
+          <section class="hero">
+            <div class="eyebrow">
+              <span class="eyebrow-dot"></span>
+              <span>EasySearch Search</span>
+            </div>
+
+            <div>
+              <h1>搜索</h1>
+              <p class="hero-subtitle">把搜索做成一个启动器。输入内容，然后直接点进最顺手的平台。</p>
+            </div>
+
+            <label class="search-box">
+              <svg class="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z" stroke="currentColor" stroke-width="2"></path>
+                <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+              </svg>
+              <span class="search-placeholder">输入你要搜索的内容</span>
+              <span class="search-keycap">Enter</span>
+              <span class="visually-hidden">搜索</span>
+            </label>
+
+            <div class="category-row" id="categoryRow"></div>
+          </section>
+
+          <section class="section">
+            <div class="section-header">
+              <span class="section-title">优先入口</span>
+              <span class="section-meta" id="featuredMeta">4 个</span>
+            </div>
+            <div class="featured-grid" id="featuredGrid"></div>
+          </section>
+
+          <section class="section">
+            <div class="section-header">
+              <span class="section-title">更多平台</span>
+              <span class="section-meta" id="compactMeta">4 个</span>
+            </div>
+            <div class="compact-grid" id="compactGrid"></div>
+          </section>
+
+          <div class="spacer"></div>
+
+          <div class="tab-bar-wrap">
+            <div class="tab-bar">
+              <div class="tab-item active">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z" stroke="currentColor" stroke-width="2"></path>
+                  <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                </svg>
+                <span>搜索</span>
+              </div>
+              <div class="tab-item">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <rect x="3" y="3" width="8" height="8" rx="2"></rect>
+                  <rect x="13" y="3" width="8" height="8" rx="2"></rect>
+                  <rect x="3" y="13" width="8" height="8" rx="2"></rect>
+                  <rect x="13" y="13" width="8" height="8" rx="2"></rect>
+                </svg>
+                <span>模块</span>
+              </div>
+              <div class="tab-item">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M19.4 13a7.7 7.7 0 0 0 .1-1 7.7 7.7 0 0 0-.1-1l2.1-1.6a.5.5 0 0 0 .1-.6l-2-3.5a.5.5 0 0 0-.6-.2L16.5 6a8.5 8.5 0 0 0-1.7-1L14.5 2.5a.5.5 0 0 0-.5-.4h-4a.5.5 0 0 0-.5.4L9.2 5a8.5 8.5 0 0 0-1.7 1L5 4.9a.5.5 0 0 0-.6.2l-2 3.5a.5.5 0 0 0 .1.6L4.6 11a7.7 7.7 0 0 0-.1 1 7.7 7.7 0 0 0 .1 1l-2.1 1.6a.5.5 0 0 0-.1.6l2 3.5a.5.5 0 0 0 .6.2l2.5-1.1a8.5 8.5 0 0 0 1.7 1l.3 2.5a.5.5 0 0 0 .5.4h4a.5.5 0 0 0 .5-.4l.3-2.5a8.5 8.5 0 0 0 1.7-1l2.5 1.1a.5.5 0 0 0 .6-.2l2-3.5a.5.5 0 0 0-.1-.6L19.4 13Zm-7.4 2.4a3.4 3.4 0 1 1 0-6.8 3.4 3.4 0 0 1 0 6.8Z"></path>
+                </svg>
+                <span>设置</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const categories = [
+      {
+        key: "search",
+        label: "搜索",
+        featured: [
+          { name: "Google", badge: "G", type: "网页", color: "#3f6dff" },
+          { name: "百度", badge: "B", type: "网页", color: "#3d89ff" },
+          { name: "小红书", badge: "红", type: "App", color: "#ff5d47" },
+          { name: "GitHub", badge: "GH", type: "网页", color: "#2a2f39" }
+        ],
+        compact: [
+          { name: "抖音", badge: "抖", type: "App", color: "#0f1218" },
+          { name: "YouTube", badge: "YT", type: "网页", color: "#ff3b30" },
+          { name: "Bilibili", badge: "B", type: "App", color: "#1d9bf0" },
+          { name: "知乎", badge: "知", type: "网页", color: "#2377ff" }
+        ]
+      },
+      {
+        key: "ai",
+        label: "AI",
+        featured: [
+          { name: "ChatGPT", badge: "AI", type: "App", color: "#1ea57a" },
+          { name: "DeepSeek", badge: "DS", type: "App", color: "#2667ff" }
+        ],
+        compact: []
+      },
+      {
+        key: "fun",
+        label: "娱乐",
+        featured: [
+          { name: "MoviePilot", badge: "MP", type: "网页", color: "#ff6a3d" },
+          { name: "Zlibrary", badge: "Z", type: "网页", color: "#3350ff" },
+          { name: "Music", badge: "M", type: "App", color: "#ef476f" },
+          { name: "Appstorrent", badge: "AT", type: "网页", color: "#1f2430" }
+        ],
+        compact: [
+          { name: "MP-JJ专用", badge: "JJ", type: "网页", color: "#7a5cff" }
+        ]
+      },
+      {
+        key: "shop",
+        label: "购物",
+        featured: [
+          { name: "淘宝", badge: "淘", type: "App", color: "#ef8b1e" },
+          { name: "京东", badge: "京", type: "App", color: "#ff4b3a" },
+          { name: "拼多多", badge: "拼", type: "App", color: "#ff245d" },
+          { name: "闲鱼", badge: "鱼", type: "App", color: "#f4b321" }
+        ],
+        compact: []
+      }
+    ];
+
+    const categoryRow = document.getElementById("categoryRow");
+    const featuredGrid = document.getElementById("featuredGrid");
+    const compactGrid = document.getElementById("compactGrid");
+    const featuredMeta = document.getElementById("featuredMeta");
+    const compactMeta = document.getElementById("compactMeta");
+
+    let activeKey = "search";
+
+    function renderCategories() {
+      categoryRow.innerHTML = "";
+      categories.forEach((category) => {
+        const button = document.createElement("button");
+        button.className = `category-pill${category.key === activeKey ? " active" : ""}`;
+        button.textContent = category.label;
+        button.addEventListener("click", () => {
+          activeKey = category.key;
+          renderCategories();
+          renderEngines();
+        });
+        categoryRow.appendChild(button);
+      });
+    }
+
+    function featuredCard(engine) {
+      return `
+        <article class="engine-card">
+          <div class="engine-card-head">
+            <div class="engine-mark" style="background:${engine.color}">${engine.badge}</div>
+            <div class="engine-arrow">↗</div>
+          </div>
+          <div class="engine-body">
+            <div class="engine-name">${engine.name}</div>
+            <div class="engine-tag">${engine.type}</div>
+          </div>
+        </article>
+      `;
+    }
+
+    function compactCard(engine) {
+      return `
+        <article class="compact-card">
+          <div class="compact-mark" style="background:${engine.color}">${engine.badge}</div>
+          <div class="compact-name">${engine.name}</div>
+          <div class="compact-type">${engine.type}</div>
+        </article>
+      `;
+    }
+
+    function renderEngines() {
+      const current = categories.find((category) => category.key === activeKey);
+      featuredGrid.innerHTML = current.featured.map(featuredCard).join("");
+      compactGrid.innerHTML = current.compact.map(compactCard).join("");
+      featuredMeta.textContent = `${current.featured.length} 个`;
+      compactMeta.textContent = current.compact.length > 0 ? `${current.compact.length} 个` : "已收起";
+      compactGrid.style.display = current.compact.length > 0 ? "grid" : "none";
+    }
+
+    renderCategories();
+    renderEngines();
+  </script>
+</body>
+</html>

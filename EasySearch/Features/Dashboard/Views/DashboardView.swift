@@ -5,94 +5,71 @@ import AVFoundation
 import Security
 
 public struct DashboardView: View {
-    @EnvironmentObject var registry: FeatureRegistry
-    @EnvironmentObject var router: AppRouter
-    @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var registry: FeatureRegistry
+    @State private var path = NavigationPath()
     @State private var dashboardTapCount = 0
-    @State private var hiddenSpaceSessionActive = false
-
-    private let hiddenSpaceRoute = "__hidden_space__"
+    @State private var hiddenModulesUnlocked = false
 
     public init() {}
 
     public var body: some View {
-        NavigationStack(path: $router.path) {
+        NavigationStack(path: $path) {
             List {
-                Section {
-                    ForEach(Array(registry.features.enumerated()), id: \.element.id) { index, feature in
-                        NavigationLink(value: feature.id) {
-                            FeatureRow(
-                                feature: feature,
-                                descriptionText: featureDescription(for: feature),
-                                isPrimary: index == 0
-                            )
+                if availableFeatures.isEmpty {
+                    Section {
+                        Label("暂无模块", systemImage: "square.grid.2x2")
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Section {
+                        ForEach(availableFeatures, id: \.id) { feature in
+                            NavigationLink(value: feature.id) {
+                                FeatureRow(feature: feature)
+                            }
                         }
                     }
-                } header: {
-                    Text("常用空间")
-                } footer: {
-                    Text("点击进入对应模块。")
                 }
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(Color(.systemGroupedBackground))
+            .navigationTitle("模块")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("Dashboard")
+                    Text("模块")
                         .font(.headline)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            dashboardTapCount += 1
-                            if dashboardTapCount >= 15 {
-                                dashboardTapCount = 0
-                                hiddenSpaceSessionActive = true
-                                router.navigate(to: hiddenSpaceRoute)
-                            }
+                            unlockHiddenModulesIfNeeded()
                         }
                 }
             }
             .navigationDestination(for: String.self) { featureId in
-                if featureId == hiddenSpaceRoute {
-                    HiddenSpaceView()
-                } else if let feature = registry.features.first(where: { $0.id == featureId }) {
+                if let feature = registry.features.first(where: { $0.id == featureId }) {
                     feature.entryView
                         .navigationBarTitleDisplayMode(.inline)
                 } else {
-                    Text("Feature not found")
-                }
-            }
-            .onChange(of: scenePhase) { phase in
-                guard phase == .background, hiddenSpaceSessionActive else { return }
-                router.popToRoot()
-                hiddenSpaceSessionActive = false
-                dashboardTapCount = 0
-            }
-            .onChange(of: router.path.count) { count in
-                if count == 0 {
-                    hiddenSpaceSessionActive = false
+                    Text("模块不存在")
+                        .foregroundStyle(.secondary)
                 }
             }
         }
     }
 
-    private func featureDescription(for feature: any AppFeature) -> String {
-        switch feature.id {
-        case "easysearch":
-            return "输入一次关键词，快速跳转到常用搜索平台。"
-        case "uttracker":
-            return "记录每周 UT，查看 70% 目标和 100% 满额进度。"
-        case "utilities":
-            return "收纳后续扩展的小工具。"
-        default:
-            return "进入 \(feature.title)"
-        }
+    private func unlockHiddenModulesIfNeeded() {
+        dashboardTapCount += 1
+        guard dashboardTapCount >= 12 else { return }
+        dashboardTapCount = 0
+        hiddenModulesUnlocked = true
     }
 
+    private var availableFeatures: [any AppFeature] {
+        if hiddenModulesUnlocked {
+            return registry.moduleListFeatures + registry.hiddenFeatures
+        }
+        return registry.moduleListFeatures
+    }
 }
 
-private struct HiddenSpaceView: View {
+struct HiddenSpaceView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -1387,14 +1364,12 @@ private struct AlbumThumbImage: View {
 
 private struct FeatureRow: View {
     let feature: any AppFeature
-    let descriptionText: String
-    let isPrimary: Bool
 
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(feature.color.opacity(isPrimary ? 0.18 : 0.12))
+                    .fill(feature.color.opacity(0.12))
                     .frame(width: 44, height: 44)
 
                 Image(systemName: feature.iconName)
@@ -1403,25 +1378,11 @@ private struct FeatureRow: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(feature.title)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.primary)
+                Text(feature.title)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.primary)
 
-                    if isPrimary {
-                        Text("常用")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(feature.color)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                Capsule()
-                                    .fill(feature.color.opacity(0.12))
-                            )
-                    }
-                }
-
-                Text(descriptionText)
+                Text(feature.summary)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
