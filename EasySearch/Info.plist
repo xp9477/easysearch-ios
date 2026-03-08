@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>xhsdiscover</string>
+		<string>snssdk1128</string>
+		<string>bilibili</string>
+		<string>chatgpt</string>
+		<string>deepseek-chat</string>
+		<string>taobao</string>
+		<string>openjd</string>
+		<string>pinduoduo</string>
+		<string>fleamarket</string>
+		<string>itmss</string>
+	</array>
+	<key>SUPABASE_PUBLISHABLE_KEY</key>
+	<string>sb_publishable_REDACTED</string>
+	<key>SUPABASE_SCHEMA</key>
+	<string>easysearch</string>
+	<key>SUPABASE_URL</key>
+	<string>https://REDACTED.supabase.co</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+	</dict>
+	<key>UILaunchScreen</key>
+	<dict/>
+</dict>
+</plist>

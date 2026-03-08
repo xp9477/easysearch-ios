@@ -1,0 +1,107 @@
+[
+  {
+    "name": "百度",
+    "url": "https://www.baidu.com/s?wd={query}",
+    "category": "搜索"
+  },
+  {
+    "name": "Google",
+    "url": "https://www.google.com/search?q={query}",
+    "category": "搜索"
+  },
+  {
+    "name": "小红书",
+    "url": "https://www.xiaohongshu.com/search_result?keyword={query}&source=web_search_result_notes",
+    "url_scheme": "xhsdiscover://search/result?keyword={query}",
+    "category": "搜索"
+  },
+  {
+    "name": "抖音",
+    "url": "https://www.douyin.com/search/{query}",
+    "url_scheme": "snssdk1128://search/tabs?keyword={query}",
+    "category": "搜索"
+  },
+  {
+    "name": "YouTube",
+    "url": "https://www.youtube.com/results?search_query={query}",
+    "category": "搜索"
+  },
+  {
+    "name": "Bilibili",
+    "url": "https://search.bilibili.com/all?keyword={query}",
+    "url_scheme": "bilibili://search?keyword={query}",
+    "category": "搜索"
+  },
+  {
+    "name": "GitHub",
+    "url": "https://github.com/search?q={query}",
+    "category": "搜索"
+  },
+  {
+    "name": "知乎",
+    "url": "https://www.zhihu.com/search?type=content&q={query}",
+    "category": "搜索"
+  },
+  {
+    "name": "ChatGPT",
+    "url": "https://chat.openai.com/?model=gpt-4o&q={query}",
+    "url_scheme": "chatgpt://chat.openai.com/?model=gpt-4o&q={query}",
+    "category": "AI"
+  },
+  {
+    "name": "DeepSeek",
+    "url": "https://chat.deepseek.com/?q={query}",
+    "url_scheme": "deepseek-chat://query?text={query}",
+    "category": "AI"
+  },
+  {
+    "name": "淘宝",
+    "url": "https://s.taobao.com/search?q={query}",
+    "url_scheme": "taobao://s.taobao.com?q={query}",
+    "category": "购物"
+  },
+  {
+    "name": "京东",
+    "url": "https://search.jd.com/Search?keyword={query}",
+    "url_scheme": "openjd://virtual?params={\"des\":\"productList\", \"keyWord\":\"{query}\", \"from\":\"search\", \"category\":\"jump\"}",
+    "category": "购物"
+  },
+  {
+    "name": "拼多多",
+    "url": "https://mobile.yangkeduo.com/search_result.html?search_key={query}",
+    "url_scheme": "pinduoduo://com.xunmeng.pinduoduo/search_result.html?search_key={query}",
+    "category": "购物"
+  },
+  {
+    "name": "闲鱼",
+    "url": "https://www.goofish.com/search?q={query}",
+    "url_scheme": "fleamarket://search_items?keyword={query}",
+    "category": "购物"
+  },
+  {
+    "name": "Zlibrary",
+    "url": "https://zh.zlib.by/s/{query}?",
+    "category": "娱乐"
+  },
+  {
+    "name": "Appstorrent",
+    "url": "https://appstorrent.ru/?story={query}&do=search&subaction=search",
+    "category": "娱乐"
+  },
+  {
+    "name": "MoviePilot",
+    "url": "https://mp.990226.xyz:50443/#/browse/media/search?title={query}&type=media",
+    "category": "娱乐"
+  },
+  {
+    "name": "MP-JJ专用",
+    "url": "https://mpjj.iepose.cn/#/browse/media/search?title={query}&type=media",
+    "category": "娱乐"
+  },
+  {
+    "name": "Music",
+    "url": "itmss://itunes.apple.com/search?term={query}",
+    "url_scheme": "itmss://itunes.apple.com/search?term={query}",
+    "category": "娱乐"
+  }
+]
