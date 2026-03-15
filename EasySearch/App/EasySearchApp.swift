@@ -13,11 +13,13 @@ struct EasySearchApp: App {
                 .task {
                     await UTNotificationManager.shared.configure()
                     await UTNotificationManager.shared.refreshSchedulesIfAuthorized()
+                    await HiddenCloudSyncViewModel.shared.prepareIfNeeded()
                 }
                 .onChange(of: scenePhase) { phase in
                     guard phase == .active else { return }
                     Task {
                         await UTNotificationManager.shared.refreshStateAndSchedules()
+                        await HiddenCloudSyncViewModel.shared.syncIfPossible()
                     }
                 }
         }
@@ -25,25 +27,38 @@ struct EasySearchApp: App {
 }
 
 private struct AppShellView: View {
+    private enum AppTab: Hashable {
+        case search
+        case dashboard
+        case settings
+    }
+
     @StateObject private var searchViewModel = SearchViewModel()
+    @State private var selectedTab: AppTab = .search
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             EasySearchView(viewModel: searchViewModel)
+                .tag(AppTab.search)
                 .tabItem {
                     Label("搜索", systemImage: "magnifyingglass")
                 }
 
-            DashboardView()
+            DashboardView(isTabActive: selectedTab == .dashboard)
+                .tag(AppTab.dashboard)
                 .tabItem {
                     Label("模块", systemImage: "square.grid.2x2")
                 }
 
-            SettingsView(viewModel: searchViewModel)
+            SettingsView()
+                .tag(AppTab.settings)
                 .tabItem {
                     Label("设置", systemImage: "gearshape")
                 }
         }
         .appTabBarBehavior()
+        .task {
+            await searchViewModel.refreshConfigIfNeededOnLaunch()
+        }
     }
 }

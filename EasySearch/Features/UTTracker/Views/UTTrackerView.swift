@@ -34,7 +34,6 @@ public struct UTTrackerView: View {
     private var overviewCard: some View {
         let summary = viewModel.currentWeekSummary
         let exceededTargetHours = max(0, summary.totalHours - UTTrackerMetrics.targetHours)
-        let weeklyProgressPercent = summary.totalHours / UTTrackerMetrics.fullWeekHours
 
         return VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
@@ -52,7 +51,7 @@ public struct UTTrackerView: View {
             }
 
             HStack(alignment: .lastTextBaseline, spacing: 8) {
-                Text(percentText(for: weeklyProgressPercent))
+                Text(percentText(for: summary.fullWeekProgress))
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
 

@@ -3,14 +3,21 @@ import WebKit
 import AVKit
 import AVFoundation
 import Security
+import UIKit
 
 public struct DashboardView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var registry: FeatureRegistry
+    private let isTabActive: Bool
     @State private var path = NavigationPath()
+    @State private var navigationStackIdentity = UUID()
     @State private var dashboardTapCount = 0
     @State private var hiddenModulesUnlocked = false
+    @State private var selectedFeatureID: String?
 
-    public init() {}
+    public init(isTabActive: Bool = true) {
+        self.isTabActive = isTabActive
+    }
 
     public var body: some View {
         NavigationStack(path: $path) {
@@ -46,11 +53,34 @@ public struct DashboardView: View {
                 if let feature = registry.features.first(where: { $0.id == featureId }) {
                     feature.entryView
                         .navigationBarTitleDisplayMode(.inline)
+                        .onAppear {
+                            selectedFeatureID = featureId
+                        }
                 } else {
                     Text("模块不存在")
                         .foregroundStyle(.secondary)
                 }
             }
+        }
+        .id(navigationStackIdentity)
+        .overlay {
+            if scenePhase != .active && shouldMaskHiddenFeatures {
+                Color(.systemGroupedBackground)
+                    .ignoresSafeArea()
+            }
+        }
+        .onChange(of: scenePhase) { phase in
+            guard phase != .active else { return }
+            lockHiddenModulesForPrivacyIfNeeded()
+        }
+        .onChange(of: path.count) { count in
+            if count == 0 {
+                collapseHiddenSpaceAfterExitIfNeeded()
+            }
+        }
+        .onChange(of: isTabActive) { isActive in
+            guard !isActive else { return }
+            collapseHiddenSpaceOnTabLeaveIfNeeded()
         }
     }
 
@@ -66,6 +96,50 @@ public struct DashboardView: View {
             return registry.moduleListFeatures + registry.hiddenFeatures
         }
         return registry.moduleListFeatures
+    }
+
+    private var hiddenFeatureIDs: Set<String> {
+        Set(registry.hiddenFeatures.map { $0.id })
+    }
+
+    private var shouldMaskHiddenFeatures: Bool {
+        hiddenModulesUnlocked || isInsideHiddenFeature
+    }
+
+    private var isInsideHiddenFeature: Bool {
+        guard let selectedFeatureID else { return false }
+        return hiddenFeatureIDs.contains(selectedFeatureID)
+    }
+
+    private func lockHiddenModulesForPrivacyIfNeeded() {
+        guard shouldMaskHiddenFeatures else { return }
+        dashboardTapCount = 0
+        hiddenModulesUnlocked = false
+        if isInsideHiddenFeature {
+            selectedFeatureID = nil
+            resetNavigationStack()
+        }
+    }
+
+    private func collapseHiddenSpaceAfterExitIfNeeded() {
+        if isInsideHiddenFeature {
+            dashboardTapCount = 0
+            hiddenModulesUnlocked = false
+        }
+        selectedFeatureID = nil
+    }
+
+    private func collapseHiddenSpaceOnTabLeaveIfNeeded() {
+        guard shouldMaskHiddenFeatures else { return }
+        dashboardTapCount = 0
+        hiddenModulesUnlocked = false
+        selectedFeatureID = nil
+        resetNavigationStack()
+    }
+
+    private func resetNavigationStack() {
+        path = NavigationPath()
+        navigationStackIdentity = UUID()
     }
 }
 
@@ -87,7 +161,12 @@ struct HiddenSpaceView: View {
                 }
                 .buttonStyle(.plain)
 
-                futureFeatureCard
+                NavigationLink {
+                    HiddenMissAVFeatureView()
+                } label: {
+                    missAVFeatureCard
+                }
+                .buttonStyle(.plain)
             }
             .padding(16)
             .padding(.bottom, 18)
@@ -163,19 +242,35 @@ struct HiddenSpaceView: View {
         )
     }
 
-    private var futureFeatureCard: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "sparkles.rectangle.stack")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.secondary)
-            Text("更多隐藏功能可继续叠加到这个空间。")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+    private var missAVFeatureCard: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(.tertiarySystemFill))
+                    .frame(width: 54, height: 54)
+                Image(systemName: "play.square.stack.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.primary)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("MISSAV")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Text("首页直达、番号直达")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
             Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.tertiary)
         }
-        .padding(14)
+        .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(.secondarySystemBackground))
         )
     }
@@ -184,6 +279,7 @@ struct HiddenSpaceView: View {
 private struct Hidden4KHDFeatureView: View {
     @StateObject private var viewModel = HiddenSpaceViewModel()
     @State private var randomMode: HiddenRandomMode = .single
+    @State private var searchQuery = ""
 
     private let randomNineColumns = [
         GridItem(.flexible(), spacing: 8),
@@ -194,6 +290,7 @@ private struct Hidden4KHDFeatureView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                searchAlbumCard
                 randomAlbumCard
 
                 NavigationLink {
@@ -234,6 +331,86 @@ private struct Hidden4KHDFeatureView: View {
                 await viewModel.loadRandomAlbums(mode: mode)
             }
         }
+        .onChange(of: searchQuery) { newValue in
+            if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                viewModel.resetSearchAlbums()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var searchAlbumCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("搜索 album")
+                .font(.headline)
+
+            HStack(spacing: 10) {
+                TextField("输入标题关键词", text: $searchQuery)
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
+                    .submitLabel(.search)
+                    .onSubmit {
+                        performAlbumSearch()
+                    }
+
+                if !searchQuery.isEmpty {
+                    Button {
+                        searchQuery = ""
+                        viewModel.resetSearchAlbums()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button("搜索") {
+                    performAlbumSearch()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.isSearchingAlbums || normalizedSearchQuery.isEmpty)
+            }
+
+            if viewModel.isSearchingAlbums {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("正在搜索...")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            } else if let searchErrorMessage = viewModel.searchAlbumErrorMessage {
+                Text(searchErrorMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if let lastQuery = viewModel.lastSearchedAlbumQuery, !viewModel.searchedAlbums.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("“\(lastQuery)” · \(viewModel.searchedAlbums.count) 个结果")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    LazyVGrid(columns: favoriteAlbumColumns, spacing: 10) {
+                        ForEach(viewModel.searchedAlbums) { album in
+                            NavigationLink {
+                                HiddenAlbumDetailView(album: album, viewModel: viewModel)
+                            } label: {
+                                FavoriteAlbumTile(album: album)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            } else if let lastQuery = viewModel.lastSearchedAlbumQuery {
+                Text("“\(lastQuery)” 没有搜索到内容")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
     }
 
     @ViewBuilder
@@ -354,6 +531,154 @@ private struct Hidden4KHDFeatureView: View {
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(.secondarySystemBackground))
+        )
+    }
+
+    private var normalizedSearchQuery: String {
+        searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var favoriteAlbumColumns: [GridItem] {
+        [
+            GridItem(.flexible(), spacing: 10),
+            GridItem(.flexible(), spacing: 10)
+        ]
+    }
+
+    private func performAlbumSearch() {
+        let query = normalizedSearchQuery
+        guard !query.isEmpty else {
+            viewModel.resetSearchAlbums()
+            return
+        }
+
+        Task {
+            await viewModel.searchAlbums(query: query)
+        }
+    }
+}
+
+struct HiddenMissAVFeatureView: View {
+    @State private var codeQuery = ""
+    @State private var webPageItem: HiddenInAppWebPageItem?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                openHomeCard
+                directCodeCard
+                tipsCard
+            }
+            .padding(16)
+            .padding(.bottom, 18)
+        }
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .navigationTitle("MISSAV")
+        .navigationBarTitleDisplayMode(.inline)
+        .fullScreenCover(item: $webPageItem) { item in
+            HiddenInAppWebPageView(item: item)
+        }
+    }
+
+    private var openHomeCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("站点入口")
+                .font(.headline)
+
+            Text("直接进入 MISSAV 首页，后续在站内继续搜索、筛选和播放。")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                webPageItem = HiddenInAppWebPageItem(
+                    title: "MISSAV",
+                    url: HiddenMissAVModule.homeURL
+                )
+            } label: {
+                Label("进入 MISSAV", systemImage: "safari")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
+    }
+
+    private var directCodeCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("番号直达")
+                .font(.headline)
+
+            HStack(spacing: 10) {
+                TextField("输入番号，例如 ipzz-508", text: $codeQuery)
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
+                    .submitLabel(.go)
+                    .onSubmit {
+                        openCodePageIfPossible()
+                    }
+
+                if !codeQuery.isEmpty {
+                    Button {
+                        codeQuery = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button("打开") {
+                    openCodePageIfPossible()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(normalizedCodeQuery.isEmpty)
+            }
+
+            Text("适合知道完整番号时直接跳转；如果只记得标题，先进入首页再用站内搜索。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
+    }
+
+    private var tipsCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("这里是隐藏空间里的一个子模块，不走 javdb 详情页。", systemImage: "eye.slash")
+            Label("离开隐藏空间、切后台或切到其他 tab 时，会和隐藏空间一起退出。", systemImage: "lock")
+        }
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
+    }
+
+    private var normalizedCodeQuery: String {
+        codeQuery
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "_", with: "-")
+    }
+
+    private func openCodePageIfPossible() {
+        let query = normalizedCodeQuery
+        guard let url = HiddenMissAVModule.pageURL(for: query) else { return }
+
+        webPageItem = HiddenInAppWebPageItem(
+            title: "MISSAV · \(query.uppercased())",
+            url: url
         )
     }
 }
@@ -592,12 +917,17 @@ private final class HiddenSpaceViewModel: ObservableObject {
     @Published var randomAlbums: [HiddenAlbum] = []
     @Published var isLoadingRandomAlbum = false
     @Published var randomErrorMessage: String?
+    @Published var searchedAlbums: [HiddenAlbum] = []
+    @Published var isSearchingAlbums = false
+    @Published var searchAlbumErrorMessage: String?
+    @Published var lastSearchedAlbumQuery: String?
     @Published var favoriteAlbums: [HiddenAlbum] = []
     @Published var favoriteImageURLs: [URL] = []
 
     private var cachedTotalPages: Int?
     private var favoriteAlbumImageCache: [String: [URL]] = [:]
     private var didPrepareCloud = false
+    private var isPreparingCloud = false
     private var isCloudAuthenticated = false
     private let cloudService = HiddenSupabaseService.shared
 
@@ -610,8 +940,10 @@ private final class HiddenSpaceViewModel: ObservableObject {
     }
 
     func prepareCloudIfNeeded() async {
-        guard !didPrepareCloud else { return }
+        guard !didPrepareCloud, !isPreparingCloud else { return }
         didPrepareCloud = true
+        isPreparingCloud = true
+        defer { isPreparingCloud = false }
 
         do {
             guard try await cloudService.restoreSessionIfPossible() != nil else {
@@ -632,7 +964,10 @@ private final class HiddenSpaceViewModel: ObservableObject {
             try await cloudService.upsert4KHDAlbums(favoriteAlbums)
             try await cloudService.upsert4KHDImages(favoriteImageURLs)
         } catch {
-            isCloudAuthenticated = false
+            if error.isHiddenSupabaseAuthFailure {
+                isCloudAuthenticated = false
+            }
+            didPrepareCloud = false
         }
     }
 
@@ -658,6 +993,37 @@ private final class HiddenSpaceViewModel: ObservableObject {
         }
     }
 
+    func searchAlbums(query: String) async {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedQuery.isEmpty else {
+            resetSearchAlbums()
+            return
+        }
+
+        guard !isSearchingAlbums else { return }
+
+        isSearchingAlbums = true
+        searchAlbumErrorMessage = nil
+        lastSearchedAlbumQuery = normalizedQuery
+
+        defer {
+            isSearchingAlbums = false
+        }
+
+        do {
+            searchedAlbums = try await HiddenSpaceAPI.searchAlbums(query: normalizedQuery)
+        } catch {
+            searchedAlbums = []
+            searchAlbumErrorMessage = error.localizedDescription
+        }
+    }
+
+    func resetSearchAlbums() {
+        searchedAlbums = []
+        searchAlbumErrorMessage = nil
+        lastSearchedAlbumQuery = nil
+    }
+
     func toggleFavorite(_ album: HiddenAlbum) {
         let shouldRemove = favoriteAlbums.contains(where: { $0.id == album.id })
         if let index = favoriteAlbums.firstIndex(where: { $0.id == album.id }) {
@@ -677,7 +1043,7 @@ private final class HiddenSpaceViewModel: ObservableObject {
                     try await cloudService.upsert4KHDAlbum(album)
                 }
             } catch {
-                isCloudAuthenticated = false
+                handleCloudMutationError(error)
             }
         }
     }
@@ -707,7 +1073,7 @@ private final class HiddenSpaceViewModel: ObservableObject {
                     try await cloudService.upsert4KHDImage(normalized)
                 }
             } catch {
-                isCloudAuthenticated = false
+                handleCloudMutationError(error)
             }
         }
     }
@@ -727,6 +1093,10 @@ private final class HiddenSpaceViewModel: ObservableObject {
             )
         }
         return (selected, pool)
+    }
+
+    func prefetchImages(_ imageURLs: [URL]) {
+        HiddenImagePipeline.shared.prefetch(imageURLs)
     }
 
     private func fetchRandomAlbums(count: Int) async throws -> [HiddenAlbum] {
@@ -825,6 +1195,13 @@ private final class HiddenSpaceViewModel: ObservableObject {
 
         return merged
     }
+
+    private func handleCloudMutationError(_ error: Error) {
+        if error.isHiddenSupabaseAuthFailure {
+            isCloudAuthenticated = false
+            didPrepareCloud = false
+        }
+    }
 }
 
 private struct HiddenAlbumDetailView: View {
@@ -835,63 +1212,41 @@ private struct HiddenAlbumDetailView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var previewImage: PreviewImage?
+    @State private var imageAspectRatios: [String: CGFloat] = [:]
+    @State private var lastPreviewedIndex: Int?
+    @State private var pendingScrollIndex: Int?
 
-    private let columns = [
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8)
-    ]
+    private let columnCount = 2
+    private let columnSpacing: CGFloat = 10
+    private let itemSpacing: CGFloat = 8
 
     var body: some View {
-        ScrollView {
-            if isLoading {
-                VStack(spacing: 10) {
-                    ProgressView()
-                    Text("正在加载 album 全部图片...")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+        ScrollViewReader { scrollProxy in
+            GeometryReader { proxy in
+                ScrollView {
+                    content(availableWidth: max(proxy.size.width - 24, 0))
                 }
-                .frame(maxWidth: .infinity, minHeight: 220)
-            } else if let errorMessage {
-                VStack(spacing: 10) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(.orange)
-                    Text(errorMessage)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                    Button("重试") {
-                        Task {
-                            await loadImages(force: true)
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                }
-                .frame(maxWidth: .infinity, minHeight: 220)
-            } else {
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(Array(imageURLs.enumerated()), id: \.offset) { index, imageURL in
-                        AlbumGridImageTile(
-                            url: imageURL,
-                            isFavorite: viewModel.isFavoriteImage(imageURL),
-                            onPreview: {
-                                previewImage = PreviewImage(index: index, urls: imageURLs)
-                            },
-                            onToggleFavorite: {
-                                viewModel.toggleFavoriteImage(imageURL)
-                            }
-                        )
-                    }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
+                .onChange(of: pendingScrollIndex) { index in
+                    guard let index else { return }
+                    scrollToImage(index, using: scrollProxy)
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 12)
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    openSlideshow()
+                } label: {
+                    Image(systemName: "play.rectangle.fill")
+                }
+                .disabled(imageURLs.count < 2)
+            }
+
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     viewModel.toggleFavorite(album)
@@ -904,12 +1259,86 @@ private struct HiddenAlbumDetailView: View {
         .task {
             await loadImages(force: false)
         }
-        .fullScreenCover(item: $previewImage) { preview in
+        .fullScreenCover(item: $previewImage, onDismiss: {
+            guard let lastPreviewedIndex else { return }
+            pendingScrollIndex = lastPreviewedIndex
+        }) { preview in
             HiddenImagePreviewView(
                 imageURLs: preview.urls,
                 initialIndex: preview.index,
-                viewModel: viewModel
+                viewModel: viewModel,
+                autoPlaySlideshow: preview.autoPlaySlideshow,
+                onExit: { index in
+                    lastPreviewedIndex = index
+                }
             )
+        }
+    }
+
+    @ViewBuilder
+    private func content(availableWidth: CGFloat) -> some View {
+        if isLoading {
+            VStack(spacing: 10) {
+                ProgressView()
+                Text("正在加载 album 全部图片...")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 220)
+        } else if let errorMessage {
+            VStack(spacing: 10) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(.orange)
+                Text(errorMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Button("重试") {
+                    Task {
+                        await loadImages(force: true)
+                    }
+                }
+                .buttonStyle(.bordered)
+            }
+            .frame(maxWidth: .infinity, minHeight: 220)
+        } else {
+            let layout = waterfallLayout(for: availableWidth)
+
+            HStack(alignment: .top, spacing: columnSpacing) {
+                ForEach(Array(layout.columns.enumerated()), id: \.offset) { _, column in
+                    LazyVStack(spacing: itemSpacing) {
+                        ForEach(column) { item in
+                            AlbumWaterfallImageTile(
+                                url: item.url,
+                                width: layout.columnWidth,
+                                estimatedAspectRatio: estimatedAspectRatio(for: item.url),
+                                isFavorite: viewModel.isFavoriteImage(item.url),
+                                onPreview: {
+                                    lastPreviewedIndex = item.index
+                                    previewImage = PreviewImage(index: item.index, urls: imageURLs)
+                                },
+                                onToggleFavorite: {
+                                    viewModel.toggleFavoriteImage(item.url)
+                                },
+                                onAspectRatioChange: { ratio in
+                                    updateAspectRatio(ratio, for: item.url)
+                                }
+                            )
+                            .id(item.index)
+                        }
+                    }
+                    .frame(width: layout.columnWidth, alignment: .top)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .top)
+        }
+    }
+
+    private func scrollToImage(_ index: Int, using scrollProxy: ScrollViewProxy) {
+        DispatchQueue.main.async {
+            scrollProxy.scrollTo(index, anchor: .center)
+            pendingScrollIndex = nil
         }
     }
 
@@ -927,9 +1356,54 @@ private struct HiddenAlbumDetailView: View {
 
         do {
             imageURLs = try await HiddenSpaceAPI.fetchAlbumImageURLs(albumURL: album.url)
+            viewModel.prefetchImages(Array(imageURLs.prefix(6)))
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func waterfallLayout(for availableWidth: CGFloat) -> HiddenWaterfallLayout {
+        let safeWidth = max(availableWidth, 0)
+        let totalSpacing = columnSpacing * CGFloat(max(columnCount - 1, 0))
+        let columnWidth = max((safeWidth - totalSpacing) / CGFloat(columnCount), 0)
+
+        var columns = Array(repeating: [HiddenWaterfallItem](), count: columnCount)
+        var columnHeights = Array(repeating: CGFloat.zero, count: columnCount)
+
+        for (index, imageURL) in imageURLs.enumerated() {
+            let ratio = estimatedAspectRatio(for: imageURL)
+            let itemHeight = columnWidth / max(ratio, 0.35)
+            let targetColumn = columnHeights.enumerated().min(by: { $0.element < $1.element })?.offset ?? 0
+
+            columns[targetColumn].append(HiddenWaterfallItem(index: index, url: imageURL))
+            columnHeights[targetColumn] += itemHeight + itemSpacing
+        }
+
+        return HiddenWaterfallLayout(columns: columns, columnWidth: columnWidth)
+    }
+
+    private func estimatedAspectRatio(for url: URL) -> CGFloat {
+        let key = HiddenSpaceAPI.normalizeImageURL(url).absoluteString
+        if let ratio = imageAspectRatios[key] {
+            return ratio
+        }
+        return HiddenImagePipeline.shared.cachedAspectRatio(for: url) ?? 0.72
+    }
+
+    private func updateAspectRatio(_ ratio: CGFloat, for url: URL) {
+        let key = HiddenSpaceAPI.normalizeImageURL(url).absoluteString
+        let sanitizedRatio = max(ratio, 0.35)
+        if let existing = imageAspectRatios[key], abs(existing - sanitizedRatio) < 0.02 {
+            return
+        }
+        imageAspectRatios[key] = sanitizedRatio
+    }
+
+    private func openSlideshow() {
+        guard !imageURLs.isEmpty else { return }
+        let startingIndex = min(max(lastPreviewedIndex ?? 0, 0), max(imageURLs.count - 1, 0))
+        lastPreviewedIndex = startingIndex
+        previewImage = PreviewImage(index: startingIndex, urls: imageURLs, autoPlaySlideshow: true)
     }
 }
 
@@ -943,24 +1417,42 @@ private struct HiddenImagePreviewView: View {
 
     let imageURLs: [URL]
     @ObservedObject var viewModel: HiddenSpaceViewModel
+    var autoPlaySlideshow = false
+    var onExit: ((Int) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var currentIndex: Int
-    @State private var slideDirection: SlideDirection = .left
+    @State private var slideTranslation: CGSize = .zero
+    @State private var activeSlideDirection: SlideDirection?
     @State private var isSwitchingImage = false
+    @State private var didReportExit = false
     @State private var scale: CGFloat = 1
     @State private var committedScale: CGFloat = 1
     @State private var offset: CGSize = .zero
     @State private var committedOffset: CGSize = .zero
+    @State private var isSlideshowPlaying = false
+    @State private var slideshowTask: Task<Void, Never>?
+    @State private var containerSize: CGSize = .zero
 
     private let minScale: CGFloat = 1
     private let maxScale: CGFloat = 5
     private let swipeThreshold: CGFloat = 70
-    private let switchAnimationDuration: CGFloat = 0.22
+    private let edgeResistance: CGFloat = 0.08
+    private let edgeTranslationCap: CGFloat = 26
+    private let verticalGestureScale: CGFloat = 0.97
+    private let slideshowIntervalNanoseconds: UInt64 = 5_000_000_000
 
-    init(imageURLs: [URL], initialIndex: Int, viewModel: HiddenSpaceViewModel) {
+    init(
+        imageURLs: [URL],
+        initialIndex: Int,
+        viewModel: HiddenSpaceViewModel,
+        autoPlaySlideshow: Bool = false,
+        onExit: ((Int) -> Void)? = nil
+    ) {
         self.imageURLs = imageURLs
         self.viewModel = viewModel
+        self.autoPlaySlideshow = autoPlaySlideshow
+        self.onExit = onExit
         let safeIndex = min(max(initialIndex, 0), max(imageURLs.count - 1, 0))
         _currentIndex = State(initialValue: safeIndex)
     }
@@ -970,29 +1462,25 @@ private struct HiddenImagePreviewView: View {
         return imageURLs[currentIndex]
     }
 
-    private var imageSwitchTransition: AnyTransition {
-        switch slideDirection {
-        case .left:
-            return .asymmetric(
-                insertion: .move(edge: .trailing).combined(with: .opacity),
-                removal: .move(edge: .leading).combined(with: .opacity)
-            )
-        case .right:
-            return .asymmetric(
-                insertion: .move(edge: .leading).combined(with: .opacity),
-                removal: .move(edge: .trailing).combined(with: .opacity)
-            )
-        case .up:
-            return .asymmetric(
-                insertion: .move(edge: .bottom).combined(with: .opacity),
-                removal: .move(edge: .top).combined(with: .opacity)
-            )
-        case .down:
-            return .asymmetric(
-                insertion: .move(edge: .top).combined(with: .opacity),
-                removal: .move(edge: .bottom).combined(with: .opacity)
-            )
+    private var displayedSlideDirection: SlideDirection? {
+        activeSlideDirection
+    }
+
+    private func switchAnimation(for direction: SlideDirection) -> Animation {
+        .timingCurve(0.24, 0.88, 0.34, 1, duration: switchAnimationDuration(for: direction))
+    }
+
+    private func resetAnimation(for direction: SlideDirection?) -> Animation {
+        .timingCurve(0.22, 0.82, 0.24, 1, duration: resetAnimationDuration(for: direction))
+    }
+
+    private var adjacentImageURL: URL? {
+        guard let direction = displayedSlideDirection,
+              let targetIndex = targetIndex(for: direction),
+              imageURLs.indices.contains(targetIndex) else {
+            return nil
         }
+        return imageURLs[targetIndex]
     }
 
     var body: some View {
@@ -1002,42 +1490,31 @@ private struct HiddenImagePreviewView: View {
             if let imageURL {
                 GeometryReader { proxy in
                     ZStack {
-                        AsyncImage(url: imageURL) { phase in
-                            switch phase {
-                            case let .success(image):
-                                image
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: proxy.size.width, height: proxy.size.height)
-                                    .scaleEffect(scale)
-                                    .offset(offset)
-                                    .contentShape(Rectangle())
-                                    .gesture(
-                                        dragGesture(in: proxy.size)
-                                            .simultaneously(with: magnificationGesture(in: proxy.size))
-                                    )
-                                    .onTapGesture(count: 2) {
-                                        toggleZoom(in: proxy.size)
-                                    }
-                            case .empty:
-                                ProgressView()
-                                    .frame(width: proxy.size.width, height: proxy.size.height)
-                            case .failure:
-                                VStack(spacing: 10) {
-                                    Image(systemName: "photo")
-                                        .font(.system(size: 24, weight: .semibold))
-                                    Text("图片加载失败")
-                                }
-                                .foregroundStyle(.white.opacity(0.8))
-                                .frame(width: proxy.size.width, height: proxy.size.height)
-                            @unknown default:
-                                EmptyView()
-                            }
+                        if let adjacentImageURL, let direction = displayedSlideDirection {
+                            previewLayer(url: adjacentImageURL, size: proxy.size)
+                                .offset(secondaryImageOffset(for: direction, in: proxy.size))
                         }
-                        .id("preview-image-\(currentIndex)")
-                        .transition(imageSwitchTransition)
+
+                        previewLayer(url: imageURL, size: proxy.size)
+                            .scaleEffect(scale)
+                            .offset(primaryImageOffset)
                     }
-                    .animation(.easeInOut(duration: switchAnimationDuration), value: currentIndex)
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .contentShape(Rectangle())
+                    .clipped()
+                    .onAppear {
+                        containerSize = proxy.size
+                    }
+                    .onChange(of: proxy.size) { newValue in
+                        containerSize = newValue
+                    }
+                    .gesture(
+                        dragGesture(in: proxy.size)
+                            .simultaneously(with: magnificationGesture(in: proxy.size))
+                    )
+                    .onTapGesture(count: 2) {
+                        toggleZoom(in: proxy.size)
+                    }
                 }
             } else {
                 Text("没有可显示的图片")
@@ -1047,6 +1524,18 @@ private struct HiddenImagePreviewView: View {
             VStack {
                 HStack {
                     if let imageURL {
+                        Button {
+                            toggleSlideshow()
+                        } label: {
+                            Image(systemName: isSlideshowPlaying ? "pause.circle.fill" : "play.circle.fill")
+                                .font(.system(size: 28, weight: .semibold))
+                                .foregroundStyle(.white.opacity(imageURLs.count > 1 ? 0.92 : 0.45))
+                                .padding(8)
+                                .background(Color.black.opacity(0.35), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(imageURLs.count < 2)
+
                         Button {
                             viewModel.toggleFavoriteImage(imageURL)
                         } label: {
@@ -1062,6 +1551,7 @@ private struct HiddenImagePreviewView: View {
                     Spacer()
 
                     Button {
+                        reportExitIfNeeded()
                         dismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
@@ -1089,11 +1579,25 @@ private struct HiddenImagePreviewView: View {
         .onChange(of: currentIndex) { _ in
             resetZoom()
         }
+        .task(id: currentIndex) {
+            prefetchCurrentImages()
+        }
+        .task {
+            guard autoPlaySlideshow, imageURLs.count > 1 else { return }
+            startSlideshow()
+        }
+        .onDisappear {
+            stopSlideshow()
+            reportExitIfNeeded()
+        }
     }
 
     private func magnificationGesture(in containerSize: CGSize) -> some Gesture {
         MagnificationGesture()
             .onChanged { value in
+                if abs(value - 1) > 0.01 {
+                    stopSlideshow()
+                }
                 let next = clampScale(committedScale * value)
                 scale = next
                 offset = clampedOffset(offset, for: next, in: containerSize)
@@ -1114,16 +1618,31 @@ private struct HiddenImagePreviewView: View {
     private func dragGesture(in containerSize: CGSize) -> some Gesture {
         DragGesture()
             .onChanged { value in
-                guard scale > minScale else { return }
-                let next = CGSize(
-                    width: committedOffset.width + value.translation.width,
-                    height: committedOffset.height + value.translation.height
-                )
-                offset = clampedOffset(next, for: scale, in: containerSize)
+                if slideDistance(for: value.translation) > 4 {
+                    stopSlideshow()
+                }
+                if scale > minScale {
+                    let next = CGSize(
+                        width: committedOffset.width + value.translation.width,
+                        height: committedOffset.height + value.translation.height
+                    )
+                    offset = clampedOffset(next, for: scale, in: containerSize)
+                    return
+                }
+
+                if slideDistance(for: value.translation) < 6 {
+                    activeSlideDirection = nil
+                    slideTranslation = .zero
+                    return
+                }
+
+                let direction = activeSlideDirection ?? resolvedSlideDirection(for: value.translation)
+                activeSlideDirection = direction
+                slideTranslation = adjustedSlideTranslation(value.translation, direction: direction)
             }
             .onEnded { value in
                 guard scale > minScale else {
-                    handleSlideSwitch(translation: value.translation)
+                    settleSlide(translation: value.translation, predictedEndTranslation: value.predictedEndTranslation, in: containerSize)
                     return
                 }
                 committedOffset = offset
@@ -1131,6 +1650,7 @@ private struct HiddenImagePreviewView: View {
     }
 
     private func toggleZoom(in containerSize: CGSize) {
+        stopSlideshow()
         if scale > minScale {
             resetZoom()
             return
@@ -1147,6 +1667,8 @@ private struct HiddenImagePreviewView: View {
         committedScale = minScale
         offset = .zero
         committedOffset = .zero
+        slideTranslation = .zero
+        activeSlideDirection = nil
     }
 
     private func clampScale(_ value: CGFloat) -> CGFloat {
@@ -1167,49 +1689,265 @@ private struct HiddenImagePreviewView: View {
         )
     }
 
-    private func handleSlideSwitch(translation: CGSize) {
-        guard imageURLs.count > 1, !isSwitchingImage else { return }
+    private func prefetchCurrentImages() {
+        guard !imageURLs.isEmpty else { return }
 
+        let indexes = [currentIndex - 1, currentIndex, currentIndex + 1]
+            .filter { $0 >= 0 && $0 < imageURLs.count }
+        let urls = indexes.map { imageURLs[$0] }
+        viewModel.prefetchImages(urls)
+    }
+
+    @ViewBuilder
+    private func previewLayer(url: URL, size: CGSize) -> some View {
+        HiddenCachedImage(url: url) { image in
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size.width, height: size.height)
+        } placeholder: {
+            ProgressView()
+                .frame(width: size.width, height: size.height)
+        } failure: {
+            VStack(spacing: 10) {
+                Image(systemName: "photo")
+                    .font(.system(size: 24, weight: .semibold))
+                Text("图片加载失败")
+            }
+            .foregroundStyle(.white.opacity(0.8))
+            .frame(width: size.width, height: size.height)
+        }
+    }
+
+    private var primaryImageOffset: CGSize {
+        scale > minScale ? offset : slideTranslation
+    }
+
+    private func secondaryImageOffset(for direction: SlideDirection, in containerSize: CGSize) -> CGSize {
+        switch direction {
+        case .left:
+            return CGSize(width: containerSize.width + slideTranslation.width, height: 0)
+        case .right:
+            return CGSize(width: -containerSize.width + slideTranslation.width, height: 0)
+        case .up:
+            return CGSize(width: 0, height: containerSize.height + slideTranslation.height)
+        case .down:
+            return CGSize(width: 0, height: -containerSize.height + slideTranslation.height)
+        }
+    }
+
+    private func adjustedSlideTranslation(_ translation: CGSize, direction: SlideDirection?) -> CGSize {
+        guard let direction else { return .zero }
+
+        let hasTarget = targetIndex(for: direction) != nil
+        let resistance = hasTarget ? 1.0 : edgeResistance
+        let projected = projectedSlideTranslation(from: translation, direction: direction)
+        let gestureScale = isVertical(direction) ? verticalGestureScale : 1.0
+
+        switch direction {
+        case .left, .right:
+            let width = projected.width * resistance
+            let adjustedWidth = hasTarget ? width : cappedTranslation(width, limit: edgeTranslationCap)
+            return CGSize(width: adjustedWidth, height: 0)
+        case .up, .down:
+            let height = projected.height * resistance * gestureScale
+            let adjustedHeight = hasTarget ? height : cappedTranslation(height, limit: edgeTranslationCap)
+            return CGSize(width: 0, height: adjustedHeight)
+        }
+    }
+
+    private func settleSlide(translation: CGSize, predictedEndTranslation: CGSize, in containerSize: CGSize) {
+        guard imageURLs.count > 1, !isSwitchingImage else {
+            withAnimation(resetAnimation(for: activeSlideDirection)) {
+                slideTranslation = .zero
+                activeSlideDirection = nil
+            }
+            return
+        }
+
+        let direction = activeSlideDirection ?? resolvedSlideDirection(for: predictedEndTranslation)
+        guard let direction, let targetIndex = targetIndex(for: direction) else {
+            withAnimation(resetAnimation(for: direction)) {
+                slideTranslation = .zero
+                activeSlideDirection = nil
+            }
+            return
+        }
+
+        let effectiveTranslation = adjustedSlideTranslation(
+            projectedEndTranslation(current: translation, predicted: predictedEndTranslation),
+            direction: direction
+        )
+
+        guard slideDistance(for: effectiveTranslation) >= swipeThreshold else {
+            withAnimation(resetAnimation(for: direction)) {
+                slideTranslation = .zero
+                activeSlideDirection = nil
+            }
+            return
+        }
+
+        isSwitchingImage = true
+        beginSlideTransition(to: targetIndex, direction: direction, in: containerSize)
+    }
+
+    private func targetIndex(for direction: SlideDirection) -> Int? {
+        switch direction {
+        case .left, .up:
+            let nextIndex = currentIndex + 1
+            return nextIndex < imageURLs.count ? nextIndex : nil
+        case .right, .down:
+            let previousIndex = currentIndex - 1
+            return previousIndex >= 0 ? previousIndex : nil
+        }
+    }
+
+    private func resolvedSlideDirection(for translation: CGSize) -> SlideDirection? {
         let absWidth = abs(translation.width)
         let absHeight = abs(translation.height)
+        guard max(absWidth, absHeight) >= 6 else { return nil }
 
         if absWidth >= absHeight {
-            if translation.width <= -swipeThreshold {
-                goNext(direction: .left)
-            } else if translation.width >= swipeThreshold {
-                goPrevious(direction: .right)
-            }
+            return translation.width < 0 ? .left : .right
+        }
+        return translation.height < 0 ? .up : .down
+    }
+
+    private func projectedSlideTranslation(from translation: CGSize, direction: SlideDirection) -> CGSize {
+        switch direction {
+        case .left, .right:
+            return CGSize(width: translation.width, height: 0)
+        case .up, .down:
+            return CGSize(width: 0, height: translation.height)
+        }
+    }
+
+    private func projectedEndTranslation(current: CGSize, predicted: CGSize) -> CGSize {
+        CGSize(
+            width: abs(predicted.width) > abs(current.width) ? predicted.width : current.width,
+            height: abs(predicted.height) > abs(current.height) ? predicted.height : current.height
+        )
+    }
+
+    private func completedSlideTranslation(for direction: SlideDirection, in containerSize: CGSize) -> CGSize {
+        switch direction {
+        case .left:
+            return CGSize(width: -containerSize.width, height: 0)
+        case .right:
+            return CGSize(width: containerSize.width, height: 0)
+        case .up:
+            return CGSize(width: 0, height: -containerSize.height)
+        case .down:
+            return CGSize(width: 0, height: containerSize.height)
+        }
+    }
+
+    private func slideDistance(for translation: CGSize) -> CGFloat {
+        max(abs(translation.width), abs(translation.height))
+    }
+
+    private func switchAnimationDuration(for direction: SlideDirection) -> CGFloat {
+        isVertical(direction) ? 0.16 : 0.17
+    }
+
+    private func resetAnimationDuration(for direction: SlideDirection?) -> CGFloat {
+        guard let direction else { return 0.14 }
+        return isVertical(direction) ? 0.13 : 0.14
+    }
+
+    private func isVertical(_ direction: SlideDirection) -> Bool {
+        switch direction {
+        case .up, .down:
+            return true
+        case .left, .right:
+            return false
+        }
+    }
+
+    private func cappedTranslation(_ value: CGFloat, limit: CGFloat) -> CGFloat {
+        min(max(value, -limit), limit)
+    }
+
+    private func toggleSlideshow() {
+        if isSlideshowPlaying {
+            stopSlideshow()
         } else {
-            if translation.height <= -swipeThreshold {
-                goNext(direction: .up)
-            } else if translation.height >= swipeThreshold {
-                goPrevious(direction: .down)
+            startSlideshow()
+        }
+    }
+
+    private func startSlideshow() {
+        guard imageURLs.count > 1 else { return }
+        resetZoom()
+        isSlideshowPlaying = true
+        restartSlideshowTask()
+    }
+
+    private func stopSlideshow() {
+        isSlideshowPlaying = false
+        slideshowTask?.cancel()
+        slideshowTask = nil
+    }
+
+    private func restartSlideshowTask() {
+        slideshowTask?.cancel()
+        guard isSlideshowPlaying else { return }
+
+        slideshowTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: slideshowIntervalNanoseconds)
+                guard !Task.isCancelled, isSlideshowPlaying else { return }
+
+                guard advanceSlideshowIfNeeded() else {
+                    stopSlideshow()
+                    return
+                }
             }
         }
     }
 
-    private func goNext(direction: SlideDirection) {
-        guard currentIndex < imageURLs.count - 1 else { return }
-        switchToIndex(currentIndex + 1, direction: direction)
-    }
-
-    private func goPrevious(direction: SlideDirection) {
-        guard currentIndex > 0 else { return }
-        switchToIndex(currentIndex - 1, direction: direction)
-    }
-
-    private func switchToIndex(_ index: Int, direction: SlideDirection) {
-        guard index >= 0, index < imageURLs.count else { return }
-
-        slideDirection = direction
-        isSwitchingImage = true
-        withAnimation(.easeInOut(duration: switchAnimationDuration)) {
-            currentIndex = index
+    private func advanceSlideshowIfNeeded() -> Bool {
+        guard !isSwitchingImage else { return true }
+        guard scale <= minScale else {
+            resetZoom()
+            return true
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + switchAnimationDuration + 0.04) {
+        let nextIndex = currentIndex + 1
+        guard nextIndex < imageURLs.count else {
+            return false
+        }
+
+        beginSlideTransition(to: nextIndex, direction: .left, in: containerSize)
+        return true
+    }
+
+    private func beginSlideTransition(to targetIndex: Int, direction: SlideDirection, in containerSize: CGSize) {
+        let transitionSize = if containerSize.width > 0 && containerSize.height > 0 {
+            containerSize
+        } else {
+            CGSize(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+        }
+
+        isSwitchingImage = true
+        activeSlideDirection = direction
+
+        withAnimation(switchAnimation(for: direction)) {
+            slideTranslation = completedSlideTranslation(for: direction, in: transitionSize)
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + switchAnimationDuration(for: direction)) {
+            currentIndex = targetIndex
+            slideTranslation = .zero
+            activeSlideDirection = nil
             isSwitchingImage = false
         }
+    }
+
+    private func reportExitIfNeeded() {
+        guard !didReportExit else { return }
+        didReportExit = true
+        onExit?(currentIndex)
     }
 }
 
@@ -1329,6 +2067,75 @@ private struct AlbumGridImageTile: View {
     }
 }
 
+private struct HiddenWaterfallLayout {
+    let columns: [[HiddenWaterfallItem]]
+    let columnWidth: CGFloat
+}
+
+private struct HiddenWaterfallItem: Identifiable {
+    let index: Int
+    let url: URL
+
+    var id: String {
+        "\(index)-\(HiddenSpaceAPI.normalizeImageURL(url).absoluteString)"
+    }
+}
+
+private struct AlbumWaterfallImageTile: View {
+    let url: URL
+    let width: CGFloat
+    let estimatedAspectRatio: CGFloat
+    let isFavorite: Bool
+    let onPreview: () -> Void
+    let onToggleFavorite: () -> Void
+    let onAspectRatioChange: (CGFloat) -> Void
+
+    private var tileHeight: CGFloat {
+        width / max(estimatedAspectRatio, 0.35)
+    }
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Button(action: onPreview) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(.tertiarySystemFill))
+
+                    HiddenCachedImage(url: url) { image in
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: width, height: tileHeight)
+                            .onAppear {
+                                onAspectRatioChange(image.hiddenAspectRatio)
+                            }
+                    } placeholder: {
+                        ProgressView()
+                            .frame(width: width, height: tileHeight)
+                    } failure: {
+                        Image(systemName: "photo")
+                            .foregroundStyle(.secondary)
+                            .frame(width: width, height: tileHeight)
+                    }
+                }
+                .frame(width: width, height: tileHeight)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+            .buttonStyle(.plain)
+
+            Button(action: onToggleFavorite) {
+                Image(systemName: isFavorite ? "heart.fill" : "heart")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(isFavorite ? .pink : .white)
+                    .padding(8)
+                    .background(Color.black.opacity(0.35), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .padding(6)
+        }
+    }
+}
+
 private struct AlbumThumbImage: View {
     let url: URL
 
@@ -1338,22 +2145,17 @@ private struct AlbumThumbImage: View {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Color(.tertiarySystemFill))
 
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: proxy.size.width, height: proxy.size.height)
-                            .clipped()
-                    case .empty:
-                        ProgressView()
-                    case .failure:
-                        Image(systemName: "photo")
-                            .foregroundStyle(.secondary)
-                    @unknown default:
-                        EmptyView()
-                    }
+                HiddenCachedImage(url: url) { image in
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                } placeholder: {
+                    ProgressView()
+                } failure: {
+                    Image(systemName: "photo")
+                        .foregroundStyle(.secondary)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -1362,11 +2164,178 @@ private struct AlbumThumbImage: View {
     }
 }
 
+private enum HiddenCachedImagePhase {
+    case empty
+    case success(UIImage)
+    case failure
+}
+
+private struct HiddenCachedImage<Content: View, Placeholder: View, Failure: View>: View {
+    let url: URL
+    let content: (UIImage) -> Content
+    let placeholder: () -> Placeholder
+    let failure: () -> Failure
+
+    @State private var phase: HiddenCachedImagePhase
+
+    @MainActor
+    init(
+        url: URL,
+        content: @escaping (UIImage) -> Content,
+        placeholder: @escaping () -> Placeholder,
+        failure: @escaping () -> Failure
+    ) {
+        self.url = url
+        self.content = content
+        self.placeholder = placeholder
+        self.failure = failure
+        if let image = HiddenImagePipeline.shared.cachedImage(for: url) {
+            _phase = State(initialValue: .success(image))
+        } else {
+            _phase = State(initialValue: .empty)
+        }
+    }
+
+    var body: some View {
+        Group {
+            switch phase {
+            case let .success(image):
+                content(image)
+            case .failure:
+                failure()
+            case .empty:
+                placeholder()
+            }
+        }
+        .task(id: HiddenSpaceAPI.normalizeImageURL(url).absoluteString) {
+            await loadImage()
+        }
+    }
+
+    private func loadImage() async {
+        if let cachedImage = HiddenImagePipeline.shared.cachedImage(for: url) {
+            phase = .success(cachedImage)
+            return
+        }
+        phase = .empty
+        do {
+            let image = try await HiddenImagePipeline.shared.image(for: url)
+            phase = .success(image)
+        } catch {
+            phase = .failure
+        }
+    }
+}
+
+@MainActor
+private final class HiddenImagePipeline {
+    static let shared = HiddenImagePipeline()
+
+    private let cache = NSCache<NSURL, UIImage>()
+    private var inFlightTasks: [NSURL: Task<UIImage, Error>] = [:]
+
+    private init() {
+        cache.countLimit = 240
+        cache.totalCostLimit = 256 * 1024 * 1024
+    }
+
+    func image(for url: URL) async throws -> UIImage {
+        let normalizedURL = HiddenSpaceAPI.normalizeImageURL(url)
+        let key = normalizedURL as NSURL
+
+        if let cached = cache.object(forKey: key) {
+            return cached
+        }
+
+        if let existingTask = inFlightTasks[key] {
+            return try await existingTask.value
+        }
+
+        let task = Task<UIImage, Error> {
+            var request = URLRequest(url: normalizedURL, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 30)
+            request.setValue("image/*", forHTTPHeaderField: "Accept")
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode),
+                  let image = UIImage(data: data) else {
+                throw NSError(
+                    domain: "HiddenImagePipeline",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: "图片加载失败"]
+                )
+            }
+
+            return image
+        }
+
+        inFlightTasks[key] = task
+
+        do {
+            let image = try await task.value
+            cache.setObject(image, forKey: key, cost: image.hiddenCacheCost)
+            inFlightTasks[key] = nil
+            return image
+        } catch {
+            inFlightTasks[key] = nil
+            throw error
+        }
+    }
+
+    func cachedImage(for url: URL) -> UIImage? {
+        let normalizedURL = HiddenSpaceAPI.normalizeImageURL(url)
+        return cache.object(forKey: normalizedURL as NSURL)
+    }
+
+    func prefetch(_ urls: [URL]) {
+        for url in urls {
+            Task {
+                _ = try? await image(for: url)
+            }
+        }
+    }
+
+    func cachedAspectRatio(for url: URL) -> CGFloat? {
+        let normalizedURL = HiddenSpaceAPI.normalizeImageURL(url)
+        guard let image = cache.object(forKey: normalizedURL as NSURL) else {
+            return nil
+        }
+        return image.hiddenAspectRatio
+    }
+}
+
+private extension UIImage {
+    var hiddenAspectRatio: CGFloat {
+        max(size.width / max(size.height, 1), 0.35)
+    }
+
+    var hiddenCacheCost: Int {
+        let pixelCount = Int(size.width * scale * size.height * scale)
+        return max(pixelCount * 4, 1)
+    }
+}
+
 private struct FeatureRow: View {
     let feature: any AppFeature
 
     var body: some View {
         HStack(spacing: 14) {
+            featureIcon
+
+            Text(feature.title)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.primary)
+
+            Spacer()
+        }
+        .padding(.vertical, 6)
+    }
+
+    @ViewBuilder
+    private var featureIcon: some View {
+        if feature.id == "uttracker" {
+            UTModuleProgressIcon(color: feature.color)
+        } else {
             ZStack {
                 Circle()
                     .fill(feature.color.opacity(0.12))
@@ -1376,19 +2345,77 @@ private struct FeatureRow: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(feature.color)
             }
+        }
+    }
+}
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(feature.title)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.primary)
+private struct UTModuleProgressIcon: View {
+    let color: Color
 
-                Text(feature.summary)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var summary = UTTrackerSnapshot.currentWeekSummary()
+
+    private var progress: Double {
+        min(max(summary.fullWeekProgress, 0), 1)
+    }
+
+    private var percentValue: Int {
+        Int((summary.fullWeekProgress * 100).rounded())
+    }
+
+    private var ringColor: Color {
+        if summary.totalHours <= 0.01 {
+            return .secondary.opacity(0.45)
+        }
+        return summary.isTargetMet ? .green : .orange
+    }
+
+    private var displayText: String {
+        "\(max(percentValue, 0))"
+    }
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(color.opacity(0.08))
+                .frame(width: 44, height: 44)
+
+            Circle()
+                .stroke(Color.primary.opacity(0.08), lineWidth: 4)
+                .frame(width: 36, height: 36)
+
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(
+                    ringColor,
+                    style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                )
+                .frame(width: 36, height: 36)
+                .rotationEffect(.degrees(-90))
+
+            Text(displayText)
+                .font(.system(size: displayText.count >= 3 ? 10 : 11, weight: .bold, design: .rounded))
+                .foregroundStyle(summary.totalHours <= 0.01 ? .secondary : .primary)
+        }
+        .frame(width: 44, height: 44)
+        .onAppear {
+            refreshSummary()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            refreshSummary()
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
+                refreshSummary()
             }
         }
-        .padding(.vertical, 4)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("UT 本周进度")
+        .accessibilityValue("\(displayText) 百分比")
+    }
+
+    private func refreshSummary() {
+        summary = UTTrackerSnapshot.currentWeekSummary()
     }
 }
 
@@ -1403,11 +2430,12 @@ private struct HiddenAlbum: Identifiable, Codable, Hashable {
 private struct PreviewImage: Identifiable {
     let index: Int
     let urls: [URL]
+    var autoPlaySlideshow = false
 
     var id: String {
         guard !urls.isEmpty else { return "empty-\(index)" }
         let safeIndex = min(max(index, 0), urls.count - 1)
-        return "\(safeIndex)-\(urls[safeIndex].absoluteString)"
+        return "\(safeIndex)-\(urls[safeIndex].absoluteString)-\(autoPlaySlideshow ? "slideshow" : "manual")"
     }
 }
 
@@ -1461,6 +2489,14 @@ private enum HiddenSpaceAPI {
         return allImages
     }
 
+    static func searchAlbums(query: String) async throws -> [HiddenAlbum] {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedQuery.isEmpty else { return [] }
+
+        let html = try await fetchHTML(from: searchURL(query: normalizedQuery))
+        return parseAlbums(from: html)
+    }
+
     private static func resolveTotalPages(knownTotalPages: Int?) async throws -> Int {
         if let knownTotalPages, knownTotalPages > 0 {
             return knownTotalPages
@@ -1485,6 +2521,12 @@ private enum HiddenSpaceAPI {
     private static func listURL(page: Int) -> URL {
         guard page > 1 else { return baseURL }
         return URL(string: "https://www.4khd.com/?query-3-page=\(page)") ?? baseURL
+    }
+
+    private static func searchURL(query: String) -> URL {
+        var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "s", value: query)]
+        return components?.url ?? baseURL
     }
 
     private static func fetchHTML(from url: URL) async throws -> String {
@@ -1740,10 +2782,17 @@ private struct HiddenJavDBFeatureView: View {
     @StateObject private var viewModel = HiddenJavDBViewModel()
     @State private var randomMode: HiddenJavDBRandomMode = .single
     @State private var showRandomDetails = false
+    @State private var searchQuery = ""
+
+    private let searchColumns = [
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10)
+    ]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                searchMovieCard
                 randomMovieCard
 
                 NavigationLink {
@@ -1785,6 +2834,92 @@ private struct HiddenJavDBFeatureView: View {
                 await viewModel.loadRandomMovies(mode: mode)
             }
         }
+        .onChange(of: searchQuery) { newValue in
+            if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                viewModel.resetSearchMovies()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var searchMovieCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("搜索影片")
+                .font(.headline)
+
+            HStack(spacing: 10) {
+                TextField("输入番号或标题", text: $searchQuery)
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
+                    .submitLabel(.search)
+                    .onSubmit {
+                        performMovieSearch()
+                    }
+
+                if !searchQuery.isEmpty {
+                    Button {
+                        searchQuery = ""
+                        viewModel.resetSearchMovies()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button("搜索") {
+                    performMovieSearch()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.isSearchingMovies || normalizedSearchQuery.isEmpty)
+            }
+
+            if viewModel.isSearchingMovies {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("正在搜索...")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            } else if let searchErrorMessage = viewModel.searchMovieErrorMessage {
+                Text(searchErrorMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if let lastQuery = viewModel.lastSearchedMovieQuery, !viewModel.searchedMovies.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("“\(lastQuery)” · \(viewModel.searchedMovies.count) 个结果")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    LazyVGrid(columns: searchColumns, spacing: 10) {
+                        ForEach(viewModel.searchedMovies) { movie in
+                            NavigationLink {
+                                HiddenJavDBMovieDetailView(movie: movie, viewModel: viewModel)
+                            } label: {
+                                HiddenJavDBFavoriteMovieTile(
+                                    movie: movie,
+                                    detail: nil,
+                                    errorMessage: nil,
+                                    isLoadingDetail: false,
+                                    showDetails: false
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            } else if let lastQuery = viewModel.lastSearchedMovieQuery {
+                Text("“\(lastQuery)” 没有搜索到影片")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
     }
 
     @ViewBuilder
@@ -1963,6 +3098,22 @@ private struct HiddenJavDBFeatureView: View {
                 .fill(Color(.secondarySystemBackground))
         )
     }
+
+    private var normalizedSearchQuery: String {
+        searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func performMovieSearch() {
+        let query = normalizedSearchQuery
+        guard !query.isEmpty else {
+            viewModel.resetSearchMovies()
+            return
+        }
+
+        Task {
+            await viewModel.searchMovies(query: query)
+        }
+    }
 }
 
 private struct HiddenJavDBFavoriteMoviesView: View {
@@ -2054,9 +3205,15 @@ private struct HiddenJavDBFavoriteMoviesView: View {
         .navigationTitle("喜欢影片")
         .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(item: $inAppPlayerItem) { item in
-            HiddenInAppVideoPlayerView(item: item) { playback in
-                viewModel.saveFavoritePlayback(playback)
-            }
+            HiddenInAppVideoPlayerView(
+                item: item,
+                onSaveFavoritePlayback: { playback in
+                    viewModel.saveFavoritePlayback(playback)
+                },
+                onUndoFavoritePlaybackSave: { context in
+                    viewModel.undoFavoritePlaybackSave(context)
+                }
+            )
         }
     }
 
@@ -2159,6 +3316,9 @@ private struct HiddenJavDBMovieDetailView: View {
     private var favoritePlaybackEntries: [HiddenJavDBFavoritePlayback] {
         viewModel.favoritePlaybacks(for: movie)
     }
+    private var movieDetail: HiddenJavDBMovieDetail? {
+        viewModel.detailsByMovieID[movie.id]
+    }
 
     var body: some View {
         ScrollView {
@@ -2187,6 +3347,7 @@ private struct HiddenJavDBMovieDetailView: View {
                 watchSection
                 favoritePlaybackSection
                 screenshotsSection
+                relatedMovieSections
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 12)
@@ -2207,13 +3368,22 @@ private struct HiddenJavDBMovieDetailView: View {
         .task {
             await loadImages(force: false)
         }
+        .task(id: movie.id) {
+            await viewModel.loadDetailIfNeeded(for: movie)
+        }
         .fullScreenCover(item: $previewImage) { preview in
             HiddenJavDBImagePreviewView(imageURLs: preview.urls, initialIndex: preview.index)
         }
         .fullScreenCover(item: $inAppPlayerItem) { item in
-            HiddenInAppVideoPlayerView(item: item) { playback in
-                viewModel.saveFavoritePlayback(playback)
-            }
+            HiddenInAppVideoPlayerView(
+                item: item,
+                onSaveFavoritePlayback: { playback in
+                    viewModel.saveFavoritePlayback(playback)
+                },
+                onUndoFavoritePlaybackSave: { context in
+                    viewModel.undoFavoritePlaybackSave(context)
+                }
+            )
         }
         .fullScreenCover(item: $inAppWebPageItem) { item in
             HiddenInAppWebPageView(item: item)
@@ -2289,24 +3459,26 @@ private struct HiddenJavDBMovieDetailView: View {
         if !favoritePlaybackEntries.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("播放收藏")
+                    Text("喜欢点")
                         .font(.headline)
                     Spacer()
-                    Text("\(favoritePlaybackEntries.count) 条")
+                    Text("\(favoritePlaybackEntries.count) 个")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                ForEach(favoritePlaybackEntries) { playback in
-                    HiddenJavDBFavoritePlaybackRow(
-                        playback: playback,
-                        onPlay: {
-                            openFavoritePlayback(playback)
-                        },
-                        onRemove: {
-                            viewModel.removeFavoritePlayback(playback)
-                        }
-                    )
+                LazyVGrid(columns: columns, spacing: 8) {
+                    ForEach(favoritePlaybackEntries) { playback in
+                        HiddenJavDBFavoritePlaybackTile(
+                            playback: playback,
+                            onPlay: {
+                                openFavoritePlayback(playback)
+                            },
+                            onRemove: {
+                                viewModel.removeFavoritePlayback(playback)
+                            }
+                        )
+                    }
                 }
             }
             .padding(12)
@@ -2365,6 +3537,77 @@ private struct HiddenJavDBMovieDetailView: View {
                             previewImage = HiddenJavDBPreviewImage(index: index, urls: imageURLs)
                         } label: {
                             AlbumThumbImage(url: imageURL)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
+    }
+
+    @ViewBuilder
+    private var relatedMovieSections: some View {
+        if let movieDetail {
+            if !movieDetail.otherActressMovies.isEmpty {
+                relatedMovieSection(
+                    title: "她们还演出过",
+                    movies: movieDetail.otherActressMovies
+                )
+            }
+
+            if !movieDetail.recommendedMovies.isEmpty {
+                relatedMovieSection(
+                    title: "可能你也喜欢",
+                    movies: movieDetail.recommendedMovies
+                )
+            }
+        } else if viewModel.detailLoadingIDs.contains(movie.id) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("正在加载关联影片...")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(.secondarySystemBackground))
+            )
+        }
+    }
+
+    private func relatedMovieSection(title: String, movies: [HiddenJavDBMovie]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(title)
+                    .font(.headline)
+                Spacer()
+                Text("\(movies.count) 部")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: 10) {
+                    ForEach(movies) { relatedMovie in
+                        NavigationLink {
+                            HiddenJavDBMovieDetailView(movie: relatedMovie, viewModel: viewModel)
+                        } label: {
+                            HiddenJavDBFavoriteMovieTile(
+                                movie: relatedMovie,
+                                detail: nil,
+                                errorMessage: nil,
+                                isLoadingDetail: false,
+                                showDetails: false
+                            )
+                            .frame(width: 152, alignment: .top)
                         }
                         .buttonStyle(.plain)
                     }
@@ -2520,53 +3763,252 @@ private struct HiddenJavDBDetailRow: View {
     }
 }
 
-private struct HiddenJavDBFavoritePlaybackRow: View {
+private struct HiddenJavDBFavoritePlaybackTile: View {
     let playback: HiddenJavDBFavoritePlayback
     let onPlay: () -> Void
     let onRemove: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
+        ZStack(alignment: .topTrailing) {
             Button(action: onPlay) {
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("\(playback.sourceName) · \(HiddenPlaybackTimeFormatter.string(from: playback.positionSeconds))")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-
-                        Text(playback.createdAt.formatted(.dateTime.month().day().hour().minute()))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: 0)
-
-                    Image(systemName: "play.fill")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 30, height: 30)
-                        .background(Color.accentColor, in: Circle())
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color(.tertiarySystemFill))
-                )
+                HiddenPlaybackThumbnailView(playback: playback)
             }
             .buttonStyle(.plain)
 
             Button(action: onRemove) {
-                Image(systemName: "trash")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 34, height: 34)
-                    .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Image(systemName: "xmark")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 24, height: 24)
+                    .background(Color.black.opacity(0.56), in: Circle())
             }
             .buttonStyle(.plain)
+            .padding(6)
         }
+    }
+}
+
+private struct HiddenPlaybackThumbnailView: View {
+    let playback: HiddenJavDBFavoritePlayback
+
+    @State private var image: UIImage?
+    @State private var isLoading = false
+    @State private var didFail = false
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(.tertiarySystemFill))
+
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            }
+
+            LinearGradient(
+                colors: [.clear, Color.black.opacity(0.12), Color.black.opacity(0.62)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            if image == nil {
+                thumbnailPlaceholder
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(HiddenPlaybackTimeFormatter.string(from: playback.positionSeconds))
+                    .font(.caption2.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.black.opacity(0.42), in: Capsule())
+
+                Text(playback.sourceName)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.88))
+                    .lineLimit(1)
+            }
+            .padding(8)
+        }
+        .frame(height: 102)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .task(id: playback.id) {
+            await loadThumbnailIfNeeded()
+        }
+    }
+
+    @ViewBuilder
+    private var thumbnailPlaceholder: some View {
+        VStack {
+            Spacer()
+
+            if isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(.white)
+                    .padding(8)
+                    .background(Color.black.opacity(0.36), in: Capsule())
+            } else {
+                VStack(spacing: 6) {
+                    Image(systemName: didFail ? "play.rectangle" : "film.stack")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.9))
+
+                    Text(didFail ? "取帧失败" : "正在取帧")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.82))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(Color.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @MainActor
+    private func loadThumbnailIfNeeded() async {
+        guard image == nil, !isLoading else { return }
+        isLoading = true
+        didFail = false
+        defer { isLoading = false }
+
+        do {
+            image = try await HiddenPlaybackThumbnailPipeline.shared.image(for: playback)
+        } catch {
+            didFail = true
+        }
+    }
+}
+
+private actor HiddenPlaybackThumbnailPipeline {
+    static let shared = HiddenPlaybackThumbnailPipeline()
+
+    private let cache = NSCache<NSString, UIImage>()
+    private var inFlightTasks: [String: Task<UIImage, Error>] = [:]
+
+    init() {
+        cache.countLimit = 36
+        cache.totalCostLimit = 24 * 1024 * 1024
+    }
+
+    func image(for playback: HiddenJavDBFavoritePlayback) async throws -> UIImage {
+        let key = cacheKey(for: playback)
+        let nsKey = key as NSString
+
+        if let cachedImage = cache.object(forKey: nsKey) {
+            return cachedImage
+        }
+
+        if let existingTask = inFlightTasks[key] {
+            return try await existingTask.value
+        }
+
+        let task = Task(priority: .utility) {
+            try await Self.generateThumbnail(for: playback)
+        }
+        inFlightTasks[key] = task
+        defer { inFlightTasks[key] = nil }
+
+        let image = try await task.value
+        let cost = Self.imageCost(for: image)
+        cache.setObject(image, forKey: nsKey, cost: cost)
+        return image
+    }
+
+    private func cacheKey(for playback: HiddenJavDBFavoritePlayback) -> String {
+        let normalizedTime = Int(playback.positionSeconds.rounded(.toNearestOrAwayFromZero))
+        return "\(playback.movie.id)|\(playback.sourceName)|\(normalizedTime)"
+    }
+
+    private static func generateThumbnail(for playback: HiddenJavDBFavoritePlayback) async throws -> UIImage {
+        try await Task.detached(priority: .utility) {
+            let resolvedSource = try await HiddenJavDBAPI.resolvePlayableStream(for: playback)
+            let headers: [String: String] = [
+                "Referer": resolvedSource.refererURL.absoluteString,
+                "Origin": "\(resolvedSource.refererURL.scheme ?? "https")://\(resolvedSource.refererURL.host ?? "missav.ws")",
+                "User-Agent": HiddenJavDBAPI.userAgent
+            ]
+            let asset = AVURLAsset(
+                url: resolvedSource.streamURL,
+                options: [
+                    "AVURLAssetHTTPHeaderFieldsKey": headers
+                ]
+            )
+            let _ = try await asset.load(.isPlayable)
+            let tracks = try await asset.loadTracks(withMediaType: .video)
+            guard !tracks.isEmpty else {
+                throw NSError(
+                    domain: "HiddenPlaybackThumbnailPipeline",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: "未找到可用视频轨道"]
+                )
+            }
+            let generator = AVAssetImageGenerator(asset: asset)
+            generator.appliesPreferredTrackTransform = true
+            generator.maximumSize = CGSize(width: 320, height: 180)
+            generator.requestedTimeToleranceBefore = CMTime(seconds: 0.6, preferredTimescale: 600)
+            generator.requestedTimeToleranceAfter = CMTime(seconds: 0.6, preferredTimescale: 600)
+
+            let duration = try? await asset.load(.duration)
+            var lastError: Error?
+            for time in thumbnailCandidateTimes(for: playback.positionSeconds, duration: duration) {
+                do {
+                    let cgImage = try generator.copyCGImage(
+                        at: CMTime(seconds: time, preferredTimescale: 600),
+                        actualTime: nil
+                    )
+                    return UIImage(cgImage: cgImage)
+                } catch {
+                    lastError = error
+                }
+            }
+
+            throw lastError ?? NSError(
+                domain: "HiddenPlaybackThumbnailPipeline",
+                code: -2,
+                userInfo: [NSLocalizedDescriptionKey: "未取到可用视频帧"]
+            )
+        }.value
+    }
+
+    private static func thumbnailCandidateTimes(for positionSeconds: Double, duration: CMTime?) -> [Double] {
+        let normalizedDuration = duration.flatMap { loadedDuration -> Double? in
+            let seconds = CMTimeGetSeconds(loadedDuration)
+            return seconds.isFinite && seconds > 0 ? seconds : nil
+        }
+
+        let rawCandidates = [
+            max(0, positionSeconds),
+            max(0, positionSeconds - 1.2),
+            max(0, positionSeconds - 0.4),
+            max(0, positionSeconds + 0.4),
+            max(0, positionSeconds + 1.2),
+            0.8,
+            0
+        ]
+
+        var seen = Set<Int>()
+        return rawCandidates.compactMap { rawValue in
+            let clampedValue: Double
+            if let normalizedDuration {
+                clampedValue = min(max(0, rawValue), max(normalizedDuration - 0.2, 0))
+            } else {
+                clampedValue = max(0, rawValue)
+            }
+
+            let key = Int((clampedValue * 10).rounded())
+            guard seen.insert(key).inserted else { return nil }
+            return clampedValue
+        }
+    }
+
+    private static func imageCost(for image: UIImage) -> Int {
+        Int(image.size.width * image.scale * image.size.height * image.scale * 4)
     }
 }
 
@@ -2667,9 +4109,7 @@ private struct HiddenJavDBWatchSite: Identifiable, Hashable {
 
     static let defaultSites: [HiddenJavDBWatchSite] = [
         HiddenJavDBWatchSite(name: "MISSAV", urlTemplate: "https://missav.ws/{{code}}/"),
-        HiddenJavDBWatchSite(name: "Jable", urlTemplate: "https://jable.tv/search/{{code}}/"),
-        HiddenJavDBWatchSite(name: "Jav.Guru", urlTemplate: "https://jav.guru/?s={{code}}"),
-        HiddenJavDBWatchSite(name: "JavBus", urlTemplate: "https://javbus.com/{{code}}")
+        HiddenJavDBWatchSite(name: "Jable", urlTemplate: "https://jable.tv/search/{{code}}/")
     ]
 
     var launchMode: LaunchMode {
@@ -2736,9 +4176,20 @@ private struct HiddenInAppWebPageItem: Identifiable {
     let id = UUID()
 }
 
+private enum HiddenMissAVModule {
+    static let homeURL = URL(string: "https://missav.ws")!
+
+    static func pageURL(for rawCode: String) -> URL? {
+        HiddenJavDBWatchSite.defaultSites
+            .first(where: { $0.name == "MISSAV" })?
+            .url(for: rawCode)
+    }
+}
+
 private struct HiddenInAppVideoPlayerView: View {
     let item: HiddenInAppPlayerItem
-    let onSaveFavoritePlayback: (HiddenJavDBFavoritePlayback) -> Void
+    let onSaveFavoritePlayback: (HiddenJavDBFavoritePlayback) -> HiddenJavDBFavoritePlaybackSaveContext
+    let onUndoFavoritePlaybackSave: (HiddenJavDBFavoritePlaybackSaveContext) -> [Double]
 
     @Environment(\.dismiss) private var dismiss
     @State private var player: AVPlayer
@@ -2750,16 +4201,28 @@ private struct HiddenInAppVideoPlayerView: View {
     @State private var duration: Double = 0
     @State private var isScrubbing = false
     @State private var scrubPosition: Double = 0
+    @State private var isProgrammaticSeeking = false
     @State private var controlsVisible = true
     @State private var controlsAutoHideTask: Task<Void, Never>?
+    @State private var seekTask: Task<Void, Never>?
     @State private var favoriteSaveResetTask: Task<Void, Never>?
+    @State private var recentlySavedPlaybackContext: HiddenJavDBFavoritePlaybackSaveContext?
     @State private var recentlySavedPosition: Double?
+    @State private var favoriteUndoCountdown = 0
+    @State private var activeHoldPlaybackRate: Float?
     @State private var didApplyInitialStartPosition = false
     @State private var markerPositions: [Double]
 
-    init(item: HiddenInAppPlayerItem, onSaveFavoritePlayback: @escaping (HiddenJavDBFavoritePlayback) -> Void) {
+    private let temporaryBoostRate: Float = 3.0
+
+    init(
+        item: HiddenInAppPlayerItem,
+        onSaveFavoritePlayback: @escaping (HiddenJavDBFavoritePlayback) -> HiddenJavDBFavoritePlaybackSaveContext,
+        onUndoFavoritePlaybackSave: @escaping (HiddenJavDBFavoritePlaybackSaveContext) -> [Double]
+    ) {
         self.item = item
         self.onSaveFavoritePlayback = onSaveFavoritePlayback
+        self.onUndoFavoritePlaybackSave = onUndoFavoritePlaybackSave
 
         let headers: [String: String] = [
             "Referer": item.refererURL.absoluteString,
@@ -2805,14 +4268,16 @@ private struct HiddenInAppVideoPlayerView: View {
         .onAppear {
             configureAudioSession()
             player.isMuted = true
-            player.defaultRate = playbackRate
-            player.playImmediately(atRate: playbackRate)
+            player.defaultRate = effectivePlaybackRate
+            player.playImmediately(atRate: effectivePlaybackRate)
             syncPlaybackState()
             scheduleControlsAutoHide()
         }
         .onDisappear {
+            seekTask?.cancel()
             controlsAutoHideTask?.cancel()
             favoriteSaveResetTask?.cancel()
+            activeHoldPlaybackRate = nil
             player.pause()
         }
         .task(id: item.id) {
@@ -2863,7 +4328,7 @@ private struct HiddenInAppVideoPlayerView: View {
                         HStack(spacing: 8) {
                             playerBadge(text: item.sourceName)
                             playerBadge(text: item.movie.code)
-                            playerBadge(text: formattedRate(playbackRate))
+                            playerBadge(text: formattedRate(effectivePlaybackRate))
                             if !markerPositions.isEmpty {
                                 playerBadge(text: "\(markerPositions.count) 个点")
                             }
@@ -2960,7 +4425,7 @@ private struct HiddenInAppVideoPlayerView: View {
                         Button {
                             saveFavoritePlaybackPosition()
                         } label: {
-                            Label(recentlySavedPosition == nil ? "喜欢此处" : "已记录", systemImage: recentlySavedPosition == nil ? "heart.fill" : "checkmark.circle.fill")
+                            Label(recentlySavedPlaybackContext == nil ? "喜欢此处" : "已记录", systemImage: recentlySavedPlaybackContext == nil ? "heart.fill" : "checkmark.circle.fill")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 14)
@@ -2995,13 +4460,27 @@ private struct HiddenInAppVideoPlayerView: View {
                                 .padding(.vertical, 10)
                                 .background(Color.white.opacity(0.12), in: Capsule())
                         }
+
+                        holdSpeedButton
                     }
 
-                    if let recentlySavedPosition {
-                        Text("已记录 \(HiddenPlaybackTimeFormatter.string(from: recentlySavedPosition))，下次可直达播放")
-                            .font(.caption2)
-                            .foregroundStyle(.white.opacity(0.76))
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    if let recentlySavedPosition, recentlySavedPlaybackContext != nil {
+                        HStack(spacing: 10) {
+                            Text("已记录 \(HiddenPlaybackTimeFormatter.string(from: recentlySavedPosition))，\(max(favoriteUndoCountdown, 1)) 秒内可撤回")
+                                .font(.caption2)
+                                .foregroundStyle(.white.opacity(0.76))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            Button("撤回") {
+                                undoFavoritePlaybackSave()
+                            }
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.white.opacity(0.14), in: Capsule())
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
                 .padding(.horizontal, 16)
@@ -3035,6 +4514,20 @@ private struct HiddenInAppVideoPlayerView: View {
                 )
         }
         .buttonStyle(.plain)
+    }
+
+    private var holdSpeedButton: some View {
+        Text(activeHoldPlaybackRate == nil ? "按住 3x" : "3x 加速中")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(activeHoldPlaybackRate == nil ? Color.white.opacity(0.12) : Color.orange.opacity(0.72))
+            )
+            .contentShape(Capsule())
+            .onLongPressGesture(minimumDuration: 0.08, maximumDistance: 36, pressing: handleTemporaryBoostPressingChanged) {}
     }
 
     @ViewBuilder
@@ -3080,7 +4573,7 @@ private struct HiddenInAppVideoPlayerView: View {
             isPlaying = false
             controlsAutoHideTask?.cancel()
         } else {
-            player.playImmediately(atRate: playbackRate)
+            player.playImmediately(atRate: effectivePlaybackRate)
             isPlaying = true
             scheduleControlsAutoHide()
         }
@@ -3097,25 +4590,21 @@ private struct HiddenInAppVideoPlayerView: View {
     }
 
     private func seek(by seconds: Double) {
-        let current = CMTimeGetSeconds(player.currentTime())
-        guard current.isFinite else { return }
+        let baseTime = resolvedCurrentPlaybackTime
+        guard baseTime.isFinite else { return }
 
-        let duration = CMTimeGetSeconds(player.currentItem?.duration ?? .invalid)
-        var target = max(0, current + seconds)
-        if duration.isFinite && duration > 0 {
+        var target = max(0, baseTime + seconds)
+        if duration.isFinite, duration > 0 {
             target = min(target, duration)
         }
 
-        let targetTime = CMTime(seconds: target, preferredTimescale: 600)
-        player.seek(to: targetTime)
+        updateDisplayedPlaybackPosition(to: target)
+        seekPlayer(to: target)
         showControlsTemporarily()
     }
 
     private func applyPlaybackRate() {
-        player.defaultRate = playbackRate
-        if player.timeControlStatus == .playing {
-            player.rate = playbackRate
-        }
+        setPlayerRate(effectivePlaybackRate)
         showControlsTemporarily()
     }
 
@@ -3134,28 +4623,31 @@ private struct HiddenInAppVideoPlayerView: View {
         isScrubbing = editing
 
         if editing {
+            seekTask?.cancel()
+            isProgrammaticSeeking = false
             controlsAutoHideTask?.cancel()
             scrubPosition = currentTime
             return
         }
 
-        let targetTime = CMTime(seconds: scrubPosition, preferredTimescale: 600)
-        player.seek(to: targetTime)
-        scheduleControlsAutoHide()
+        let target = normalizedPlaybackTime(scrubPosition)
+        updateDisplayedPlaybackPosition(to: target)
+        seekPlayer(to: target)
     }
 
     private func syncPlaybackState() {
-        let latestTime = CMTimeGetSeconds(player.currentTime())
-        if latestTime.isFinite {
-            currentTime = latestTime
-            if !isScrubbing {
-                scrubPosition = latestTime
-            }
-        }
-
         let latestDuration = CMTimeGetSeconds(player.currentItem?.duration ?? .invalid)
         if latestDuration.isFinite, latestDuration > 0 {
             duration = latestDuration
+        }
+
+        let latestTime = CMTimeGetSeconds(player.currentTime())
+        if latestTime.isFinite, !isProgrammaticSeeking {
+            let normalizedTime = normalizedPlaybackTime(latestTime)
+            currentTime = normalizedTime
+            if !isScrubbing {
+                scrubPosition = normalizedTime
+            }
         }
 
         isPlaying = player.timeControlStatus == .playing
@@ -3182,11 +4674,11 @@ private struct HiddenInAppVideoPlayerView: View {
 
     private func scheduleControlsAutoHide() {
         controlsAutoHideTask?.cancel()
-        guard isPlaying, !isScrubbing else { return }
+        guard isPlaying, !isScrubbing, !isProgrammaticSeeking else { return }
 
         controlsAutoHideTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 3_000_000_000)
-            guard !Task.isCancelled, isPlaying, !isScrubbing else { return }
+            guard !Task.isCancelled, isPlaying, !isScrubbing, !isProgrammaticSeeking else { return }
             withAnimation(.easeInOut(duration: 0.2)) {
                 controlsVisible = false
             }
@@ -3199,15 +4691,17 @@ private struct HiddenInAppVideoPlayerView: View {
         didApplyInitialStartPosition = true
 
         let targetTime = CMTime(seconds: item.startPositionSeconds, preferredTimescale: 600)
+        isProgrammaticSeeking = true
         for _ in 0..<20 {
             if Task.isCancelled {
+                isProgrammaticSeeking = false
                 return
             }
 
             if player.currentItem?.status == .readyToPlay {
                 await player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
-                currentTime = item.startPositionSeconds
-                scrubPosition = item.startPositionSeconds
+                updateDisplayedPlaybackPosition(to: item.startPositionSeconds)
+                isProgrammaticSeeking = false
                 return
             }
 
@@ -3215,8 +4709,8 @@ private struct HiddenInAppVideoPlayerView: View {
         }
 
         await player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
-        currentTime = item.startPositionSeconds
-        scrubPosition = item.startPositionSeconds
+        updateDisplayedPlaybackPosition(to: item.startPositionSeconds)
+        isProgrammaticSeeking = false
     }
 
     private func saveFavoritePlaybackPosition() {
@@ -3230,15 +4724,113 @@ private struct HiddenInAppVideoPlayerView: View {
             positionSeconds: positionSeconds
         )
 
-        onSaveFavoritePlayback(playback)
-        markerPositions = Self.normalizedMarkerPositions(markerPositions + [positionSeconds])
-        recentlySavedPosition = positionSeconds
-        favoriteSaveResetTask?.cancel()
-        favoriteSaveResetTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            guard !Task.isCancelled else { return }
-            recentlySavedPosition = nil
+        let saveContext = onSaveFavoritePlayback(playback)
+        markerPositions = Self.normalizedMarkerPositions(saveContext.markerPositions)
+        recentlySavedPlaybackContext = saveContext
+        recentlySavedPosition = saveContext.savedPlayback.positionSeconds
+        scheduleFavoriteUndoCountdown()
+        showControlsTemporarily()
+    }
+
+    private var effectivePlaybackRate: Float {
+        activeHoldPlaybackRate ?? playbackRate
+    }
+
+    private var resolvedCurrentPlaybackTime: Double {
+        let candidate = isScrubbing ? scrubPosition : currentTime
+        if candidate.isFinite {
+            return normalizedPlaybackTime(candidate)
         }
+        return normalizedPlaybackTime(CMTimeGetSeconds(player.currentTime()))
+    }
+
+    private func normalizedPlaybackTime(_ value: Double) -> Double {
+        let nonNegativeValue = max(0, value.isFinite ? value : 0)
+        guard duration.isFinite, duration > 0 else { return nonNegativeValue }
+        return min(nonNegativeValue, duration)
+    }
+
+    private func updateDisplayedPlaybackPosition(to value: Double) {
+        let normalizedValue = normalizedPlaybackTime(value)
+        currentTime = normalizedValue
+        scrubPosition = normalizedValue
+    }
+
+    private func seekPlayer(to target: Double) {
+        seekTask?.cancel()
+        isProgrammaticSeeking = true
+
+        let targetTime = CMTime(seconds: target, preferredTimescale: 600)
+        let resumePlayback = isPlaying
+        let rateAfterSeek = effectivePlaybackRate
+
+        seekTask = Task { @MainActor in
+            await player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
+            guard !Task.isCancelled else { return }
+
+            updateDisplayedPlaybackPosition(to: target)
+            isProgrammaticSeeking = false
+
+            if resumePlayback {
+                player.playImmediately(atRate: rateAfterSeek)
+            }
+            scheduleControlsAutoHide()
+        }
+    }
+
+    private func setPlayerRate(_ rate: Float) {
+        player.defaultRate = rate
+        if player.timeControlStatus == .playing {
+            player.rate = rate
+        }
+    }
+
+    private func handleTemporaryBoostPressingChanged(_ isPressing: Bool) {
+        if isPressing {
+            beginTemporarySpeedBoost()
+        } else {
+            endTemporarySpeedBoostIfNeeded()
+        }
+    }
+
+    private func beginTemporarySpeedBoost() {
+        guard activeHoldPlaybackRate == nil else { return }
+        activeHoldPlaybackRate = max(playbackRate, temporaryBoostRate)
+        setPlayerRate(effectivePlaybackRate)
+        showControlsTemporarily()
+    }
+
+    private func endTemporarySpeedBoostIfNeeded() {
+        guard activeHoldPlaybackRate != nil else { return }
+        activeHoldPlaybackRate = nil
+        setPlayerRate(playbackRate)
+        showControlsTemporarily()
+    }
+
+    private func scheduleFavoriteUndoCountdown() {
+        favoriteSaveResetTask?.cancel()
+        favoriteUndoCountdown = 3
+
+        favoriteSaveResetTask = Task { @MainActor in
+            for remaining in stride(from: 3, through: 1, by: -1) {
+                favoriteUndoCountdown = remaining
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                guard !Task.isCancelled else { return }
+            }
+
+            recentlySavedPlaybackContext = nil
+            recentlySavedPosition = nil
+            favoriteUndoCountdown = 0
+        }
+    }
+
+    private func undoFavoritePlaybackSave() {
+        guard let context = recentlySavedPlaybackContext else { return }
+        markerPositions = Self.normalizedMarkerPositions(onUndoFavoritePlaybackSave(context))
+        recentlySavedPlaybackContext = nil
+        recentlySavedPosition = nil
+        favoriteUndoCountdown = 0
+        favoriteSaveResetTask?.cancel()
         showControlsTemporarily()
     }
 
@@ -3620,6 +5212,10 @@ private final class HiddenJavDBViewModel: ObservableObject {
     @Published var randomMovies: [HiddenJavDBMovie] = []
     @Published var isLoadingRandomMovie = false
     @Published var randomErrorMessage: String?
+    @Published var searchedMovies: [HiddenJavDBMovie] = []
+    @Published var isSearchingMovies = false
+    @Published var searchMovieErrorMessage: String?
+    @Published var lastSearchedMovieQuery: String?
     @Published var favoriteMovies: [HiddenJavDBMovie] = []
     @Published var favoritePlaybacks: [HiddenJavDBFavoritePlayback] = []
     @Published var detailsByMovieID: [String: HiddenJavDBMovieDetail] = [:]
@@ -3712,6 +5308,37 @@ private final class HiddenJavDBViewModel: ObservableObject {
         }
     }
 
+    func searchMovies(query: String) async {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedQuery.isEmpty else {
+            resetSearchMovies()
+            return
+        }
+
+        guard !isSearchingMovies else { return }
+
+        isSearchingMovies = true
+        searchMovieErrorMessage = nil
+        lastSearchedMovieQuery = normalizedQuery
+
+        defer {
+            isSearchingMovies = false
+        }
+
+        do {
+            searchedMovies = try await HiddenJavDBAPI.searchMovies(query: normalizedQuery)
+        } catch {
+            searchedMovies = []
+            searchMovieErrorMessage = error.localizedDescription
+        }
+    }
+
+    func resetSearchMovies() {
+        searchedMovies = []
+        searchMovieErrorMessage = nil
+        lastSearchedMovieQuery = nil
+    }
+
     func toggleFavorite(_ movie: HiddenJavDBMovie) {
         let shouldRemove = favoriteMovies.contains(where: { $0.id == movie.id })
         if let index = favoriteMovies.firstIndex(where: { $0.id == movie.id }) {
@@ -3731,10 +5358,12 @@ private final class HiddenJavDBViewModel: ObservableObject {
         favoriteMovies.contains(where: { $0.id == movie.id })
     }
 
-    func saveFavoritePlayback(_ playback: HiddenJavDBFavoritePlayback) {
+    @discardableResult
+    func saveFavoritePlayback(_ playback: HiddenJavDBFavoritePlayback) -> HiddenJavDBFavoritePlaybackSaveContext {
         ensureFavoriteMovie(playback.movie)
 
         var storedPlayback = playback
+        var replacedPlayback: HiddenJavDBFavoritePlayback?
         if let existingIndex = favoritePlaybacks.firstIndex(where: {
             $0.movie.id == playback.movie.id &&
             $0.sourceName == playback.sourceName &&
@@ -3743,6 +5372,7 @@ private final class HiddenJavDBViewModel: ObservableObject {
         }) {
             let existing = favoritePlaybacks[existingIndex]
             favoritePlaybacks.remove(at: existingIndex)
+            replacedPlayback = existing
             storedPlayback = HiddenJavDBFavoritePlayback(
                 id: existing.id,
                 movie: playback.movie,
@@ -3760,10 +5390,42 @@ private final class HiddenJavDBViewModel: ObservableObject {
         }
         saveFavoritePlaybacks()
 
-        guard isCloudAuthenticated else { return }
-        Task {
-            await syncPlaybackUpsert(storedPlayback)
+        if isCloudAuthenticated {
+            Task {
+                await syncPlaybackUpsert(storedPlayback)
+            }
         }
+
+        return HiddenJavDBFavoritePlaybackSaveContext(
+            savedPlayback: storedPlayback,
+            replacedPlayback: replacedPlayback,
+            markerPositions: playbackMarkerPositions(for: playback.movie)
+        )
+    }
+
+    @discardableResult
+    func undoFavoritePlaybackSave(_ context: HiddenJavDBFavoritePlaybackSaveContext) -> [Double] {
+        favoritePlaybacks.removeAll { $0.id == context.savedPlayback.id }
+
+        if let replacedPlayback = context.replacedPlayback {
+            favoritePlaybacks.insert(replacedPlayback, at: 0)
+        }
+
+        saveFavoritePlaybacks()
+
+        guard isCloudAuthenticated else {
+            return playbackMarkerPositions(for: context.savedPlayback.movie)
+        }
+
+        Task {
+            if let replacedPlayback = context.replacedPlayback {
+                await syncPlaybackUpsert(replacedPlayback)
+            } else {
+                await syncPlaybackDeletion(context.savedPlayback)
+            }
+        }
+
+        return playbackMarkerPositions(for: context.savedPlayback.movie)
     }
 
     func removeFavoritePlayback(_ playback: HiddenJavDBFavoritePlayback) {
@@ -4895,6 +6557,17 @@ private actor HiddenSupabaseService {
     }
 }
 
+private extension Error {
+    var isHiddenSupabaseAuthFailure: Bool {
+        let nsError = self as NSError
+        guard nsError.domain == "HiddenSupabaseService" else {
+            return false
+        }
+
+        return nsError.code == -2 || nsError.code == 401 || nsError.code == 403
+    }
+}
+
 private enum Hidden4KHDLocalStore {
     static let favoriteAlbumsKey = "hidden_space.favorite_albums.v1"
     static let favoriteImagesKey = "hidden_space.favorite_images.v1"
@@ -5018,7 +6691,7 @@ final class HiddenCloudSyncViewModel: ObservableObject {
     private var didPrepareCloud = false
 
     func prepareIfNeeded() async {
-        guard !didPrepareCloud else { return }
+        guard !didPrepareCloud, !isPreparingCloud else { return }
         didPrepareCloud = true
 
         isPreparingCloud = true
@@ -5048,7 +6721,20 @@ final class HiddenCloudSyncViewModel: ObservableObject {
             isCloudAuthenticated = false
             cloudUserEmail = nil
             cloudStatusMessage = "云端会话恢复失败：\(error.localizedDescription)"
+            didPrepareCloud = false
         }
+    }
+
+    func syncIfPossible() async {
+        guard !isPreparingCloud, !isCloudBusy else { return }
+
+        if !didPrepareCloud {
+            await prepareIfNeeded()
+            return
+        }
+
+        guard isCloudConfigured, isCloudAuthenticated else { return }
+        await syncNow(reason: "云端同步完成")
     }
 
     func signIn(email: String, password: String) async {
@@ -5142,6 +6828,10 @@ final class HiddenCloudSyncViewModel: ObservableObject {
 
             cloudStatusMessage = "\(reason) · jav 影片 \(mergedJavFavorites.count) 部 · jav 播放点 \(mergedJavPlaybacks.count) 条 · 4khd album \(merged4KHDAlbums.count) 个 · 图片 \(merged4KHDImages.count) 张"
         } catch {
+            if error.isHiddenSupabaseAuthFailure {
+                isCloudAuthenticated = false
+                didPrepareCloud = false
+            }
             cloudStatusMessage = "云端同步失败：\(error.localizedDescription)"
         }
     }
@@ -5242,6 +6932,8 @@ private struct HiddenJavDBMovieDetail: Hashable {
     let releaseDate: String?
     let durationMinutes: Int?
     let studio: String?
+    let otherActressMovies: [HiddenJavDBMovie]
+    let recommendedMovies: [HiddenJavDBMovie]
 
     var actressesText: String {
         actresses.isEmpty ? "未知" : actresses.joined(separator: " / ")
@@ -5279,6 +6971,12 @@ private struct HiddenJavDBFavoritePlayback: Identifiable, Codable, Hashable {
         self.positionSeconds = positionSeconds
         self.createdAt = createdAt
     }
+}
+
+private struct HiddenJavDBFavoritePlaybackSaveContext {
+    let savedPlayback: HiddenJavDBFavoritePlayback
+    let replacedPlayback: HiddenJavDBFavoritePlayback?
+    let markerPositions: [Double]
 }
 
 private extension HiddenJavDBFavoritePlayback {
@@ -5403,6 +7101,16 @@ private enum HiddenJavDBAPI {
             extractMetadataValue(labelKeywords: ["片商", "メーカー", "Studio", "Maker"], in: html),
             extractMetadataValue(labelKeywords: ["发行", "Publisher", "Label"], in: html)
         ]).map(cleanTitle)
+        let otherActressMovies = parseRelatedMovies(
+            from: html,
+            titleKeywords: ["她們還演出過", "她们还演出过", "她還演出過", "她还演出过"],
+            excluding: movie
+        )
+        let recommendedMovies = parseRelatedMovies(
+            from: html,
+            titleKeywords: ["可能你也喜歡", "可能你也喜欢", "you may also like"],
+            excluding: movie
+        )
 
         return HiddenJavDBMovieDetail(
             code: parsedCode?.nonEmpty ?? movie.code,
@@ -5410,8 +7118,35 @@ private enum HiddenJavDBAPI {
             actresses: actresses.isEmpty ? movie.actresses : actresses,
             releaseDate: releaseDate?.nonEmpty,
             durationMinutes: durationMinutes,
-            studio: studio?.nonEmpty
+            studio: studio?.nonEmpty,
+            otherActressMovies: otherActressMovies,
+            recommendedMovies: recommendedMovies
         )
+    }
+
+    static func searchMovies(query: String) async throws -> [HiddenJavDBMovie] {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedQuery.isEmpty else { return [] }
+
+        let html = try await fetchHTML(from: searchURL(query: normalizedQuery))
+        return parseMovies(from: html)
+    }
+
+    static func resolvePlayableStream(for playback: HiddenJavDBFavoritePlayback) async throws -> (streamURL: URL, refererURL: URL) {
+        for site in preferredPlayableSites(for: playback) {
+            guard let pageURL = site.url(for: playback.movie.code) else { continue }
+
+            do {
+                let target = try await resolveWatchPlaybackTarget(for: site, pageURL: pageURL)
+                if case let .stream(streamURL, refererURL) = target {
+                    return (streamURL, refererURL)
+                }
+            } catch {
+                continue
+            }
+        }
+
+        return (playback.streamURL, playback.refererURL)
     }
 
     static func fetchMissAVPrimaryStreamURL(pageURL: URL) async throws -> URL {
@@ -5580,6 +7315,24 @@ private enum HiddenJavDBAPI {
         return components?.url ?? listingURL
     }
 
+    private static func searchURL(query: String) -> URL {
+        var components = URLComponents(string: "https://javdb.com/search")
+        components?.queryItems = [
+            URLQueryItem(name: "q", value: query),
+            URLQueryItem(name: "f", value: "all")
+        ]
+        return components?.url ?? listingURL
+    }
+
+    private static func preferredPlayableSites(for playback: HiddenJavDBFavoritePlayback) -> [HiddenJavDBWatchSite] {
+        let nativeSites = HiddenJavDBWatchSite.defaultSites.filter { $0.launchMode == .nativeStream }
+        guard let preferredSite = nativeSites.first(where: { $0.name == playback.sourceName }) else {
+            return nativeSites
+        }
+
+        return [preferredSite] + nativeSites.filter { $0.id != preferredSite.id }
+    }
+
     private static func fetchHTML(from url: URL) async throws -> String {
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
         request.httpShouldHandleCookies = true
@@ -5705,6 +7458,40 @@ private enum HiddenJavDBAPI {
         }
 
         return movies
+    }
+
+    private static func parseRelatedMovies(
+        from html: String,
+        titleKeywords: [String],
+        excluding currentMovie: HiddenJavDBMovie
+    ) -> [HiddenJavDBMovie] {
+        let normalizedKeywords = titleKeywords.map(normalizedSectionTitle)
+
+        for block in regexFullMatches(pattern: #"<section\b[^>]*>.*?</section>"#, in: html, dotMatchesLine: true) {
+            let normalizedBlock = normalizedSectionTitle(cleanTitle(block))
+            guard normalizedKeywords.contains(where: { normalizedBlock.contains($0) }) else { continue }
+
+            let movies = dedupedRelatedMovies(
+                parseMovies(from: block).filter { $0.id != currentMovie.id }
+            )
+            if !movies.isEmpty {
+                return movies
+            }
+        }
+
+        for section in extractHeadingAnchoredSections(from: html) {
+            let normalizedTitle = normalizedSectionTitle(section.title)
+            guard normalizedKeywords.contains(where: { normalizedTitle.contains($0) }) else { continue }
+
+            let movies = dedupedRelatedMovies(
+                parseMovies(from: section.body).filter { $0.id != currentMovie.id }
+            )
+            if !movies.isEmpty {
+                return movies
+            }
+        }
+
+        return []
     }
 
     private static func parseMovieImages(from html: String) -> [URL] {
@@ -6345,6 +8132,83 @@ private enum HiddenJavDBAPI {
             return (String(text[firstRange]), String(text[secondRange]))
         }
     }
+
+    private static func regexFullMatches(pattern: String, in text: String, dotMatchesLine: Bool) -> [String] {
+        var options: NSRegularExpression.Options = [.caseInsensitive]
+        if dotMatchesLine {
+            options.insert(.dotMatchesLineSeparators)
+        }
+
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: options) else {
+            return []
+        }
+
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        return regex.matches(in: text, options: [], range: range).compactMap { match in
+            guard let fullRange = Range(match.range(at: 0), in: text) else {
+                return nil
+            }
+            return String(text[fullRange])
+        }
+    }
+
+    private static func extractHeadingAnchoredSections(from html: String) -> [(title: String, body: String)] {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"<h([1-6])[^>]*>(.*?)</h\1>"#,
+            options: [.caseInsensitive, .dotMatchesLineSeparators]
+        ) else {
+            return []
+        }
+
+        let range = NSRange(html.startIndex..<html.endIndex, in: html)
+        let matches = regex.matches(in: html, options: [], range: range)
+
+        var sections: [(title: String, body: String)] = []
+        for index in matches.indices {
+            guard let titleRange = Range(matches[index].range(at: 2), in: html),
+                  let fullRange = Range(matches[index].range(at: 0), in: html) else {
+                continue
+            }
+
+            let title = cleanTitle(String(html[titleRange]))
+            guard !title.isEmpty else { continue }
+
+            let bodyStart = fullRange.upperBound
+            let bodyEnd: String.Index
+            if index + 1 < matches.count,
+               let nextRange = Range(matches[index + 1].range(at: 0), in: html) {
+                bodyEnd = nextRange.lowerBound
+            } else {
+                bodyEnd = html.endIndex
+            }
+
+            sections.append((title: title, body: String(html[bodyStart..<bodyEnd])))
+        }
+
+        return sections
+    }
+
+    private static func normalizedSectionTitle(_ value: String) -> String {
+        cleanTitle(value)
+            .lowercased()
+            .replacingOccurrences(of: #"\s+"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: "：", with: "")
+            .replacingOccurrences(of: ":", with: "")
+    }
+
+    private static func dedupedRelatedMovies(_ movies: [HiddenJavDBMovie]) -> [HiddenJavDBMovie] {
+        var deduped: [HiddenJavDBMovie] = []
+        var seen = Set<String>()
+
+        for movie in movies where seen.insert(movie.id).inserted {
+            deduped.append(movie)
+            if deduped.count >= 18 {
+                break
+            }
+        }
+
+        return deduped
+    }
 }
 
 @MainActor
@@ -6387,7 +8251,7 @@ private final class HiddenJavDBWebHTMLFetcher: NSObject, WKNavigationDelegate {
             timeoutTask?.cancel()
             timeoutTask = Task { [weak self] in
                 try? await Task.sleep(nanoseconds: 30_000_000_000)
-                await self?.failIfPending(message: "WebView 请求超时，请重试")
+                self?.failIfPending(message: "WebView 请求超时，请重试")
             }
         }
     }

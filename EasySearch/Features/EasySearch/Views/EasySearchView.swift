@@ -9,7 +9,13 @@ struct EasySearchView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    SearchBar(text: $viewModel.searchQuery, isFocused: $isSearchFieldFocused)
+                    SearchBar(text: $viewModel.searchQuery, isFocused: $isSearchFieldFocused) {
+                        if viewModel.performDefaultSearch() {
+                            isSearchFieldFocused = false
+                        } else {
+                            isSearchFieldFocused = true
+                        }
+                    }
 
                     Picker("分类", selection: $viewModel.selectedCategory) {
                         ForEach(SearchCategory.allCases, id: \.self) { category in
@@ -34,7 +40,7 @@ struct EasySearchView: View {
             }
             .background(Color(.systemGroupedBackground).ignoresSafeArea())
             .navigationTitle("搜索")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
             .onAppear {
                 autofocusSearchFieldIfNeeded()

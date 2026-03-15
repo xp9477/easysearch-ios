@@ -47,11 +47,47 @@ struct UTWeekSummary: Identifiable, Hashable {
         return totalHours / UTTrackerMetrics.targetHours
     }
 
+    var fullWeekProgress: Double {
+        guard UTTrackerMetrics.fullWeekHours > 0 else { return 0 }
+        return totalHours / UTTrackerMetrics.fullWeekHours
+    }
+
     var remainingToTarget: Double {
         max(0, UTTrackerMetrics.targetHours - totalHours)
     }
 
     var isTargetMet: Bool {
         totalHours >= UTTrackerMetrics.targetHours
+    }
+}
+
+enum UTTrackerSnapshot {
+    static func currentWeekSummary(
+        userDefaults: UserDefaults = .standard,
+        calendar: Calendar = .utTracker,
+        now: Date = Date()
+    ) -> UTWeekSummary {
+        let weekInterval = calendar.dateInterval(of: .weekOfYear, for: now)
+            ?? DateInterval(start: calendar.startOfDay(for: now), duration: 7 * 24 * 60 * 60)
+        let weekStart = weekInterval.start
+        let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
+
+        let totalHours = loadEntries(userDefaults: userDefaults)
+            .filter { weekInterval.contains($0.date) }
+            .reduce(0) { $0 + $1.hours }
+
+        return UTWeekSummary(
+            weekStart: weekStart,
+            weekEnd: weekEnd,
+            totalHours: totalHours
+        )
+    }
+
+    private static func loadEntries(userDefaults: UserDefaults) -> [UTEntry] {
+        guard let data = userDefaults.data(forKey: UTTrackerStorage.entriesKey),
+              let storedEntries = try? JSONDecoder().decode([UTEntry].self, from: data) else {
+            return []
+        }
+        return storedEntries
     }
 }

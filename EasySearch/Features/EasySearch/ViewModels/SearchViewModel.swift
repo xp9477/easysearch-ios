@@ -10,16 +10,13 @@ class SearchViewModel: ObservableObject {
     @Published var searchEngines: [SearchEngine] = []
     @Published var searchQuery: String = ""
     @Published var selectedCategory: SearchCategory = .search
-    @Published var isRefreshing: Bool = false
-    @Published var refreshError: String?
-    @Published var refreshSuccess: Bool = false
-    @Published var lastRefreshDate: Date?
 
     // MARK: - Constants
 
     private let configKey = "cached_search_engines"
-    private let lastRefreshKey = "last_refresh_date"
+    private let remoteLastModifiedKey = "search_engines.remote_last_modified"
     private let remoteConfigURL = "https://raw.githubusercontent.com/xp9477/easy-search/main/data/search-engines.json"
+    private var didCheckRemoteConfig = false
 
     // MARK: - Computed Properties
 
@@ -36,11 +33,17 @@ class SearchViewModel: ObservableObject {
         !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    var defaultSearchEngine: SearchEngine? {
+        filteredEngines.first
+    }
+
     // MARK: - Initialization
 
     init() {
         loadConfig()
-        loadLastRefreshDate()
+        Task {
+            await refreshConfigIfNeededOnLaunch()
+        }
     }
 
     // MARK: - Config Loading
@@ -72,39 +75,11 @@ class SearchViewModel: ObservableObject {
 
     // MARK: - Remote Refresh
 
-    /// 从 GitHub 远程拉取最新配置
-    func refreshConfig() async {
-        isRefreshing = true
-        refreshError = nil
-        refreshSuccess = false
-
-        defer { isRefreshing = false }
-
-        guard let url = URL(string: remoteConfigURL) else {
-            refreshError = "配置 URL 无效"
-            return
-        }
-
-        do {
-            let (data, response) = try await URLSession.shared.data(from: url)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else {
-                refreshError = "服务器返回错误"
-                return
-            }
-
-            let engines = try JSONDecoder().decode([SearchEngine].self, from: data)
-            self.searchEngines = engines
-            saveToCache(data: data)
-            lastRefreshDate = Date()
-            UserDefaults.standard.set(lastRefreshDate, forKey: lastRefreshKey)
-            refreshSuccess = true
-            print("✅ 从远程刷新了 \(engines.count) 个搜索引擎配置")
-        } catch {
-            refreshError = "刷新失败: \(error.localizedDescription)"
-            print("❌ 远程刷新失败: \(error)")
-        }
+    /// 启动后在后台检查 GitHub 配置是否更新
+    func refreshConfigIfNeededOnLaunch() async {
+        guard !didCheckRemoteConfig else { return }
+        didCheckRemoteConfig = true
+        await refreshRemoteConfigIfNeeded()
     }
 
     // MARK: - Search Action
@@ -132,13 +107,89 @@ class SearchViewModel: ObservableObject {
         }
     }
 
+    @discardableResult
+    func performDefaultSearch() -> Bool {
+        guard let engine = defaultSearchEngine, hasValidQuery else {
+            return false
+        }
+
+        performSearch(engine: engine)
+        return true
+    }
+
     // MARK: - Private Helpers
 
     private func saveToCache(data: Data) {
         UserDefaults.standard.set(data, forKey: configKey)
     }
 
-    private func loadLastRefreshDate() {
-        lastRefreshDate = UserDefaults.standard.object(forKey: lastRefreshKey) as? Date
+    private func refreshRemoteConfigIfNeeded() async {
+        guard let url = URL(string: remoteConfigURL) else {
+            return
+        }
+
+        do {
+            let remoteLastModified = try await fetchRemoteLastModified(from: url)
+            let cachedLastModified = UserDefaults.standard.string(forKey: remoteLastModifiedKey)
+
+            if let remoteLastModified, remoteLastModified == cachedLastModified {
+                print("ℹ️ 远程配置没有变化，继续使用本地缓存")
+                return
+            }
+
+            try await downloadAndApplyRemoteConfig(from: url, remoteLastModified: remoteLastModified)
+        } catch {
+            print("❌ 后台检查远程配置失败: \(error)")
+        }
+    }
+
+    private func fetchRemoteLastModified(from url: URL) async throws -> String? {
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
+        request.httpMethod = "HEAD"
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw NSError(
+                domain: "SearchViewModel",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "远程配置 HEAD 请求失败"]
+            )
+        }
+
+        return lastModifiedValue(from: httpResponse)
+    }
+
+    private func downloadAndApplyRemoteConfig(from url: URL, remoteLastModified: String?) async throws {
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
+        request.httpMethod = "GET"
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw NSError(
+                domain: "SearchViewModel",
+                code: -2,
+                userInfo: [NSLocalizedDescriptionKey: "远程配置下载失败"]
+            )
+        }
+
+        let engines = try JSONDecoder().decode([SearchEngine].self, from: data)
+        if engines != searchEngines {
+            searchEngines = engines
+            print("✅ 检测到远程配置更新，已切换为最新配置，共 \(engines.count) 个搜索引擎")
+        } else {
+            print("ℹ️ 远程配置时间已变化，但内容未发生变化")
+        }
+
+        saveToCache(data: data)
+        if let lastModified = remoteLastModified ?? lastModifiedValue(from: httpResponse) {
+            UserDefaults.standard.set(lastModified, forKey: remoteLastModifiedKey)
+        }
+    }
+
+    private func lastModifiedValue(from response: HTTPURLResponse) -> String? {
+        response.value(forHTTPHeaderField: "Last-Modified")?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

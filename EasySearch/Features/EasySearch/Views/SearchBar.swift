@@ -4,6 +4,7 @@ import SwiftUI
 struct SearchBar: View {
     @Binding var text: String
     var isFocused: FocusState<Bool>.Binding
+    var onSubmit: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 10) {
@@ -17,6 +18,7 @@ struct SearchBar: View {
                 .submitLabel(.done)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
+                .onSubmit(onSubmit)
 
             if !text.isEmpty {
                 Button {
