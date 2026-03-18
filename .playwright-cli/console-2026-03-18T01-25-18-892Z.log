@@ -1,0 +1,15 @@
+[  194099ms] [ERROR] %s
+
+%o
+
+%o Error connecting controller TypeError: Cannot read properties of null (reading 'querySelector')
+    at e.value (https://javdb.com/packs/js/app-8b6a8eb81df8ab126432.js:2:864358)
+    at t.connect (https://javdb.com/packs/js/app-8b6a8eb81df8ab126432.js:2:26749)
+    at t.connectContextForScope (https://javdb.com/packs/js/app-8b6a8eb81df8ab126432.js:2:30891)
+    at t.scopeConnected (https://javdb.com/packs/js/app-8b6a8eb81df8ab126432.js:2:39175)
+    at t.elementMatchedValue (https://javdb.com/packs/js/app-8b6a8eb81df8ab126432.js:2:36975)
+    at t.tokenMatched (https://javdb.com/packs/js/app-8b6a8eb81df8ab126432.js:2:22558)
+    at t.tokenMatched (https://javdb.com/packs/js/app-8b6a8eb81df8ab126432.js:2:20811)
+    at https://javdb.com/packs/js/app-8b6a8eb81df8ab126432.js:2:20635
+    at Array.forEach (<anonymous>)
+    at t.tokensMatched (https://javdb.com/packs/js/app-8b6a8eb81df8ab126432.js:2:20605) {identifier: movie-detail, controller: e, element: div.video-detail} @ https://javdb.com/packs/js/app-8b6a8eb81df8ab126432.js:1

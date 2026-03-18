@@ -72,7 +72,8 @@ enum UTTrackerSnapshot {
         let weekStart = weekInterval.start
         let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
 
-        let totalHours = loadEntries(userDefaults: userDefaults)
+        let totalHours = UTTrackerLocalStore(userDefaults: userDefaults)
+            .loadEntries()
             .filter { weekInterval.contains($0.date) }
             .reduce(0) { $0 + $1.hours }
 
@@ -81,13 +82,5 @@ enum UTTrackerSnapshot {
             weekEnd: weekEnd,
             totalHours: totalHours
         )
-    }
-
-    private static func loadEntries(userDefaults: UserDefaults) -> [UTEntry] {
-        guard let data = userDefaults.data(forKey: UTTrackerStorage.entriesKey),
-              let storedEntries = try? JSONDecoder().decode([UTEntry].self, from: data) else {
-            return []
-        }
-        return storedEntries
     }
 }

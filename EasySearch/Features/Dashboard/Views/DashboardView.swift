@@ -2,14 +2,18 @@ import SwiftUI
 import WebKit
 import AVKit
 import AVFoundation
-import Security
 import UIKit
 
 public struct DashboardView: View {
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var registry: FeatureRegistry
     private let isTabActive: Bool
+    @StateObject private var hidden4KHDViewModel = HiddenSpaceViewModel()
+    @StateObject private var hiddenJavDBViewModel = HiddenJavDBViewModel()
+    @StateObject private var hiddenPresentationState = HiddenSpacePresentationState()
     @State private var path = NavigationPath()
+    @State private var savedHiddenSpacePath = NavigationPath()
+    @State private var hasSavedHiddenSpacePath = false
     @State private var navigationStackIdentity = UUID()
     @State private var dashboardTapCount = 0
     @State private var hiddenModulesUnlocked = false
@@ -30,8 +34,17 @@ public struct DashboardView: View {
                 } else {
                     Section {
                         ForEach(availableFeatures, id: \.id) { feature in
-                            NavigationLink(value: feature.id) {
-                                FeatureRow(feature: feature)
+                            if shouldRestoreHiddenSpacePath(for: feature) {
+                                Button {
+                                    openFeature(feature)
+                                } label: {
+                                    FeatureRow(feature: feature, showsDisclosureIndicator: true)
+                                }
+                                .buttonStyle(.plain)
+                            } else {
+                                NavigationLink(value: feature.id) {
+                                    FeatureRow(feature: feature)
+                                }
                             }
                         }
                     }
@@ -55,11 +68,15 @@ public struct DashboardView: View {
                         .navigationBarTitleDisplayMode(.inline)
                         .onAppear {
                             selectedFeatureID = featureId
+                            saveHiddenSpaceSnapshotIfNeeded()
                         }
                 } else {
                     Text("模块不存在")
                         .foregroundStyle(.secondary)
                 }
+            }
+            .navigationDestination(for: HiddenSpaceRoute.self) { route in
+                hiddenSpaceDestination(for: route)
             }
         }
         .id(navigationStackIdentity)
@@ -74,6 +91,9 @@ public struct DashboardView: View {
             lockHiddenModulesForPrivacyIfNeeded()
         }
         .onChange(of: path.count) { count in
+            if count > 0 {
+                saveHiddenSpaceSnapshotIfNeeded()
+            }
             if count == 0 {
                 collapseHiddenSpaceAfterExitIfNeeded()
             }
@@ -102,6 +122,10 @@ public struct DashboardView: View {
         Set(registry.hiddenFeatures.map { $0.id })
     }
 
+    private var hiddenSpaceFeatureID: String {
+        "hidden-space"
+    }
+
     private var shouldMaskHiddenFeatures: Bool {
         hiddenModulesUnlocked || isInsideHiddenFeature
     }
@@ -113,6 +137,7 @@ public struct DashboardView: View {
 
     private func lockHiddenModulesForPrivacyIfNeeded() {
         guard shouldMaskHiddenFeatures else { return }
+        saveHiddenSpaceSnapshotIfNeeded()
         dashboardTapCount = 0
         hiddenModulesUnlocked = false
         if isInsideHiddenFeature {
@@ -131,10 +156,56 @@ public struct DashboardView: View {
 
     private func collapseHiddenSpaceOnTabLeaveIfNeeded() {
         guard shouldMaskHiddenFeatures else { return }
+        saveHiddenSpaceSnapshotIfNeeded()
         dashboardTapCount = 0
         hiddenModulesUnlocked = false
         selectedFeatureID = nil
         resetNavigationStack()
+    }
+
+    private func shouldRestoreHiddenSpacePath(for feature: any AppFeature) -> Bool {
+        feature.id == hiddenSpaceFeatureID && hasSavedHiddenSpacePath
+    }
+
+    private func openFeature(_ feature: any AppFeature) {
+        if feature.id == hiddenSpaceFeatureID, restoreHiddenSpacePathIfPossible() {
+            return
+        }
+        path.append(feature.id)
+    }
+
+    private func restoreHiddenSpacePathIfPossible() -> Bool {
+        guard hasSavedHiddenSpacePath, savedHiddenSpacePath.count > 0 else {
+            return false
+        }
+        path = savedHiddenSpacePath
+        return true
+    }
+
+    private func saveHiddenSpaceSnapshotIfNeeded() {
+        guard isInsideHiddenFeature, path.count > 0 else { return }
+        savedHiddenSpacePath = path
+        hasSavedHiddenSpacePath = true
+    }
+
+    @ViewBuilder
+    private func hiddenSpaceDestination(for route: HiddenSpaceRoute) -> some View {
+        switch route {
+        case .fourKHD:
+            Hidden4KHDFeatureView(viewModel: hidden4KHDViewModel)
+        case .fourKHDFavorites:
+            HiddenFavoriteAlbumsView(viewModel: hidden4KHDViewModel, presentationState: hiddenPresentationState)
+        case let .fourKHDAlbum(album):
+            HiddenAlbumDetailView(album: album, viewModel: hidden4KHDViewModel, presentationState: hiddenPresentationState)
+        case .javDB:
+            HiddenJavDBFeatureView(viewModel: hiddenJavDBViewModel)
+        case .javDBFavorites:
+            HiddenJavDBFavoriteMoviesView(viewModel: hiddenJavDBViewModel, presentationState: hiddenPresentationState)
+        case let .javDBMovie(movie):
+            HiddenJavDBMovieDetailView(movie: movie, viewModel: hiddenJavDBViewModel, presentationState: hiddenPresentationState)
+        case .missAV:
+            HiddenMissAVFeatureView(presentationState: hiddenPresentationState)
+        }
     }
 
     private func resetNavigationStack() {
@@ -143,27 +214,46 @@ public struct DashboardView: View {
     }
 }
 
+private enum HiddenSpaceRoute: Hashable {
+    case fourKHD
+    case fourKHDFavorites
+    case fourKHDAlbum(HiddenAlbum)
+    case javDB
+    case javDBFavorites
+    case javDBMovie(HiddenJavDBMovie)
+    case missAV
+}
+
+private enum HiddenSpacePresentedModal: Hashable {
+    case missAVWebPage(HiddenInAppWebPageItem)
+    case favoriteAlbumsPreview(PreviewImage)
+    case albumDetailPreview(albumID: String, preview: PreviewImage)
+    case javDBFavoritesPlayer(HiddenInAppPlayerItem)
+    case javDBMoviePreview(movieID: String, preview: HiddenJavDBPreviewImage)
+    case javDBMoviePlayer(movieID: String, item: HiddenInAppPlayerItem)
+    case javDBMovieWebPage(movieID: String, item: HiddenInAppWebPageItem)
+}
+
+@MainActor
+private final class HiddenSpacePresentationState: ObservableObject {
+    @Published var modal: HiddenSpacePresentedModal?
+}
+
 struct HiddenSpaceView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                NavigationLink {
-                    Hidden4KHDFeatureView()
-                } label: {
+                NavigationLink(value: HiddenSpaceRoute.fourKHD) {
                     fourKHDFeatureCard
                 }
                 .buttonStyle(.plain)
 
-                NavigationLink {
-                    HiddenJavDBFeatureView()
-                } label: {
+                NavigationLink(value: HiddenSpaceRoute.javDB) {
                     javDBFeatureCard
                 }
                 .buttonStyle(.plain)
 
-                NavigationLink {
-                    HiddenMissAVFeatureView()
-                } label: {
+                NavigationLink(value: HiddenSpaceRoute.missAV) {
                     missAVFeatureCard
                 }
                 .buttonStyle(.plain)
@@ -277,7 +367,7 @@ struct HiddenSpaceView: View {
 }
 
 private struct Hidden4KHDFeatureView: View {
-    @StateObject private var viewModel = HiddenSpaceViewModel()
+    @ObservedObject var viewModel: HiddenSpaceViewModel
     @State private var randomMode: HiddenRandomMode = .single
     @State private var searchQuery = ""
 
@@ -293,9 +383,7 @@ private struct Hidden4KHDFeatureView: View {
                 searchAlbumCard
                 randomAlbumCard
 
-                NavigationLink {
-                    HiddenFavoriteAlbumsView(viewModel: viewModel)
-                } label: {
+                NavigationLink(value: HiddenSpaceRoute.fourKHDFavorites) {
                     HStack {
                         Label("喜欢列表", systemImage: "heart.text.square")
                             .font(.headline)
@@ -391,9 +479,7 @@ private struct Hidden4KHDFeatureView: View {
 
                     LazyVGrid(columns: favoriteAlbumColumns, spacing: 10) {
                         ForEach(viewModel.searchedAlbums) { album in
-                            NavigationLink {
-                                HiddenAlbumDetailView(album: album, viewModel: viewModel)
-                            } label: {
+                            NavigationLink(value: HiddenSpaceRoute.fourKHDAlbum(album)) {
                                 FavoriteAlbumTile(album: album)
                             }
                             .buttonStyle(.plain)
@@ -442,9 +528,7 @@ private struct Hidden4KHDFeatureView: View {
                 .frame(maxWidth: .infinity, minHeight: 200)
             } else if !viewModel.randomAlbums.isEmpty {
                 if randomMode == .single, let album = viewModel.randomAlbum {
-                    NavigationLink {
-                        HiddenAlbumDetailView(album: album, viewModel: viewModel)
-                    } label: {
+                    NavigationLink(value: HiddenSpaceRoute.fourKHDAlbum(album)) {
                         VStack(alignment: .leading, spacing: 10) {
                             AsyncCoverImage(url: album.coverURL, fitToContainer: true)
                                 .frame(height: 230)
@@ -484,9 +568,7 @@ private struct Hidden4KHDFeatureView: View {
                 } else {
                     LazyVGrid(columns: randomNineColumns, spacing: 8) {
                         ForEach(Array(viewModel.randomAlbums.prefix(9))) { album in
-                            NavigationLink {
-                                HiddenAlbumDetailView(album: album, viewModel: viewModel)
-                            } label: {
+                            NavigationLink(value: HiddenSpaceRoute.fourKHDAlbum(album)) {
                                 RandomNineAlbumTile(
                                     album: album,
                                     isFavorite: viewModel.isFavorite(album)
@@ -558,9 +640,9 @@ private struct Hidden4KHDFeatureView: View {
     }
 }
 
-struct HiddenMissAVFeatureView: View {
+private struct HiddenMissAVFeatureView: View {
+    @ObservedObject var presentationState: HiddenSpacePresentationState
     @State private var codeQuery = ""
-    @State private var webPageItem: HiddenInAppWebPageItem?
 
     var body: some View {
         ScrollView {
@@ -575,7 +657,7 @@ struct HiddenMissAVFeatureView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("MISSAV")
         .navigationBarTitleDisplayMode(.inline)
-        .fullScreenCover(item: $webPageItem) { item in
+        .fullScreenCover(item: webPageItemBinding) { item in
             HiddenInAppWebPageView(item: item)
         }
     }
@@ -655,7 +737,7 @@ struct HiddenMissAVFeatureView: View {
     private var tipsCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("这里是隐藏空间里的一个子模块，不走 javdb 详情页。", systemImage: "eye.slash")
-            Label("离开隐藏空间、切后台或切到其他 tab 时，会和隐藏空间一起退出。", systemImage: "lock")
+            Label("APP 未退出前，会记住你上次停留的页面和弹层。", systemImage: "lock")
         }
         .font(.subheadline)
         .foregroundStyle(.secondary)
@@ -672,6 +754,23 @@ struct HiddenMissAVFeatureView: View {
             .replacingOccurrences(of: "_", with: "-")
     }
 
+    private var webPageItem: HiddenInAppWebPageItem? {
+        get {
+            guard case let .missAVWebPage(item) = presentationState.modal else { return nil }
+            return item
+        }
+        nonmutating set {
+            presentationState.modal = newValue.map(HiddenSpacePresentedModal.missAVWebPage)
+        }
+    }
+
+    private var webPageItemBinding: Binding<HiddenInAppWebPageItem?> {
+        Binding(
+            get: { webPageItem },
+            set: { webPageItem = $0 }
+        )
+    }
+
     private func openCodePageIfPossible() {
         let query = normalizedCodeQuery
         guard let url = HiddenMissAVModule.pageURL(for: query) else { return }
@@ -685,7 +784,7 @@ struct HiddenMissAVFeatureView: View {
 
 private struct HiddenFavoriteAlbumsView: View {
     @ObservedObject var viewModel: HiddenSpaceViewModel
-    @State private var previewImage: PreviewImage?
+    @ObservedObject var presentationState: HiddenSpacePresentationState
     @State private var randomFavoriteImageURL: URL?
     @State private var randomFavoritePool: [URL] = []
     @State private var isLoadingRandomFavorite = false
@@ -746,9 +845,7 @@ private struct HiddenFavoriteAlbumsView: View {
 
                             LazyVGrid(columns: albumColumns, spacing: 10) {
                                 ForEach(viewModel.favoriteAlbums) { album in
-                                    NavigationLink {
-                                        HiddenAlbumDetailView(album: album, viewModel: viewModel)
-                                    } label: {
+                                    NavigationLink(value: HiddenSpaceRoute.fourKHDAlbum(album)) {
                                         FavoriteAlbumTile(album: album)
                                     }
                                     .buttonStyle(.plain)
@@ -773,7 +870,7 @@ private struct HiddenFavoriteAlbumsView: View {
             }
             await loadRandomFavorite(force: true)
         }
-        .fullScreenCover(item: $previewImage) { preview in
+        .fullScreenCover(item: previewImageBinding) { preview in
             HiddenImagePreviewView(
                 imageURLs: preview.urls,
                 initialIndex: preview.index,
@@ -876,6 +973,23 @@ private struct HiddenFavoriteAlbumsView: View {
             randomFavoriteError = error.localizedDescription
         }
     }
+
+    private var previewImage: PreviewImage? {
+        get {
+            guard case let .favoriteAlbumsPreview(preview) = presentationState.modal else { return nil }
+            return preview
+        }
+        nonmutating set {
+            presentationState.modal = newValue.map(HiddenSpacePresentedModal.favoriteAlbumsPreview)
+        }
+    }
+
+    private var previewImageBinding: Binding<PreviewImage?> {
+        Binding(
+            get: { previewImage },
+            set: { previewImage = $0 }
+        )
+    }
 }
 
 private enum HiddenRandomMode: String, CaseIterable, Identifiable {
@@ -956,8 +1070,8 @@ private final class HiddenSpaceViewModel: ObservableObject {
             let remoteAlbums = try await cloudService.fetch4KHDAlbums()
             let remoteImages = try await cloudService.fetch4KHDImages()
 
-            favoriteAlbums = mergeAlbums(primary: remoteAlbums, secondary: favoriteAlbums)
-            favoriteImageURLs = mergeImageURLs(primary: remoteImages, secondary: favoriteImageURLs)
+            favoriteAlbums = HiddenCloudMerge.albums(primary: remoteAlbums, secondary: favoriteAlbums)
+            favoriteImageURLs = HiddenCloudMerge.imageURLs(primary: remoteImages, secondary: favoriteImageURLs)
             saveFavorites()
             saveFavoriteImages()
 
@@ -1170,32 +1284,6 @@ private final class HiddenSpaceViewModel: ObservableObject {
         return deduped
     }
 
-    private func mergeAlbums(primary: [HiddenAlbum], secondary: [HiddenAlbum]) -> [HiddenAlbum] {
-        var seen = Set<String>()
-        var merged: [HiddenAlbum] = []
-
-        for album in primary + secondary {
-            if seen.insert(album.id).inserted {
-                merged.append(album)
-            }
-        }
-
-        return merged
-    }
-
-    private func mergeImageURLs(primary: [URL], secondary: [URL]) -> [URL] {
-        var seen = Set<String>()
-        var merged: [URL] = []
-
-        for url in (primary + secondary).map(HiddenSpaceAPI.normalizeImageURL) {
-            if seen.insert(url.absoluteString).inserted {
-                merged.append(url)
-            }
-        }
-
-        return merged
-    }
-
     private func handleCloudMutationError(_ error: Error) {
         if error.isHiddenSupabaseAuthFailure {
             isCloudAuthenticated = false
@@ -1207,11 +1295,11 @@ private final class HiddenSpaceViewModel: ObservableObject {
 private struct HiddenAlbumDetailView: View {
     let album: HiddenAlbum
     @ObservedObject var viewModel: HiddenSpaceViewModel
+    @ObservedObject var presentationState: HiddenSpacePresentationState
 
     @State private var imageURLs: [URL] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var previewImage: PreviewImage?
     @State private var imageAspectRatios: [String: CGFloat] = [:]
     @State private var lastPreviewedIndex: Int?
     @State private var pendingScrollIndex: Int?
@@ -1259,7 +1347,12 @@ private struct HiddenAlbumDetailView: View {
         .task {
             await loadImages(force: false)
         }
-        .fullScreenCover(item: $previewImage, onDismiss: {
+        .onAppear {
+            if let previewImage {
+                lastPreviewedIndex = previewImage.index
+            }
+        }
+        .fullScreenCover(item: previewImageBinding, onDismiss: {
             guard let lastPreviewedIndex else { return }
             pendingScrollIndex = lastPreviewedIndex
         }) { preview in
@@ -1404,6 +1497,24 @@ private struct HiddenAlbumDetailView: View {
         let startingIndex = min(max(lastPreviewedIndex ?? 0, 0), max(imageURLs.count - 1, 0))
         lastPreviewedIndex = startingIndex
         previewImage = PreviewImage(index: startingIndex, urls: imageURLs, autoPlaySlideshow: true)
+    }
+
+    private var previewImage: PreviewImage? {
+        get {
+            guard case let .albumDetailPreview(albumID, preview) = presentationState.modal,
+                  albumID == album.id else { return nil }
+            return preview
+        }
+        nonmutating set {
+            presentationState.modal = newValue.map { HiddenSpacePresentedModal.albumDetailPreview(albumID: album.id, preview: $0) }
+        }
+    }
+
+    private var previewImageBinding: Binding<PreviewImage?> {
+        Binding(
+            get: { previewImage },
+            set: { previewImage = $0 }
+        )
     }
 }
 
@@ -2317,6 +2428,7 @@ private extension UIImage {
 
 private struct FeatureRow: View {
     let feature: any AppFeature
+    var showsDisclosureIndicator = false
 
     var body: some View {
         HStack(spacing: 14) {
@@ -2327,6 +2439,12 @@ private struct FeatureRow: View {
                 .foregroundStyle(.primary)
 
             Spacer()
+
+            if showsDisclosureIndicator {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
         }
         .padding(.vertical, 6)
     }
@@ -2419,15 +2537,7 @@ private struct UTModuleProgressIcon: View {
     }
 }
 
-private struct HiddenAlbum: Identifiable, Codable, Hashable {
-    let url: URL
-    let title: String
-    let coverURL: URL
-
-    var id: String { url.absoluteString }
-}
-
-private struct PreviewImage: Identifiable {
+private struct PreviewImage: Identifiable, Hashable {
     let index: Int
     let urls: [URL]
     var autoPlaySlideshow = false
@@ -2779,7 +2889,7 @@ private enum HiddenSpaceAPI {
 }
 
 private struct HiddenJavDBFeatureView: View {
-    @StateObject private var viewModel = HiddenJavDBViewModel()
+    @ObservedObject var viewModel: HiddenJavDBViewModel
     @State private var randomMode: HiddenJavDBRandomMode = .single
     @State private var showRandomDetails = false
     @State private var searchQuery = ""
@@ -2795,9 +2905,7 @@ private struct HiddenJavDBFeatureView: View {
                 searchMovieCard
                 randomMovieCard
 
-                NavigationLink {
-                    HiddenJavDBFavoriteMoviesView(viewModel: viewModel)
-                } label: {
+                NavigationLink(value: HiddenSpaceRoute.javDBFavorites) {
                     HStack {
                         Label("喜欢影片", systemImage: "heart.text.square")
                             .font(.headline)
@@ -2894,9 +3002,7 @@ private struct HiddenJavDBFeatureView: View {
 
                     LazyVGrid(columns: searchColumns, spacing: 10) {
                         ForEach(viewModel.searchedMovies) { movie in
-                            NavigationLink {
-                                HiddenJavDBMovieDetailView(movie: movie, viewModel: viewModel)
-                            } label: {
+                            NavigationLink(value: HiddenSpaceRoute.javDBMovie(movie)) {
                                 HiddenJavDBFavoriteMovieTile(
                                     movie: movie,
                                     detail: nil,
@@ -2951,9 +3057,7 @@ private struct HiddenJavDBFeatureView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 200)
                 } else if let movie = viewModel.randomMovie {
-                    NavigationLink {
-                        HiddenJavDBMovieDetailView(movie: movie, viewModel: viewModel)
-                    } label: {
+                    NavigationLink(value: HiddenSpaceRoute.javDBMovie(movie)) {
                         VStack(alignment: .leading, spacing: 10) {
                             AsyncCoverImage(url: movie.coverURL, fitToContainer: true)
                                 .frame(height: 230)
@@ -3034,9 +3138,7 @@ private struct HiddenJavDBFeatureView: View {
                 if !viewModel.randomMovies.isEmpty {
                     LazyVStack(spacing: 10) {
                         ForEach(Array(viewModel.randomMovies.prefix(9))) { movie in
-                            NavigationLink {
-                                HiddenJavDBMovieDetailView(movie: movie, viewModel: viewModel)
-                            } label: {
+                            NavigationLink(value: HiddenSpaceRoute.javDBMovie(movie)) {
                                 HiddenJavDBRandomListMovieTile(movie: movie, isFavorite: viewModel.isFavorite(movie))
                             }
                             .buttonStyle(.plain)
@@ -3118,10 +3220,10 @@ private struct HiddenJavDBFeatureView: View {
 
 private struct HiddenJavDBFavoriteMoviesView: View {
     @ObservedObject var viewModel: HiddenJavDBViewModel
+    @ObservedObject var presentationState: HiddenSpacePresentationState
     @State private var showDetails = false
     @State private var isResolvingRandomPlayback = false
     @State private var randomPlaybackErrorMessage: String?
-    @State private var inAppPlayerItem: HiddenInAppPlayerItem?
 
     private let columns = [
         GridItem(.flexible(), spacing: 10),
@@ -3178,9 +3280,7 @@ private struct HiddenJavDBFavoriteMoviesView: View {
 
                     LazyVGrid(columns: columns, spacing: 10) {
                         ForEach(viewModel.favoriteMovies) { movie in
-                            NavigationLink {
-                                HiddenJavDBMovieDetailView(movie: movie, viewModel: viewModel)
-                            } label: {
+                            NavigationLink(value: HiddenSpaceRoute.javDBMovie(movie)) {
                                 HiddenJavDBFavoriteMovieTile(
                                     movie: movie,
                                     detail: viewModel.detailsByMovieID[movie.id],
@@ -3204,7 +3304,7 @@ private struct HiddenJavDBFavoriteMoviesView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("喜欢影片")
         .navigationBarTitleDisplayMode(.inline)
-        .fullScreenCover(item: $inAppPlayerItem) { item in
+        .fullScreenCover(item: inAppPlayerItemBinding) { item in
             HiddenInAppVideoPlayerView(
                 item: item,
                 onSaveFavoritePlayback: { playback in
@@ -3288,22 +3388,37 @@ private struct HiddenJavDBFavoriteMoviesView: View {
 
         return nil
     }
+
+    private var inAppPlayerItem: HiddenInAppPlayerItem? {
+        get {
+            guard case let .javDBFavoritesPlayer(item) = presentationState.modal else { return nil }
+            return item
+        }
+        nonmutating set {
+            presentationState.modal = newValue.map(HiddenSpacePresentedModal.javDBFavoritesPlayer)
+        }
+    }
+
+    private var inAppPlayerItemBinding: Binding<HiddenInAppPlayerItem?> {
+        Binding(
+            get: { inAppPlayerItem },
+            set: { inAppPlayerItem = $0 }
+        )
+    }
 }
 
 private struct HiddenJavDBMovieDetailView: View {
     let movie: HiddenJavDBMovie
     @ObservedObject var viewModel: HiddenJavDBViewModel
+    @ObservedObject var presentationState: HiddenSpacePresentationState
 
     @State private var imageURLs: [URL] = []
     @State private var isLoadingImages = false
     @State private var imageErrorMessage: String?
-    @State private var previewImage: HiddenJavDBPreviewImage?
     @State private var showDetails = false
     @State private var isResolvingWatchPlayback = false
     @State private var resolvingWatchSiteName: String?
     @State private var watchPlaybackErrorMessage: String?
-    @State private var inAppPlayerItem: HiddenInAppPlayerItem?
-    @State private var inAppWebPageItem: HiddenInAppWebPageItem?
 
     private let columns = [
         GridItem(.flexible(), spacing: 8),
@@ -3318,6 +3433,13 @@ private struct HiddenJavDBMovieDetailView: View {
     }
     private var movieDetail: HiddenJavDBMovieDetail? {
         viewModel.detailsByMovieID[movie.id]
+    }
+    private var relatedMovieDetailErrorMessage: String? {
+        guard movieDetail == nil else { return nil }
+        return viewModel.detailErrorsByMovieID[movie.id]
+    }
+    private var isLoadingRelatedMovieSections: Bool {
+        movieDetail == nil && relatedMovieDetailErrorMessage == nil
     }
 
     var body: some View {
@@ -3371,10 +3493,10 @@ private struct HiddenJavDBMovieDetailView: View {
         .task(id: movie.id) {
             await viewModel.loadDetailIfNeeded(for: movie)
         }
-        .fullScreenCover(item: $previewImage) { preview in
+        .fullScreenCover(item: previewImageBinding) { preview in
             HiddenJavDBImagePreviewView(imageURLs: preview.urls, initialIndex: preview.index)
         }
-        .fullScreenCover(item: $inAppPlayerItem) { item in
+        .fullScreenCover(item: inAppPlayerItemBinding) { item in
             HiddenInAppVideoPlayerView(
                 item: item,
                 onSaveFavoritePlayback: { playback in
@@ -3385,7 +3507,7 @@ private struct HiddenJavDBMovieDetailView: View {
                 }
             )
         }
-        .fullScreenCover(item: $inAppWebPageItem) { item in
+        .fullScreenCover(item: inAppWebPageItemBinding) { item in
             HiddenInAppWebPageView(item: item)
         }
     }
@@ -3552,64 +3674,78 @@ private struct HiddenJavDBMovieDetailView: View {
 
     @ViewBuilder
     private var relatedMovieSections: some View {
-        if let movieDetail {
-            if !movieDetail.otherActressMovies.isEmpty {
-                relatedMovieSection(
-                    title: "她们还演出过",
-                    movies: movieDetail.otherActressMovies
-                )
-            }
+        VStack(alignment: .leading, spacing: 12) {
+            relatedMovieSection(
+                title: "她还演过",
+                movies: movieDetail?.otherActressMovies ?? [],
+                emptyMessage: "暂时没有她还演过的影片",
+                isLoading: isLoadingRelatedMovieSections,
+                errorMessage: relatedMovieDetailErrorMessage
+            )
 
-            if !movieDetail.recommendedMovies.isEmpty {
-                relatedMovieSection(
-                    title: "可能你也喜欢",
-                    movies: movieDetail.recommendedMovies
-                )
-            }
-        } else if viewModel.detailLoadingIDs.contains(movie.id) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 8) {
-                    ProgressView()
-                    Text("正在加载关联影片...")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(.secondarySystemBackground))
+            relatedMovieSection(
+                title: "猜你喜欢",
+                movies: movieDetail?.recommendedMovies ?? [],
+                emptyMessage: "暂时没有猜你喜欢",
+                isLoading: isLoadingRelatedMovieSections,
+                errorMessage: relatedMovieDetailErrorMessage
             )
         }
     }
 
-    private func relatedMovieSection(title: String, movies: [HiddenJavDBMovie]) -> some View {
+    @ViewBuilder
+    private func relatedMovieSection(
+        title: String,
+        movies: [HiddenJavDBMovie],
+        emptyMessage: String,
+        isLoading: Bool,
+        errorMessage: String?
+    ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(title)
                     .font(.headline)
                 Spacer()
-                Text("\(movies.count) 部")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+
+                if !isLoading {
+                    Text("\(movies.count) 部")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(alignment: .top, spacing: 10) {
-                    ForEach(movies) { relatedMovie in
-                        NavigationLink {
-                            HiddenJavDBMovieDetailView(movie: relatedMovie, viewModel: viewModel)
-                        } label: {
-                            HiddenJavDBFavoriteMovieTile(
-                                movie: relatedMovie,
-                                detail: nil,
-                                errorMessage: nil,
-                                isLoadingDetail: false,
-                                showDetails: false
-                            )
-                            .frame(width: 152, alignment: .top)
+            if isLoading {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("正在加载 \(title)...")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            } else if let errorMessage, movies.isEmpty {
+                Text(errorMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if movies.isEmpty {
+                Text(emptyMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: 10) {
+                        ForEach(movies) { relatedMovie in
+                            NavigationLink(value: HiddenSpaceRoute.javDBMovie(relatedMovie)) {
+                                HiddenJavDBFavoriteMovieTile(
+                                    movie: relatedMovie,
+                                    detail: nil,
+                                    errorMessage: nil,
+                                    isLoadingDetail: false,
+                                    showDetails: false
+                                )
+                                .frame(width: 152, alignment: .top)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -3698,6 +3834,60 @@ private struct HiddenJavDBMovieDetailView: View {
             refererURL: refererURL,
             startPositionSeconds: startPositionSeconds,
             markerPositions: viewModel.playbackMarkerPositions(for: movie)
+        )
+    }
+
+    private var previewImage: HiddenJavDBPreviewImage? {
+        get {
+            guard case let .javDBMoviePreview(movieID, preview) = presentationState.modal,
+                  movieID == movie.id else { return nil }
+            return preview
+        }
+        nonmutating set {
+            presentationState.modal = newValue.map { HiddenSpacePresentedModal.javDBMoviePreview(movieID: movie.id, preview: $0) }
+        }
+    }
+
+    private var inAppPlayerItem: HiddenInAppPlayerItem? {
+        get {
+            guard case let .javDBMoviePlayer(movieID, item) = presentationState.modal,
+                  movieID == movie.id else { return nil }
+            return item
+        }
+        nonmutating set {
+            presentationState.modal = newValue.map { HiddenSpacePresentedModal.javDBMoviePlayer(movieID: movie.id, item: $0) }
+        }
+    }
+
+    private var inAppWebPageItem: HiddenInAppWebPageItem? {
+        get {
+            guard case let .javDBMovieWebPage(movieID, item) = presentationState.modal,
+                  movieID == movie.id else { return nil }
+            return item
+        }
+        nonmutating set {
+            presentationState.modal = newValue.map { HiddenSpacePresentedModal.javDBMovieWebPage(movieID: movie.id, item: $0) }
+        }
+    }
+
+    private var previewImageBinding: Binding<HiddenJavDBPreviewImage?> {
+        Binding(
+            get: { previewImage },
+            set: { previewImage = $0 }
+        )
+    }
+
+    private var inAppPlayerItemBinding: Binding<HiddenInAppPlayerItem?> {
+        Binding(
+            get: { inAppPlayerItem },
+            set: { inAppPlayerItem = $0 }
+        )
+    }
+
+    private var inAppWebPageItemBinding: Binding<HiddenInAppWebPageItem?> {
+        Binding(
+            get: { inAppWebPageItem },
+            set: { inAppWebPageItem = $0 }
         )
     }
 }
@@ -3858,7 +4048,7 @@ private struct HiddenPlaybackThumbnailView: View {
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.9))
 
-                    Text(didFail ? "取帧失败" : "正在取帧")
+                    Text(didFail ? "未取到视频帧" : "正在取帧")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.82))
                 }
@@ -3925,44 +4115,19 @@ private actor HiddenPlaybackThumbnailPipeline {
         return "\(playback.movie.id)|\(playback.sourceName)|\(normalizedTime)"
     }
 
+    private struct ThumbnailSource {
+        let streamURL: URL
+        let refererURL: URL
+    }
+
     private static func generateThumbnail(for playback: HiddenJavDBFavoritePlayback) async throws -> UIImage {
         try await Task.detached(priority: .utility) {
-            let resolvedSource = try await HiddenJavDBAPI.resolvePlayableStream(for: playback)
-            let headers: [String: String] = [
-                "Referer": resolvedSource.refererURL.absoluteString,
-                "Origin": "\(resolvedSource.refererURL.scheme ?? "https")://\(resolvedSource.refererURL.host ?? "missav.ws")",
-                "User-Agent": HiddenJavDBAPI.userAgent
-            ]
-            let asset = AVURLAsset(
-                url: resolvedSource.streamURL,
-                options: [
-                    "AVURLAssetHTTPHeaderFieldsKey": headers
-                ]
-            )
-            let _ = try await asset.load(.isPlayable)
-            let tracks = try await asset.loadTracks(withMediaType: .video)
-            guard !tracks.isEmpty else {
-                throw NSError(
-                    domain: "HiddenPlaybackThumbnailPipeline",
-                    code: -1,
-                    userInfo: [NSLocalizedDescriptionKey: "未找到可用视频轨道"]
-                )
-            }
-            let generator = AVAssetImageGenerator(asset: asset)
-            generator.appliesPreferredTrackTransform = true
-            generator.maximumSize = CGSize(width: 320, height: 180)
-            generator.requestedTimeToleranceBefore = CMTime(seconds: 0.6, preferredTimescale: 600)
-            generator.requestedTimeToleranceAfter = CMTime(seconds: 0.6, preferredTimescale: 600)
-
-            let duration = try? await asset.load(.duration)
+            let sources = await resolvedSources(for: playback)
             var lastError: Error?
-            for time in thumbnailCandidateTimes(for: playback.positionSeconds, duration: duration) {
+
+            for source in sources {
                 do {
-                    let cgImage = try generator.copyCGImage(
-                        at: CMTime(seconds: time, preferredTimescale: 600),
-                        actualTime: nil
-                    )
-                    return UIImage(cgImage: cgImage)
+                    return try await generateThumbnailFromVideo(for: playback, source: source)
                 } catch {
                     lastError = error
                 }
@@ -4005,6 +4170,181 @@ private actor HiddenPlaybackThumbnailPipeline {
             guard seen.insert(key).inserted else { return nil }
             return clampedValue
         }
+    }
+
+    private static func resolvedSources(for playback: HiddenJavDBFavoritePlayback) async -> [ThumbnailSource] {
+        var sources: [ThumbnailSource] = []
+        if let resolvedSource = try? await HiddenJavDBAPI.resolvePlayableStream(for: playback) {
+            sources.append(
+                ThumbnailSource(
+                    streamURL: resolvedSource.streamURL,
+                    refererURL: resolvedSource.refererURL
+                )
+            )
+        }
+        sources.append(
+            ThumbnailSource(
+                streamURL: playback.streamURL,
+                refererURL: playback.refererURL
+            )
+        )
+
+        var seen = Set<String>()
+        return sources.filter { source in
+            let key = "\(source.streamURL.absoluteString)|\(source.refererURL.absoluteString)"
+            return seen.insert(key).inserted
+        }
+    }
+
+    private static func generateThumbnailFromVideo(
+        for playback: HiddenJavDBFavoritePlayback,
+        source: ThumbnailSource
+    ) async throws -> UIImage {
+        let asset = makeAsset(for: source)
+        let isPlayable = try await asset.load(.isPlayable)
+        guard isPlayable else {
+            throw NSError(
+                domain: "HiddenPlaybackThumbnailPipeline",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "视频资源不可播放"]
+            )
+        }
+
+        let tracks = try await asset.loadTracks(withMediaType: .video)
+        guard !tracks.isEmpty else {
+            throw NSError(
+                domain: "HiddenPlaybackThumbnailPipeline",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "未找到可用视频轨道"]
+            )
+        }
+
+        let duration = try? await asset.load(.duration)
+        let candidateTimes = thumbnailCandidateTimes(for: playback.positionSeconds, duration: duration)
+        var lastError: Error?
+        for time in candidateTimes {
+            do {
+                return try thumbnailImage(for: asset, at: time)
+            } catch {
+                lastError = error
+            }
+        }
+
+        do {
+            return try await asyncThumbnailImage(for: asset, candidateTimes: candidateTimes)
+        } catch {
+            lastError = error
+        }
+
+        throw lastError ?? NSError(
+            domain: "HiddenPlaybackThumbnailPipeline",
+            code: -2,
+            userInfo: [NSLocalizedDescriptionKey: "未取到可用视频帧"]
+        )
+    }
+
+    private static func thumbnailImage(for asset: AVURLAsset, at second: Double) throws -> UIImage {
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 320, height: 180)
+        generator.requestedTimeToleranceBefore = CMTime(seconds: 0.6, preferredTimescale: 600)
+        generator.requestedTimeToleranceAfter = CMTime(seconds: 0.6, preferredTimescale: 600)
+
+        let cgImage = try generator.copyCGImage(
+            at: CMTime(seconds: second, preferredTimescale: 600),
+            actualTime: nil
+        )
+        return UIImage(cgImage: cgImage)
+    }
+
+    private static func asyncThumbnailImage(
+        for asset: AVURLAsset,
+        candidateTimes: [Double]
+    ) async throws -> UIImage {
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 320, height: 180)
+        generator.requestedTimeToleranceBefore = CMTime(seconds: 1.8, preferredTimescale: 600)
+        generator.requestedTimeToleranceAfter = CMTime(seconds: 1.8, preferredTimescale: 600)
+
+        let times = candidateTimes.map { second in
+            NSValue(time: CMTime(seconds: second, preferredTimescale: 600))
+        }
+
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let lock = NSLock()
+                var didResume = false
+                var remaining = times.count
+                var lastError: Error?
+
+                generator.generateCGImagesAsynchronously(forTimes: times) { _, cgImage, _, result, error in
+                    lock.lock()
+                    defer { lock.unlock() }
+
+                    guard !didResume else { return }
+
+                    if result == .succeeded, let cgImage {
+                        didResume = true
+                        generator.cancelAllCGImageGeneration()
+                        continuation.resume(returning: UIImage(cgImage: cgImage))
+                        return
+                    }
+
+                    remaining -= 1
+                    if let error {
+                        lastError = error
+                    }
+
+                    guard remaining == 0 else { return }
+                    didResume = true
+                    continuation.resume(
+                        throwing: lastError ?? NSError(
+                            domain: "HiddenPlaybackThumbnailPipeline",
+                            code: -4,
+                            userInfo: [NSLocalizedDescriptionKey: "异步取帧失败"]
+                        )
+                    )
+                }
+            }
+        } onCancel: {
+            generator.cancelAllCGImageGeneration()
+        }
+    }
+
+    private static func makeAsset(for source: ThumbnailSource) -> AVURLAsset {
+        let headers: [String: String] = [
+            "Referer": source.refererURL.absoluteString,
+            "Origin": "\(source.refererURL.scheme ?? "https")://\(source.refererURL.host ?? "missav.ws")",
+            "User-Agent": HiddenJavDBAPI.userAgent
+        ]
+
+        var options: [String: Any] = [
+            AVURLAssetPreferPreciseDurationAndTimingKey: true,
+            "AVURLAssetHTTPHeaderFieldsKey": headers
+        ]
+
+        let cookies = httpCookies(for: [source.refererURL, source.streamURL])
+        if !cookies.isEmpty {
+            options["AVURLAssetHTTPCookiesKey"] = cookies
+        }
+
+        return AVURLAsset(url: source.streamURL, options: options)
+    }
+
+    private static func httpCookies(for urls: [URL]) -> [HTTPCookie] {
+        var cookies: [HTTPCookie] = []
+        var seen = Set<String>()
+
+        for url in urls {
+            for cookie in HTTPCookieStorage.shared.cookies(for: url) ?? [] {
+                let key = "\(cookie.domain)|\(cookie.path)|\(cookie.name)|\(cookie.value)"
+                guard seen.insert(key).inserted else { continue }
+                cookies.append(cookie)
+            }
+        }
+
+        return cookies
     }
 
     private static func imageCost(for image: UIImage) -> Int {
@@ -4160,7 +4500,7 @@ private struct HiddenJavDBWatchSite: Identifiable, Hashable {
     }
 }
 
-private struct HiddenInAppPlayerItem: Identifiable {
+private struct HiddenInAppPlayerItem: Identifiable, Hashable {
     let movie: HiddenJavDBMovie
     let sourceName: String
     let streamURL: URL
@@ -4170,7 +4510,7 @@ private struct HiddenInAppPlayerItem: Identifiable {
     let id = UUID()
 }
 
-private struct HiddenInAppWebPageItem: Identifiable {
+private struct HiddenInAppWebPageItem: Identifiable, Hashable {
     let title: String
     let url: URL
     let id = UUID()
@@ -5613,8 +5953,8 @@ private final class HiddenJavDBViewModel: ObservableObject {
             let remoteFavorites = try await cloudService.fetchFavorites()
             let remotePlaybacks = try await cloudService.fetchPlaybacks()
 
-            let mergedFavorites = mergeMovies(primary: remoteFavorites, secondary: favoriteMovies)
-            let mergedPlaybacks = mergePlaybacks(primary: remotePlaybacks, secondary: favoritePlaybacks)
+            let mergedFavorites = HiddenCloudMerge.movies(primary: remoteFavorites, secondary: favoriteMovies)
+            let mergedPlaybacks = HiddenCloudMerge.playbacks(primary: remotePlaybacks, secondary: favoritePlaybacks)
 
             favoriteMovies = mergedFavorites
             favoritePlaybacks = mergedPlaybacks
@@ -5677,45 +6017,6 @@ private final class HiddenJavDBViewModel: ObservableObject {
         HiddenJavDBLocalStore.saveFavoritePlaybacks(favoritePlaybacks)
     }
 
-    private func mergeMovies(primary: [HiddenJavDBMovie], secondary: [HiddenJavDBMovie]) -> [HiddenJavDBMovie] {
-        var seen = Set<String>()
-        var merged: [HiddenJavDBMovie] = []
-
-        for movie in primary + secondary {
-            if seen.insert(movie.id).inserted {
-                merged.append(movie)
-            }
-        }
-
-        return merged
-    }
-
-    private func mergePlaybacks(
-        primary: [HiddenJavDBFavoritePlayback],
-        secondary: [HiddenJavDBFavoritePlayback]
-    ) -> [HiddenJavDBFavoritePlayback] {
-        let candidates = (primary + secondary).sorted { $0.createdAt > $1.createdAt }
-        var merged: [HiddenJavDBFavoritePlayback] = []
-        var seenIDs = Set<UUID>()
-
-        for playback in candidates {
-            if !seenIDs.insert(playback.id).inserted {
-                continue
-            }
-
-            if merged.contains(where: { $0.matchesSamePlayback(as: playback) }) {
-                continue
-            }
-
-            merged.append(playback)
-        }
-
-        if merged.count > 120 {
-            return Array(merged.prefix(120))
-        }
-        return merged
-    }
-
     private func ensureFavoriteMovie(_ movie: HiddenJavDBMovie) {
         guard !favoriteMovies.contains(where: { $0.id == movie.id }) else { return }
 
@@ -5726,1202 +6027,6 @@ private final class HiddenJavDBViewModel: ObservableObject {
         Task {
             await syncFavoriteMutation(movie: movie, shouldRemove: false)
         }
-    }
-}
-
-private struct HiddenSupabaseConfiguration {
-    let baseURL: URL
-    let publishableKey: String
-    let schema: String
-
-    var projectHost: String {
-        baseURL.host ?? baseURL.absoluteString
-    }
-
-    static var current: HiddenSupabaseConfiguration? {
-        guard
-            let rawURL = (Bundle.main.object(forInfoDictionaryKey: "SUPABASE_URL") as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
-            let rawKey = (Bundle.main.object(forInfoDictionaryKey: "SUPABASE_PUBLISHABLE_KEY") as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
-            let baseURL = URL(string: rawURL),
-            !rawURL.isEmpty,
-            !rawKey.isEmpty
-        else {
-            return nil
-        }
-
-        let schema = ((Bundle.main.object(forInfoDictionaryKey: "SUPABASE_SCHEMA") as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .nonEmpty) ?? "easysearch"
-
-        return HiddenSupabaseConfiguration(
-            baseURL: baseURL,
-            publishableKey: rawKey,
-            schema: schema
-        )
-    }
-}
-
-private enum HiddenSupabaseAuthOutcome {
-    case authenticated(HiddenSupabaseSession)
-    case confirmationRequired(String)
-}
-
-private struct HiddenSupabaseSession: Codable {
-    let accessToken: String
-    let refreshToken: String
-    let expiresAt: Date
-    let userID: UUID?
-    let email: String?
-
-    var needsRefresh: Bool {
-        expiresAt.timeIntervalSinceNow <= 120
-    }
-}
-
-private struct HiddenSupabaseErrorPayload: Decodable {
-    let message: String?
-    let msg: String?
-    let error: String?
-    let errorDescription: String?
-
-    enum CodingKeys: String, CodingKey {
-        case message
-        case msg
-        case error
-        case errorDescription = "error_description"
-    }
-
-    var resolvedMessage: String? {
-        message ?? msg ?? errorDescription ?? error
-    }
-}
-
-private struct HiddenSupabaseFavoriteRow: Decodable {
-    let movie_id: String
-    let movie_url: String
-    let code: String
-    let title: String
-    let cover_url: String
-    let actresses: [String]
-
-    func asMovie() -> HiddenJavDBMovie? {
-        guard
-            let movieURL = URL(string: movie_url),
-            let coverURL = URL(string: cover_url)
-        else {
-            return nil
-        }
-
-        return HiddenJavDBMovie(
-            url: HiddenJavDBAPI.normalizeMovieURL(movieURL),
-            code: code,
-            title: title,
-            coverURL: HiddenJavDBAPI.normalizeImageURL(coverURL),
-            actresses: actresses
-        )
-    }
-}
-
-private struct HiddenSupabasePlaybackRow: Decodable {
-    let id: UUID
-    let movie_id: String
-    let movie_url: String
-    let code: String
-    let title: String
-    let cover_url: String
-    let actresses: [String]
-    let source_name: String
-    let stream_url: String
-    let referer_url: String
-    let position_seconds: Double
-    let created_at: String
-
-    func asPlayback() -> HiddenJavDBFavoritePlayback? {
-        guard
-            let movieURL = URL(string: movie_url),
-            let coverURL = URL(string: cover_url),
-            let streamURL = URL(string: stream_url),
-            let refererURL = URL(string: referer_url)
-        else {
-            return nil
-        }
-
-        return HiddenJavDBFavoritePlayback(
-            id: id,
-            movie: HiddenJavDBMovie(
-                url: HiddenJavDBAPI.normalizeMovieURL(movieURL),
-                code: code,
-                title: title,
-                coverURL: HiddenJavDBAPI.normalizeImageURL(coverURL),
-                actresses: actresses
-            ),
-            sourceName: source_name,
-            streamURL: streamURL,
-            refererURL: refererURL,
-            positionSeconds: max(0, position_seconds),
-            createdAt: HiddenSupabaseDateFormatter.date(from: created_at) ?? Date()
-        )
-    }
-}
-
-private struct HiddenSupabaseFavoritePayload: Encodable {
-    let movie_id: String
-    let movie_url: String
-    let code: String
-    let title: String
-    let cover_url: String
-    let actresses: [String]
-
-    init(movie: HiddenJavDBMovie) {
-        movie_id = movie.id
-        movie_url = movie.url.absoluteString
-        code = movie.code
-        title = movie.title
-        cover_url = movie.coverURL.absoluteString
-        actresses = movie.actresses
-    }
-}
-
-private struct HiddenSupabasePlaybackPayload: Encodable {
-    let id: UUID
-    let movie_id: String
-    let movie_url: String
-    let code: String
-    let title: String
-    let cover_url: String
-    let actresses: [String]
-    let source_name: String
-    let stream_url: String
-    let referer_url: String
-    let position_seconds: Double
-    let created_at: String
-
-    init(playback: HiddenJavDBFavoritePlayback) {
-        id = playback.id
-        movie_id = playback.movie.id
-        movie_url = playback.movie.url.absoluteString
-        code = playback.movie.code
-        title = playback.movie.title
-        cover_url = playback.movie.coverURL.absoluteString
-        actresses = playback.movie.actresses
-        source_name = playback.sourceName
-        stream_url = playback.streamURL.absoluteString
-        referer_url = playback.refererURL.absoluteString
-        position_seconds = playback.positionSeconds
-        created_at = HiddenSupabaseDateFormatter.string(from: playback.createdAt)
-    }
-}
-
-private struct HiddenSupabase4KHDAlbumRow: Decodable {
-    let album_id: String
-    let album_url: String
-    let title: String
-    let cover_url: String
-
-    func asAlbum() -> HiddenAlbum? {
-        guard
-            let albumURL = URL(string: album_url),
-            let coverURL = URL(string: cover_url)
-        else {
-            return nil
-        }
-
-        return HiddenAlbum(
-            url: HiddenSpaceAPI.normalizeAlbumURL(albumURL),
-            title: title,
-            coverURL: HiddenSpaceAPI.normalizeImageURL(coverURL)
-        )
-    }
-}
-
-private struct HiddenSupabase4KHDImageRow: Decodable {
-    let image_id: String
-    let image_url: String
-
-    func asImageURL() -> URL? {
-        URL(string: image_url).map(HiddenSpaceAPI.normalizeImageURL)
-    }
-}
-
-private struct HiddenSupabase4KHDAlbumPayload: Encodable {
-    let album_id: String
-    let album_url: String
-    let title: String
-    let cover_url: String
-
-    init(album: HiddenAlbum) {
-        album_id = album.id
-        album_url = album.url.absoluteString
-        title = album.title
-        cover_url = album.coverURL.absoluteString
-    }
-}
-
-private struct HiddenSupabase4KHDImagePayload: Encodable {
-    let image_id: String
-    let image_url: String
-
-    init(imageURL: URL) {
-        let normalized = HiddenSpaceAPI.normalizeImageURL(imageURL)
-        image_id = normalized.absoluteString
-        image_url = normalized.absoluteString
-    }
-}
-
-private enum HiddenSupabaseDateFormatter {
-    private static let preciseFormatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
-
-    private static let fallbackFormatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter
-    }()
-
-    static func string(from date: Date) -> String {
-        preciseFormatter.string(from: date)
-    }
-
-    static func date(from string: String) -> Date? {
-        preciseFormatter.date(from: string) ?? fallbackFormatter.date(from: string)
-    }
-}
-
-private enum HiddenSupabaseSessionStore {
-    private static let service = "com.easysearch.hidden-space.supabase"
-    private static let account = "javdb-session"
-
-    static func load() -> HiddenSupabaseSession? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else {
-            return nil
-        }
-
-        return try? JSONDecoder().decode(HiddenSupabaseSession.self, from: data)
-    }
-
-    static func save(_ session: HiddenSupabaseSession) throws {
-        let data = try JSONEncoder().encode(session)
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-
-        let attributes: [String: Any] = [
-            kSecValueData as String: data
-        ]
-
-        let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-        if updateStatus == errSecSuccess {
-            return
-        }
-
-        guard updateStatus == errSecItemNotFound else {
-            throw NSError(
-                domain: "HiddenSupabaseSessionStore",
-                code: Int(updateStatus),
-                userInfo: [NSLocalizedDescriptionKey: "无法更新云端会话"]
-            )
-        }
-
-        var insert = query
-        insert[kSecValueData as String] = data
-        let insertStatus = SecItemAdd(insert as CFDictionary, nil)
-        guard insertStatus == errSecSuccess else {
-            throw NSError(
-                domain: "HiddenSupabaseSessionStore",
-                code: Int(insertStatus),
-                userInfo: [NSLocalizedDescriptionKey: "无法保存云端会话"]
-            )
-        }
-    }
-
-    static func clear() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-        SecItemDelete(query as CFDictionary)
-    }
-}
-
-private actor HiddenSupabaseService {
-    static let shared = HiddenSupabaseService()
-
-    private let urlSession: URLSession
-    private var session: HiddenSupabaseSession?
-
-    init() {
-        let configuration = URLSessionConfiguration.default
-        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-        configuration.urlCache = nil
-        urlSession = URLSession(configuration: configuration)
-        session = HiddenSupabaseSessionStore.load()
-    }
-
-    func configuration() -> HiddenSupabaseConfiguration? {
-        HiddenSupabaseConfiguration.current
-    }
-
-    func restoreSessionIfPossible() async throws -> HiddenSupabaseSession? {
-        guard let stored = session ?? HiddenSupabaseSessionStore.load() else {
-            return nil
-        }
-
-        session = stored
-        if stored.needsRefresh {
-            return try await refreshSessionIfNeeded(force: true)
-        }
-        return stored
-    }
-
-    func signIn(email: String, password: String) async throws -> HiddenSupabaseSession {
-        let body = try JSONSerialization.data(withJSONObject: [
-            "email": email.trimmingCharacters(in: .whitespacesAndNewlines),
-            "password": password
-        ])
-
-        let request = try request(
-            path: "/auth/v1/token",
-            method: "POST",
-            queryItems: [URLQueryItem(name: "grant_type", value: "password")],
-            body: body,
-            bearerToken: nil,
-            isRESTRequest: false
-        )
-
-        let data = try await performDataRequest(request)
-        guard let parsedSession = try parseSession(fromAuthResponse: data) else {
-            throw NSError(
-                domain: "HiddenSupabaseService",
-                code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "登录成功，但没有拿到会话"]
-            )
-        }
-
-        try persist(session: parsedSession)
-        return parsedSession
-    }
-
-    func signUp(email: String, password: String) async throws -> HiddenSupabaseAuthOutcome {
-        let body = try JSONSerialization.data(withJSONObject: [
-            "email": email.trimmingCharacters(in: .whitespacesAndNewlines),
-            "password": password
-        ])
-
-        let request = try request(
-            path: "/auth/v1/signup",
-            method: "POST",
-            body: body,
-            bearerToken: nil,
-            isRESTRequest: false
-        )
-
-        let data = try await performDataRequest(request)
-        if let parsedSession = try parseSession(fromAuthResponse: data) {
-            try persist(session: parsedSession)
-            return .authenticated(parsedSession)
-        }
-
-        return .confirmationRequired("注册成功。当前项目可能开启了邮箱确认，请先去邮箱确认后再登录。")
-    }
-
-    func signOut() {
-        session = nil
-        HiddenSupabaseSessionStore.clear()
-    }
-
-    func fetchFavorites() async throws -> [HiddenJavDBMovie] {
-        let request = try await authorizedRESTRequest(
-            path: "/rest/v1/jav_favorites",
-            method: "GET",
-            queryItems: [
-                URLQueryItem(name: "select", value: "*"),
-                URLQueryItem(name: "order", value: "created_at.desc")
-            ]
-        )
-
-        let data = try await performDataRequest(request)
-        let rows = try JSONDecoder().decode([HiddenSupabaseFavoriteRow].self, from: data)
-        return rows.compactMap { $0.asMovie() }
-    }
-
-    func upsertFavorites(_ movies: [HiddenJavDBMovie]) async throws {
-        guard !movies.isEmpty else { return }
-        let payload = movies.map(HiddenSupabaseFavoritePayload.init(movie:))
-        try await upsertFavoritesPayload(payload)
-    }
-
-    func upsertFavorite(_ movie: HiddenJavDBMovie) async throws {
-        try await upsertFavoritesPayload([HiddenSupabaseFavoritePayload(movie: movie)])
-    }
-
-    func deleteFavorite(movieID: String) async throws {
-        let request = try await authorizedRESTRequest(
-            path: "/rest/v1/jav_favorites",
-            method: "DELETE",
-            queryItems: [
-                URLQueryItem(name: "movie_id", value: "eq.\(movieID)")
-            ]
-        )
-
-        _ = try await performDataRequest(request)
-    }
-
-    func fetchPlaybacks() async throws -> [HiddenJavDBFavoritePlayback] {
-        let request = try await authorizedRESTRequest(
-            path: "/rest/v1/jav_playbacks",
-            method: "GET",
-            queryItems: [
-                URLQueryItem(name: "select", value: "*"),
-                URLQueryItem(name: "order", value: "created_at.desc")
-            ]
-        )
-
-        let data = try await performDataRequest(request)
-        let rows = try JSONDecoder().decode([HiddenSupabasePlaybackRow].self, from: data)
-        return rows.compactMap { $0.asPlayback() }
-    }
-
-    func upsertPlaybacks(_ playbacks: [HiddenJavDBFavoritePlayback]) async throws {
-        guard !playbacks.isEmpty else { return }
-        let payload = playbacks.map(HiddenSupabasePlaybackPayload.init(playback:))
-        try await upsertPlaybacksPayload(payload)
-    }
-
-    func upsertPlayback(_ playback: HiddenJavDBFavoritePlayback) async throws {
-        try await upsertPlaybacksPayload([HiddenSupabasePlaybackPayload(playback: playback)])
-    }
-
-    func deletePlayback(id: UUID) async throws {
-        let request = try await authorizedRESTRequest(
-            path: "/rest/v1/jav_playbacks",
-            method: "DELETE",
-            queryItems: [
-                URLQueryItem(name: "id", value: "eq.\(id.uuidString)")
-            ]
-        )
-
-        _ = try await performDataRequest(request)
-    }
-
-    func fetch4KHDAlbums() async throws -> [HiddenAlbum] {
-        let request = try await authorizedRESTRequest(
-            path: "/rest/v1/fourkhd_favorite_albums",
-            method: "GET",
-            queryItems: [
-                URLQueryItem(name: "select", value: "*"),
-                URLQueryItem(name: "order", value: "created_at.desc")
-            ]
-        )
-
-        let data = try await performDataRequest(request)
-        let rows = try JSONDecoder().decode([HiddenSupabase4KHDAlbumRow].self, from: data)
-        return rows.compactMap { $0.asAlbum() }
-    }
-
-    func upsert4KHDAlbums(_ albums: [HiddenAlbum]) async throws {
-        guard !albums.isEmpty else { return }
-        try await upsert4KHDAlbumsPayload(albums.map(HiddenSupabase4KHDAlbumPayload.init(album:)))
-    }
-
-    func upsert4KHDAlbum(_ album: HiddenAlbum) async throws {
-        try await upsert4KHDAlbumsPayload([HiddenSupabase4KHDAlbumPayload(album: album)])
-    }
-
-    func delete4KHDAlbum(albumID: String) async throws {
-        let request = try await authorizedRESTRequest(
-            path: "/rest/v1/fourkhd_favorite_albums",
-            method: "DELETE",
-            queryItems: [
-                URLQueryItem(name: "album_id", value: "eq.\(albumID)")
-            ]
-        )
-
-        _ = try await performDataRequest(request)
-    }
-
-    func fetch4KHDImages() async throws -> [URL] {
-        let request = try await authorizedRESTRequest(
-            path: "/rest/v1/fourkhd_favorite_images",
-            method: "GET",
-            queryItems: [
-                URLQueryItem(name: "select", value: "*"),
-                URLQueryItem(name: "order", value: "created_at.desc")
-            ]
-        )
-
-        let data = try await performDataRequest(request)
-        let rows = try JSONDecoder().decode([HiddenSupabase4KHDImageRow].self, from: data)
-        return rows.compactMap { $0.asImageURL() }
-    }
-
-    func upsert4KHDImages(_ imageURLs: [URL]) async throws {
-        guard !imageURLs.isEmpty else { return }
-        try await upsert4KHDImagesPayload(imageURLs.map(HiddenSupabase4KHDImagePayload.init(imageURL:)))
-    }
-
-    func upsert4KHDImage(_ imageURL: URL) async throws {
-        try await upsert4KHDImagesPayload([HiddenSupabase4KHDImagePayload(imageURL: imageURL)])
-    }
-
-    func delete4KHDImage(imageID: String) async throws {
-        let request = try await authorizedRESTRequest(
-            path: "/rest/v1/fourkhd_favorite_images",
-            method: "DELETE",
-            queryItems: [
-                URLQueryItem(name: "image_id", value: "eq.\(imageID)")
-            ]
-        )
-
-        _ = try await performDataRequest(request)
-    }
-
-    private func upsertFavoritesPayload(_ payload: [HiddenSupabaseFavoritePayload]) async throws {
-        let body = try JSONEncoder().encode(payload)
-        let request = try await authorizedRESTRequest(
-            path: "/rest/v1/jav_favorites",
-            method: "POST",
-            queryItems: [
-                URLQueryItem(name: "on_conflict", value: "user_id,movie_id")
-            ],
-            body: body,
-            prefer: "resolution=merge-duplicates,missing=default,return=minimal"
-        )
-
-        _ = try await performDataRequest(request)
-    }
-
-    private func upsertPlaybacksPayload(_ payload: [HiddenSupabasePlaybackPayload]) async throws {
-        let body = try JSONEncoder().encode(payload)
-        let request = try await authorizedRESTRequest(
-            path: "/rest/v1/jav_playbacks",
-            method: "POST",
-            queryItems: [
-                URLQueryItem(name: "on_conflict", value: "id")
-            ],
-            body: body,
-            prefer: "resolution=merge-duplicates,missing=default,return=minimal"
-        )
-
-        _ = try await performDataRequest(request)
-    }
-
-    private func upsert4KHDAlbumsPayload(_ payload: [HiddenSupabase4KHDAlbumPayload]) async throws {
-        let body = try JSONEncoder().encode(payload)
-        let request = try await authorizedRESTRequest(
-            path: "/rest/v1/fourkhd_favorite_albums",
-            method: "POST",
-            queryItems: [
-                URLQueryItem(name: "on_conflict", value: "user_id,album_id")
-            ],
-            body: body,
-            prefer: "resolution=merge-duplicates,missing=default,return=minimal"
-        )
-
-        _ = try await performDataRequest(request)
-    }
-
-    private func upsert4KHDImagesPayload(_ payload: [HiddenSupabase4KHDImagePayload]) async throws {
-        let body = try JSONEncoder().encode(payload)
-        let request = try await authorizedRESTRequest(
-            path: "/rest/v1/fourkhd_favorite_images",
-            method: "POST",
-            queryItems: [
-                URLQueryItem(name: "on_conflict", value: "user_id,image_id")
-            ],
-            body: body,
-            prefer: "resolution=merge-duplicates,missing=default,return=minimal"
-        )
-
-        _ = try await performDataRequest(request)
-    }
-
-    private func authorizedRESTRequest(
-        path: String,
-        method: String,
-        queryItems: [URLQueryItem] = [],
-        body: Data? = nil,
-        prefer: String? = nil
-    ) async throws -> URLRequest {
-        let validSession = try await validSession()
-        return try request(
-            path: path,
-            method: method,
-            queryItems: queryItems,
-            body: body,
-            bearerToken: validSession.accessToken,
-            isRESTRequest: true,
-            prefer: prefer
-        )
-    }
-
-    private func validSession() async throws -> HiddenSupabaseSession {
-        if let currentSession = session {
-            if currentSession.needsRefresh {
-                if let refreshed = try await refreshSessionIfNeeded(force: true) {
-                    return refreshed
-                }
-            } else {
-                return currentSession
-            }
-        }
-
-        if let restored = try await restoreSessionIfPossible() {
-            return restored
-        }
-
-        throw NSError(
-            domain: "HiddenSupabaseService",
-            code: -2,
-            userInfo: [NSLocalizedDescriptionKey: "云端会话已失效，请重新登录"]
-        )
-    }
-
-    private func refreshSessionIfNeeded(force: Bool) async throws -> HiddenSupabaseSession? {
-        guard let currentSession = session, force || currentSession.needsRefresh else {
-            return session
-        }
-
-        guard !currentSession.refreshToken.isEmpty else {
-            signOut()
-            return nil
-        }
-
-        let body = try JSONSerialization.data(withJSONObject: [
-            "refresh_token": currentSession.refreshToken
-        ])
-
-        let request = try request(
-            path: "/auth/v1/token",
-            method: "POST",
-            queryItems: [URLQueryItem(name: "grant_type", value: "refresh_token")],
-            body: body,
-            bearerToken: nil,
-            isRESTRequest: false
-        )
-
-        do {
-            let data = try await performDataRequest(request)
-            guard let refreshed = try parseSession(fromAuthResponse: data) else {
-                signOut()
-                return nil
-            }
-            try persist(session: refreshed)
-            return refreshed
-        } catch {
-            signOut()
-            throw error
-        }
-    }
-
-    private func persist(session newSession: HiddenSupabaseSession) throws {
-        session = newSession
-        try HiddenSupabaseSessionStore.save(newSession)
-    }
-
-    private func request(
-        path: String,
-        method: String,
-        queryItems: [URLQueryItem] = [],
-        body: Data? = nil,
-        bearerToken: String?,
-        isRESTRequest: Bool,
-        prefer: String? = nil
-    ) throws -> URLRequest {
-        guard let configuration = HiddenSupabaseConfiguration.current else {
-            throw NSError(
-                domain: "HiddenSupabaseService",
-                code: -3,
-                userInfo: [NSLocalizedDescriptionKey: "未配置 Supabase URL 或 Key"]
-            )
-        }
-
-        var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false)
-        components?.path = path
-        components?.queryItems = queryItems.isEmpty ? nil : queryItems
-
-        guard let url = components?.url else {
-            throw NSError(
-                domain: "HiddenSupabaseService",
-                code: -4,
-                userInfo: [NSLocalizedDescriptionKey: "无法构造云端请求地址"]
-            )
-        }
-
-        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30)
-        request.httpMethod = method
-        request.httpBody = body
-        request.setValue(configuration.publishableKey, forHTTPHeaderField: "apikey")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        if body != nil {
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        }
-
-        if let bearerToken {
-            request.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
-        }
-
-        if isRESTRequest {
-            switch method.uppercased() {
-            case "GET", "HEAD":
-                request.setValue(configuration.schema, forHTTPHeaderField: "Accept-Profile")
-            default:
-                request.setValue(configuration.schema, forHTTPHeaderField: "Content-Profile")
-            }
-        }
-
-        if let prefer {
-            request.setValue(prefer, forHTTPHeaderField: "Prefer")
-        }
-
-        return request
-    }
-
-    private func performDataRequest(_ request: URLRequest) async throws -> Data {
-        let (data, response) = try await urlSession.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NSError(
-                domain: "HiddenSupabaseService",
-                code: -5,
-                userInfo: [NSLocalizedDescriptionKey: "云端返回了无效响应"]
-            )
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            let payload = try? JSONDecoder().decode(HiddenSupabaseErrorPayload.self, from: data)
-            let message = payload?.resolvedMessage?.nonEmpty ?? HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)
-
-            throw NSError(
-                domain: "HiddenSupabaseService",
-                code: httpResponse.statusCode,
-                userInfo: [NSLocalizedDescriptionKey: message]
-            )
-        }
-
-        return data
-    }
-
-    private func parseSession(fromAuthResponse data: Data) throws -> HiddenSupabaseSession? {
-        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return nil
-        }
-
-        let nestedSession = object["session"] as? [String: Any]
-        let accessToken = (object["access_token"] as? String) ?? (nestedSession?["access_token"] as? String)
-        guard let accessToken = accessToken?.nonEmpty else {
-            return nil
-        }
-
-        let refreshToken = ((object["refresh_token"] as? String) ?? (nestedSession?["refresh_token"] as? String)) ?? ""
-        let user = (object["user"] as? [String: Any]) ?? (nestedSession?["user"] as? [String: Any])
-        let email = user?["email"] as? String
-        let userID = (user?["id"] as? String).flatMap(UUID.init(uuidString:))
-
-        let expiresAt = parseExpirationDate(root: object, nestedSession: nestedSession)
-        return HiddenSupabaseSession(
-            accessToken: accessToken,
-            refreshToken: refreshToken,
-            expiresAt: expiresAt,
-            userID: userID,
-            email: email
-        )
-    }
-
-    private func parseExpirationDate(root: [String: Any], nestedSession: [String: Any]?) -> Date {
-        if let timestamp = (root["expires_at"] as? TimeInterval) ?? (nestedSession?["expires_at"] as? TimeInterval) {
-            return Date(timeIntervalSince1970: timestamp)
-        }
-
-        if let seconds = (root["expires_in"] as? TimeInterval) ?? (nestedSession?["expires_in"] as? TimeInterval) {
-            return Date().addingTimeInterval(seconds)
-        }
-
-        return Date().addingTimeInterval(3600)
-    }
-}
-
-private extension Error {
-    var isHiddenSupabaseAuthFailure: Bool {
-        let nsError = self as NSError
-        guard nsError.domain == "HiddenSupabaseService" else {
-            return false
-        }
-
-        return nsError.code == -2 || nsError.code == 401 || nsError.code == 403
-    }
-}
-
-private enum Hidden4KHDLocalStore {
-    static let favoriteAlbumsKey = "hidden_space.favorite_albums.v1"
-    static let favoriteImagesKey = "hidden_space.favorite_images.v1"
-
-    static func loadFavoriteAlbums() -> [HiddenAlbum] {
-        guard let data = UserDefaults.standard.data(forKey: favoriteAlbumsKey),
-              let albums = try? JSONDecoder().decode([HiddenAlbum].self, from: data) else {
-            return []
-        }
-
-        return albums.map { album in
-            HiddenAlbum(
-                url: HiddenSpaceAPI.normalizeAlbumURL(album.url),
-                title: album.title,
-                coverURL: HiddenSpaceAPI.normalizeImageURL(album.coverURL)
-            )
-        }
-    }
-
-    static func saveFavoriteAlbums(_ albums: [HiddenAlbum]) {
-        guard let data = try? JSONEncoder().encode(albums) else { return }
-        UserDefaults.standard.set(data, forKey: favoriteAlbumsKey)
-    }
-
-    static func loadFavoriteImages() -> [URL] {
-        guard let data = UserDefaults.standard.data(forKey: favoriteImagesKey) else {
-            return []
-        }
-
-        if let rawURLs = try? JSONDecoder().decode([String].self, from: data) {
-            return rawURLs
-                .compactMap(URL.init(string:))
-                .map(HiddenSpaceAPI.normalizeImageURL)
-        }
-
-        if let urls = try? JSONDecoder().decode([URL].self, from: data) {
-            let normalized = urls.map(HiddenSpaceAPI.normalizeImageURL)
-            saveFavoriteImages(normalized)
-            return normalized
-        }
-
-        return []
-    }
-
-    static func saveFavoriteImages(_ imageURLs: [URL]) {
-        let payload = imageURLs.map { HiddenSpaceAPI.normalizeImageURL($0).absoluteString }
-        guard let data = try? JSONEncoder().encode(payload) else { return }
-        UserDefaults.standard.set(data, forKey: favoriteImagesKey)
-    }
-}
-
-private enum HiddenJavDBLocalStore {
-    static let favoriteMoviesKey = "hidden_space.javdb.favorite_movies.v1"
-    static let favoritePlaybacksKey = "hidden_space.javdb.favorite_playbacks.v1"
-
-    static func loadFavoriteMovies() -> [HiddenJavDBMovie] {
-        guard let data = UserDefaults.standard.data(forKey: favoriteMoviesKey),
-              let movies = try? JSONDecoder().decode([HiddenJavDBMovie].self, from: data) else {
-            return []
-        }
-
-        return movies.map { movie in
-            HiddenJavDBMovie(
-                url: HiddenJavDBAPI.normalizeMovieURL(movie.url),
-                code: movie.code,
-                title: movie.title,
-                coverURL: HiddenJavDBAPI.normalizeImageURL(movie.coverURL),
-                actresses: movie.actresses
-            )
-        }
-    }
-
-    static func saveFavoriteMovies(_ movies: [HiddenJavDBMovie]) {
-        guard let data = try? JSONEncoder().encode(movies) else { return }
-        UserDefaults.standard.set(data, forKey: favoriteMoviesKey)
-    }
-
-    static func loadFavoritePlaybacks() -> [HiddenJavDBFavoritePlayback] {
-        guard let data = UserDefaults.standard.data(forKey: favoritePlaybacksKey),
-              let playbacks = try? JSONDecoder().decode([HiddenJavDBFavoritePlayback].self, from: data) else {
-            return []
-        }
-
-        return playbacks.map { playback in
-            HiddenJavDBFavoritePlayback(
-                id: playback.id,
-                movie: HiddenJavDBMovie(
-                    url: HiddenJavDBAPI.normalizeMovieURL(playback.movie.url),
-                    code: playback.movie.code,
-                    title: playback.movie.title,
-                    coverURL: HiddenJavDBAPI.normalizeImageURL(playback.movie.coverURL),
-                    actresses: playback.movie.actresses
-                ),
-                sourceName: playback.sourceName,
-                streamURL: playback.streamURL,
-                refererURL: playback.refererURL,
-                positionSeconds: max(0, playback.positionSeconds),
-                createdAt: playback.createdAt
-            )
-        }
-    }
-
-    static func saveFavoritePlaybacks(_ playbacks: [HiddenJavDBFavoritePlayback]) {
-        guard let data = try? JSONEncoder().encode(playbacks) else { return }
-        UserDefaults.standard.set(data, forKey: favoritePlaybacksKey)
-    }
-}
-
-@MainActor
-final class HiddenCloudSyncViewModel: ObservableObject {
-    static let shared = HiddenCloudSyncViewModel()
-
-    @Published var isCloudConfigured = false
-    @Published var isCloudAuthenticated = false
-    @Published var cloudUserEmail: String?
-    @Published var cloudStatusMessage: String?
-    @Published var isPreparingCloud = false
-    @Published var isCloudBusy = false
-
-    private let cloudService = HiddenSupabaseService.shared
-    private var didPrepareCloud = false
-
-    func prepareIfNeeded() async {
-        guard !didPrepareCloud, !isPreparingCloud else { return }
-        didPrepareCloud = true
-
-        isPreparingCloud = true
-        defer { isPreparingCloud = false }
-
-        guard let configuration = await cloudService.configuration() else {
-            isCloudConfigured = false
-            isCloudAuthenticated = false
-            cloudUserEmail = nil
-            cloudStatusMessage = "未配置云端同步，当前仅保存在本地。"
-            return
-        }
-
-        isCloudConfigured = true
-        cloudStatusMessage = "已连接 \(configuration.projectHost)，正在检查会话..."
-
-        do {
-            if let session = try await cloudService.restoreSessionIfPossible() {
-                applySession(session)
-                await syncNow(reason: "已恢复云端会话")
-            } else {
-                isCloudAuthenticated = false
-                cloudUserEmail = nil
-                cloudStatusMessage = "云端已配置，但尚未登录。"
-            }
-        } catch {
-            isCloudAuthenticated = false
-            cloudUserEmail = nil
-            cloudStatusMessage = "云端会话恢复失败：\(error.localizedDescription)"
-            didPrepareCloud = false
-        }
-    }
-
-    func syncIfPossible() async {
-        guard !isPreparingCloud, !isCloudBusy else { return }
-
-        if !didPrepareCloud {
-            await prepareIfNeeded()
-            return
-        }
-
-        guard isCloudConfigured, isCloudAuthenticated else { return }
-        await syncNow(reason: "云端同步完成")
-    }
-
-    func signIn(email: String, password: String) async {
-        guard isCloudConfigured else {
-            cloudStatusMessage = "请先配置 Supabase URL 和 publishable key。"
-            return
-        }
-
-        isCloudBusy = true
-        defer { isCloudBusy = false }
-
-        do {
-            let session = try await cloudService.signIn(email: email, password: password)
-            applySession(session)
-            await syncNow(reason: "登录成功")
-        } catch {
-            cloudStatusMessage = "登录失败：\(error.localizedDescription)"
-        }
-    }
-
-    func signUp(email: String, password: String) async {
-        guard isCloudConfigured else {
-            cloudStatusMessage = "请先配置 Supabase URL 和 publishable key。"
-            return
-        }
-
-        isCloudBusy = true
-        defer { isCloudBusy = false }
-
-        do {
-            let outcome = try await cloudService.signUp(email: email, password: password)
-            switch outcome {
-            case let .authenticated(session):
-                applySession(session)
-                await syncNow(reason: "注册成功")
-            case let .confirmationRequired(message):
-                isCloudAuthenticated = false
-                cloudUserEmail = nil
-                cloudStatusMessage = message
-            }
-        } catch {
-            cloudStatusMessage = "注册失败：\(error.localizedDescription)"
-        }
-    }
-
-    func signOut() async {
-        await cloudService.signOut()
-        isCloudAuthenticated = false
-        cloudUserEmail = nil
-        cloudStatusMessage = "已退出云端登录，当前仅保存在本地。"
-    }
-
-    func syncNow() async {
-        await syncNow(reason: "云端同步完成")
-    }
-
-    private func syncNow(reason: String) async {
-        guard isCloudAuthenticated else { return }
-
-        isCloudBusy = true
-        defer { isCloudBusy = false }
-
-        do {
-            let localJavPlaybacks = HiddenJavDBLocalStore.loadFavoritePlaybacks()
-            let ensuredLocalJavFavorites = mergeMovies(
-                primary: HiddenJavDBLocalStore.loadFavoriteMovies(),
-                secondary: localJavPlaybacks.map(\.movie)
-            )
-            let local4KHDAlbums = Hidden4KHDLocalStore.loadFavoriteAlbums()
-            let local4KHDImages = Hidden4KHDLocalStore.loadFavoriteImages()
-
-            let remoteJavFavorites = try await cloudService.fetchFavorites()
-            let remoteJavPlaybacks = try await cloudService.fetchPlaybacks()
-            let remote4KHDAlbums = try await cloudService.fetch4KHDAlbums()
-            let remote4KHDImages = try await cloudService.fetch4KHDImages()
-
-            let mergedJavFavorites = mergeMovies(primary: remoteJavFavorites, secondary: ensuredLocalJavFavorites)
-            let mergedJavPlaybacks = mergePlaybacks(primary: remoteJavPlaybacks, secondary: localJavPlaybacks)
-            let merged4KHDAlbums = mergeAlbums(primary: remote4KHDAlbums, secondary: local4KHDAlbums)
-            let merged4KHDImages = mergeImageURLs(primary: remote4KHDImages, secondary: local4KHDImages)
-
-            HiddenJavDBLocalStore.saveFavoriteMovies(mergedJavFavorites)
-            HiddenJavDBLocalStore.saveFavoritePlaybacks(mergedJavPlaybacks)
-            Hidden4KHDLocalStore.saveFavoriteAlbums(merged4KHDAlbums)
-            Hidden4KHDLocalStore.saveFavoriteImages(merged4KHDImages)
-
-            try await cloudService.upsertFavorites(mergedJavFavorites)
-            try await cloudService.upsertPlaybacks(mergedJavPlaybacks)
-            try await cloudService.upsert4KHDAlbums(merged4KHDAlbums)
-            try await cloudService.upsert4KHDImages(merged4KHDImages)
-
-            cloudStatusMessage = "\(reason) · jav 影片 \(mergedJavFavorites.count) 部 · jav 播放点 \(mergedJavPlaybacks.count) 条 · 4khd album \(merged4KHDAlbums.count) 个 · 图片 \(merged4KHDImages.count) 张"
-        } catch {
-            if error.isHiddenSupabaseAuthFailure {
-                isCloudAuthenticated = false
-                didPrepareCloud = false
-            }
-            cloudStatusMessage = "云端同步失败：\(error.localizedDescription)"
-        }
-    }
-
-    private func applySession(_ session: HiddenSupabaseSession) {
-        isCloudAuthenticated = true
-        cloudUserEmail = session.email
-        cloudStatusMessage = session.email?.nonEmpty.map { "已登录 \($0)" } ?? "已登录云端同步"
-    }
-
-    private func mergeAlbums(primary: [HiddenAlbum], secondary: [HiddenAlbum]) -> [HiddenAlbum] {
-        var seen = Set<String>()
-        var merged: [HiddenAlbum] = []
-
-        for album in primary + secondary {
-            if seen.insert(album.id).inserted {
-                merged.append(album)
-            }
-        }
-
-        return merged
-    }
-
-    private func mergeImageURLs(primary: [URL], secondary: [URL]) -> [URL] {
-        var seen = Set<String>()
-        var merged: [URL] = []
-
-        for url in (primary + secondary).map(HiddenSpaceAPI.normalizeImageURL) {
-            if seen.insert(url.absoluteString).inserted {
-                merged.append(url)
-            }
-        }
-
-        return merged
-    }
-
-    private func mergeMovies(primary: [HiddenJavDBMovie], secondary: [HiddenJavDBMovie]) -> [HiddenJavDBMovie] {
-        var seen = Set<String>()
-        var merged: [HiddenJavDBMovie] = []
-
-        for movie in primary + secondary {
-            if seen.insert(movie.id).inserted {
-                merged.append(movie)
-            }
-        }
-
-        return merged
-    }
-
-    private func mergePlaybacks(
-        primary: [HiddenJavDBFavoritePlayback],
-        secondary: [HiddenJavDBFavoritePlayback]
-    ) -> [HiddenJavDBFavoritePlayback] {
-        let candidates = (primary + secondary).sorted { $0.createdAt > $1.createdAt }
-        var merged: [HiddenJavDBFavoritePlayback] = []
-        var seenIDs = Set<UUID>()
-
-        for playback in candidates {
-            if !seenIDs.insert(playback.id).inserted {
-                continue
-            }
-
-            if merged.contains(where: { $0.matchesSamePlayback(as: playback) }) {
-                continue
-            }
-
-            merged.append(playback)
-        }
-
-        if merged.count > 120 {
-            return Array(merged.prefix(120))
-        }
-        return merged
-    }
-}
-
-private struct HiddenJavDBMovie: Identifiable, Codable, Hashable {
-    let url: URL
-    let code: String
-    let title: String
-    let coverURL: URL
-    let actresses: [String]
-
-    var id: String { url.absoluteString }
-    var displayTitle: String {
-        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? code : trimmed
-    }
-    var actressesText: String {
-        actresses.isEmpty ? "未知" : actresses.joined(separator: " / ")
     }
 }
 
@@ -6945,49 +6050,6 @@ private struct HiddenJavDBMovieDetail: Hashable {
     }
 }
 
-private struct HiddenJavDBFavoritePlayback: Identifiable, Codable, Hashable {
-    let id: UUID
-    let movie: HiddenJavDBMovie
-    let sourceName: String
-    let streamURL: URL
-    let refererURL: URL
-    let positionSeconds: Double
-    let createdAt: Date
-
-    init(
-        id: UUID = UUID(),
-        movie: HiddenJavDBMovie,
-        sourceName: String,
-        streamURL: URL,
-        refererURL: URL,
-        positionSeconds: Double,
-        createdAt: Date = Date()
-    ) {
-        self.id = id
-        self.movie = movie
-        self.sourceName = sourceName
-        self.streamURL = streamURL
-        self.refererURL = refererURL
-        self.positionSeconds = positionSeconds
-        self.createdAt = createdAt
-    }
-}
-
-private struct HiddenJavDBFavoritePlaybackSaveContext {
-    let savedPlayback: HiddenJavDBFavoritePlayback
-    let replacedPlayback: HiddenJavDBFavoritePlayback?
-    let markerPositions: [Double]
-}
-
-private extension HiddenJavDBFavoritePlayback {
-    func matchesSamePlayback(as other: HiddenJavDBFavoritePlayback) -> Bool {
-        movie.id == other.movie.id &&
-        sourceName == other.sourceName &&
-        streamURL.absoluteString == other.streamURL.absoluteString &&
-        abs(positionSeconds - other.positionSeconds) < 2
-    }
-}
-
 private enum HiddenPlaybackTimeFormatter {
     static func string(from seconds: Double) -> String {
         guard seconds.isFinite, seconds > 0 else { return "00:00" }
@@ -7003,7 +6065,7 @@ private enum HiddenPlaybackTimeFormatter {
     }
 }
 
-private struct HiddenJavDBPreviewImage: Identifiable {
+private struct HiddenJavDBPreviewImage: Identifiable, Hashable {
     let index: Int
     let urls: [URL]
 
@@ -7103,12 +6165,25 @@ private enum HiddenJavDBAPI {
         ]).map(cleanTitle)
         let otherActressMovies = parseRelatedMovies(
             from: html,
-            titleKeywords: ["她們還演出過", "她们还演出过", "她還演出過", "她还演出过"],
+            titleKeywords: [
+                "TA(們)還出演過",
+                "TA(们)还出演过",
+                "TA(們)還演過",
+                "TA(们)还演过",
+                "她們還演出過",
+                "她们还演出过",
+                "她還演出過",
+                "她还演出过",
+                "她們還演過",
+                "她们还演过",
+                "她還演過",
+                "她还演过"
+            ],
             excluding: movie
         )
         let recommendedMovies = parseRelatedMovies(
             from: html,
-            titleKeywords: ["可能你也喜歡", "可能你也喜欢", "you may also like"],
+            titleKeywords: ["你可能也喜歡", "你可能也喜欢", "可能你也喜歡", "可能你也喜欢", "猜你喜歡", "猜你喜欢", "you may also like"],
             excluding: movie
         )
 
@@ -7473,6 +6548,18 @@ private enum HiddenJavDBAPI {
 
             let movies = dedupedRelatedMovies(
                 parseMovies(from: block).filter { $0.id != currentMovie.id }
+            )
+            if !movies.isEmpty {
+                return movies
+            }
+        }
+
+        for section in extractMessagePanelSections(from: html) {
+            let normalizedTitle = normalizedSectionTitle(section.title)
+            guard normalizedKeywords.contains(where: { normalizedTitle.contains($0) }) else { continue }
+
+            let movies = dedupedRelatedMovies(
+                parseMovies(from: section.body).filter { $0.id != currentMovie.id }
             )
             if !movies.isEmpty {
                 return movies
@@ -8188,12 +7275,43 @@ private enum HiddenJavDBAPI {
         return sections
     }
 
+    private static func extractMessagePanelSections(from html: String) -> [(title: String, body: String)] {
+        let blocks = regexFullMatches(
+            pattern: #"<article\b[^>]*class=["'][^"']*message[^"']*video-panel[^"']*["'][^>]*>.*?</article>"#,
+            in: html,
+            dotMatchesLine: true
+        )
+
+        return blocks.compactMap { block in
+            guard let title = firstNonEmpty([
+                regexFirstCapture(
+                    pattern: #"<div[^>]*class=["'][^"']*message-header[^"']*["'][^>]*>\s*<p[^>]*>(.*?)</p>"#,
+                    in: block,
+                    dotMatchesLine: true
+                ),
+                regexFirstCapture(
+                    pattern: #"<header[^>]*>\s*<p[^>]*>(.*?)</p>"#,
+                    in: block,
+                    dotMatchesLine: true
+                )
+            ]).map(cleanTitle)?.nonEmpty else {
+                return nil
+            }
+
+            return (title: title, body: block)
+        }
+    }
+
     private static func normalizedSectionTitle(_ value: String) -> String {
         cleanTitle(value)
             .lowercased()
             .replacingOccurrences(of: #"\s+"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: "：", with: "")
             .replacingOccurrences(of: ":", with: "")
+            .replacingOccurrences(of: "（", with: "")
+            .replacingOccurrences(of: "）", with: "")
+            .replacingOccurrences(of: "(", with: "")
+            .replacingOccurrences(of: ")", with: "")
     }
 
     private static func dedupedRelatedMovies(_ movies: [HiddenJavDBMovie]) -> [HiddenJavDBMovie] {

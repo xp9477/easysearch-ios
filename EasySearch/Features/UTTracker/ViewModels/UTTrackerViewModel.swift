@@ -3,16 +3,33 @@ import Foundation
 final class UTTrackerViewModel: ObservableObject {
     @Published private(set) var entries: [UTEntry] = []
 
-    private let userDefaults: UserDefaults
+    private let store: any UTTrackerEntryStore
     private let calendar: Calendar
+    private let notificationCenter: NotificationCenter
+    private var entriesDidChangeObserver: NSObjectProtocol?
 
     init(
-        userDefaults: UserDefaults = .standard,
-        calendar: Calendar = .utTracker
+        store: any UTTrackerEntryStore = UTTrackerLocalStore(),
+        calendar: Calendar = .utTracker,
+        notificationCenter: NotificationCenter = .default
     ) {
-        self.userDefaults = userDefaults
+        self.store = store
         self.calendar = calendar
+        self.notificationCenter = notificationCenter
+        entriesDidChangeObserver = notificationCenter.addObserver(
+            forName: .utTrackerEntriesDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.reloadFromStore()
+        }
         loadEntries()
+    }
+
+    deinit {
+        if let entriesDidChangeObserver {
+            notificationCenter.removeObserver(entriesDidChangeObserver)
+        }
     }
 
     var currentWeekSummary: UTWeekSummary {
@@ -43,6 +60,7 @@ final class UTTrackerViewModel: ObservableObject {
         entries.append(entry)
         sortAndPersistEntries()
         Task {
+            await HiddenCloudSyncViewModel.shared.syncUTEntryUpsertIfPossible(entry)
             await UTNotificationManager.shared.refreshSchedulesIfAuthorized()
         }
     }
@@ -51,6 +69,7 @@ final class UTTrackerViewModel: ObservableObject {
         entries.removeAll { $0.id == entry.id }
         persistEntries()
         Task {
+            await HiddenCloudSyncViewModel.shared.syncUTEntryDeletionIfPossible(entry)
             await UTNotificationManager.shared.refreshSchedulesIfAuthorized()
         }
     }
@@ -96,18 +115,17 @@ final class UTTrackerViewModel: ObservableObject {
     }
 
     private func loadEntries() {
-        guard let data = userDefaults.data(forKey: UTTrackerStorage.entriesKey),
-              let storedEntries = try? JSONDecoder().decode([UTEntry].self, from: data) else {
-            entries = []
-            return
-        }
-
-        entries = storedEntries.sorted(by: sortEntries(lhs:rhs:))
+        entries = store.loadEntries().sorted(by: sortEntries(lhs:rhs:))
     }
 
     private func persistEntries() {
-        guard let data = try? JSONEncoder().encode(entries) else { return }
-        userDefaults.set(data, forKey: UTTrackerStorage.entriesKey)
+        store.saveEntries(entries)
+    }
+
+    private func reloadFromStore() {
+        let reloaded = store.loadEntries().sorted(by: sortEntries(lhs:rhs:))
+        guard reloaded != entries else { return }
+        entries = reloaded
     }
 }
 
