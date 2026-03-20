@@ -96,6 +96,30 @@ enum HiddenCloudMerge {
 
         return merged
     }
+
+    static func gitHubRepoWatches(
+        primary: [GitHubWatchedRepository],
+        secondary: [GitHubWatchedRepository]
+    ) -> [GitHubWatchedRepository] {
+        let candidates = (primary + secondary).sorted { lhs, rhs in
+            if lhs.updatedAt == rhs.updatedAt {
+                return lhs.fullName.localizedCaseInsensitiveCompare(rhs.fullName) == .orderedAscending
+            }
+
+            return lhs.updatedAt > rhs.updatedAt
+        }
+
+        var merged: [GitHubWatchedRepository] = []
+        var seenIDs = Set<String>()
+
+        for repository in candidates {
+            if seenIDs.insert(repository.id).inserted {
+                merged.append(repository)
+            }
+        }
+
+        return merged.sorted(by: GitHubWatchedRepository.sort(lhs:rhs:))
+    }
 }
 
 private enum Hidden4KHDURLNormalizer {
@@ -549,6 +573,84 @@ private struct HiddenSupabaseUTEntryPayload: Encodable {
     }
 }
 
+private struct HiddenSupabaseGitHubRepoWatchRow: Decodable {
+    let repo_id: String
+    let owner: String
+    let name: String
+    let full_name: String
+    let html_url: String
+    let repo_description: String
+    let default_branch: String
+    let is_archived: Bool
+    let is_disabled: Bool
+    let last_known_pushed_at: String?
+    let last_checked_at: String?
+    let last_notified_pushed_at: String?
+    let created_at: String
+    let updated_at: String
+
+    func asWatchedRepository() -> GitHubWatchedRepository? {
+        guard
+            let htmlURL = URL(string: html_url),
+            let createdAt = HiddenSupabaseDateFormatter.date(from: created_at),
+            let updatedAt = HiddenSupabaseDateFormatter.date(from: updated_at)
+        else {
+            return nil
+        }
+
+        return GitHubWatchedRepository(
+            id: repo_id,
+            owner: owner,
+            name: name,
+            fullName: full_name,
+            htmlURL: htmlURL,
+            repositoryDescription: repo_description,
+            defaultBranch: default_branch,
+            isArchived: is_archived,
+            isDisabled: is_disabled,
+            lastKnownPushedAt: last_known_pushed_at.flatMap(HiddenSupabaseDateFormatter.date(from:)),
+            lastCheckedAt: last_checked_at.flatMap(HiddenSupabaseDateFormatter.date(from:)),
+            lastNotifiedPushedAt: last_notified_pushed_at.flatMap(HiddenSupabaseDateFormatter.date(from:)),
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
+    }
+}
+
+private struct HiddenSupabaseGitHubRepoWatchPayload: Encodable {
+    let repo_id: String
+    let owner: String
+    let name: String
+    let full_name: String
+    let html_url: String
+    let repo_description: String
+    let default_branch: String
+    let is_archived: Bool
+    let is_disabled: Bool
+    let last_known_pushed_at: String?
+    let last_checked_at: String?
+    let last_notified_pushed_at: String?
+    let created_at: String
+    let updated_at: String
+
+    init(repository: GitHubWatchedRepository) {
+        repo_id = repository.id
+        owner = repository.owner
+        name = repository.name
+        full_name = repository.fullName
+        html_url = repository.htmlURL.absoluteString
+        repo_description = repository.repositoryDescription
+        default_branch = repository.defaultBranch
+        is_archived = repository.isArchived
+        is_disabled = repository.isDisabled
+        last_known_pushed_at = repository.lastKnownPushedAt.map(HiddenSupabaseDateFormatter.string(from:))
+        last_checked_at = repository.lastCheckedAt.map(HiddenSupabaseDateFormatter.string(from:))
+        last_notified_pushed_at = repository.lastNotifiedPushedAt.map(HiddenSupabaseDateFormatter.string(from:))
+        created_at = HiddenSupabaseDateFormatter.string(from: repository.createdAt)
+        updated_at = HiddenSupabaseDateFormatter.string(from: repository.updatedAt)
+    }
+}
+
 private enum HiddenSupabaseDateFormatter {
     private static let preciseFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -866,6 +968,21 @@ actor HiddenSupabaseService {
         return rows.compactMap { $0.asUTEntry() }
     }
 
+    func fetchGitHubRepoWatches() async throws -> [GitHubWatchedRepository] {
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/github_repo_watches",
+            method: "GET",
+            queryItems: [
+                URLQueryItem(name: "select", value: "*"),
+                URLQueryItem(name: "order", value: "updated_at.desc")
+            ]
+        )
+
+        let data = try await performDataRequest(request)
+        let rows = try JSONDecoder().decode([HiddenSupabaseGitHubRepoWatchRow].self, from: data)
+        return rows.compactMap { $0.asWatchedRepository() }
+    }
+
     func upsert4KHDImages(_ imageURLs: [URL]) async throws {
         guard !imageURLs.isEmpty else { return }
         try await upsert4KHDImagesPayload(imageURLs.map(HiddenSupabase4KHDImagePayload.init(imageURL:)))
@@ -902,6 +1019,27 @@ actor HiddenSupabaseService {
             method: "DELETE",
             queryItems: [
                 URLQueryItem(name: "entry_id", value: "eq.\(id.uuidString)")
+            ]
+        )
+
+        _ = try await performDataRequest(request)
+    }
+
+    func upsertGitHubRepoWatches(_ repositories: [GitHubWatchedRepository]) async throws {
+        guard !repositories.isEmpty else { return }
+        try await upsertGitHubRepoWatchesPayload(repositories.map(HiddenSupabaseGitHubRepoWatchPayload.init(repository:)))
+    }
+
+    func upsertGitHubRepoWatch(_ repository: GitHubWatchedRepository) async throws {
+        try await upsertGitHubRepoWatchesPayload([HiddenSupabaseGitHubRepoWatchPayload(repository: repository)])
+    }
+
+    func deleteGitHubRepoWatch(id: String) async throws {
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/github_repo_watches",
+            method: "DELETE",
+            queryItems: [
+                URLQueryItem(name: "repo_id", value: "eq.\(id)")
             ]
         )
 
@@ -975,6 +1113,21 @@ actor HiddenSupabaseService {
             method: "POST",
             queryItems: [
                 URLQueryItem(name: "on_conflict", value: "user_id,entry_id")
+            ],
+            body: body,
+            prefer: "resolution=merge-duplicates,missing=default,return=minimal"
+        )
+
+        _ = try await performDataRequest(request)
+    }
+
+    private func upsertGitHubRepoWatchesPayload(_ payload: [HiddenSupabaseGitHubRepoWatchPayload]) async throws {
+        let body = try JSONEncoder().encode(payload)
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/github_repo_watches",
+            method: "POST",
+            queryItems: [
+                URLQueryItem(name: "on_conflict", value: "user_id,repo_id")
             ],
             body: body,
             prefer: "resolution=merge-duplicates,missing=default,return=minimal"
@@ -1331,6 +1484,39 @@ final class HiddenCloudSyncViewModel: ObservableObject {
         }
     }
 
+    func syncGitHubRepoWatchesIfPossible(_ repositories: [GitHubWatchedRepository]) async {
+        guard await prepareForMutationIfNeeded(), !repositories.isEmpty else { return }
+
+        do {
+            try await cloudService.upsertGitHubRepoWatches(repositories)
+            cloudStatusMessage = "已同步 GitHub 仓库提醒到云端"
+        } catch {
+            handleCloudMutationError(error, fallbackMessage: "GitHub 仓库提醒同步失败")
+        }
+    }
+
+    func syncGitHubRepoWatchUpsertIfPossible(_ repository: GitHubWatchedRepository) async {
+        guard await prepareForMutationIfNeeded() else { return }
+
+        do {
+            try await cloudService.upsertGitHubRepoWatch(repository)
+            cloudStatusMessage = "已同步 GitHub 仓库提醒到云端"
+        } catch {
+            handleCloudMutationError(error, fallbackMessage: "GitHub 仓库提醒同步失败")
+        }
+    }
+
+    func syncGitHubRepoWatchDeletionIfPossible(_ repository: GitHubWatchedRepository) async {
+        guard await prepareForMutationIfNeeded() else { return }
+
+        do {
+            try await cloudService.deleteGitHubRepoWatch(id: repository.id)
+            cloudStatusMessage = "已从云端移除 GitHub 仓库提醒"
+        } catch {
+            handleCloudMutationError(error, fallbackMessage: "GitHub 仓库提醒删除失败")
+        }
+    }
+
     private func syncNow(reason: String) async {
         guard isCloudAuthenticated else { return }
 
@@ -1402,6 +1588,15 @@ final class HiddenCloudSyncViewModel: ObservableObject {
                 saveLocal: { UTTrackerLocalStore().saveEntries($0) },
                 upsertRemote: { try await self.cloudService.upsertUTEntries($0) },
                 merge: HiddenCloudMerge.utEntries
+            ).eraseToAnyCollection(),
+            CloudSyncCollection(
+                label: "GitHub",
+                unit: "个",
+                loadLocal: { GitHubWatchedRepositoryLocalStore().loadRepositories() },
+                fetchRemote: { try await self.cloudService.fetchGitHubRepoWatches() },
+                saveLocal: { GitHubWatchedRepositoryLocalStore().saveRepositories($0) },
+                upsertRemote: { try await self.cloudService.upsertGitHubRepoWatches($0) },
+                merge: HiddenCloudMerge.gitHubRepoWatches
             ).eraseToAnyCollection()
         ]
     }

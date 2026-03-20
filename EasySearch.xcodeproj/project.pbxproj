@@ -32,6 +32,28 @@
 		D1A000000000000000000004 /* UTTrackerFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000104 /* UTTrackerFeature.swift */; };
 		D1A000000000000000000005 /* UTNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000105 /* UTNotificationManager.swift */; };
 		D1A000000000000000000006 /* UTTrackerEntryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000106 /* UTTrackerEntryStore.swift */; };
+		D300000000000000000000001 /* GitHubUpdatesFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000101 /* GitHubUpdatesFeature.swift */; };
+		D300000000000000000000002 /* GitHubUpdatesCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */; };
+		D300000000000000000000003 /* GitHubWatchedRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000103 /* GitHubWatchedRepository.swift */; };
+		D300000000000000000000004 /* GitHubWatchedRepositoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000104 /* GitHubWatchedRepositoryStore.swift */; };
+		D300000000000000000000005 /* GitHubUpdatesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000105 /* GitHubUpdatesViewModel.swift */; };
+		D300000000000000000000006 /* GitHubUpdatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000106 /* GitHubUpdatesView.swift */; };
+		D400000000000000000000001 /* QingLongFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000101 /* QingLongFeature.swift */; };
+		D400000000000000000000002 /* QingLongPanelProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000102 /* QingLongPanelProfile.swift */; };
+		D400000000000000000000003 /* QingLongPanelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000103 /* QingLongPanelStore.swift */; };
+		D400000000000000000000004 /* QingLongCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000104 /* QingLongCoordinator.swift */; };
+		D400000000000000000000005 /* QingLongViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000105 /* QingLongViewModel.swift */; };
+		D400000000000000000000006 /* QingLongView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000106 /* QingLongView.swift */; };
+		D500000000000000000000001 /* ImageTranslateFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D500000000000000000000101 /* ImageTranslateFeature.swift */; };
+		D500000000000000000000002 /* ImageTranslateCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D500000000000000000000102 /* ImageTranslateCoordinator.swift */; };
+		D500000000000000000000003 /* ImageTranslateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D500000000000000000000103 /* ImageTranslateModels.swift */; };
+		D500000000000000000000004 /* ImageTranslateViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D500000000000000000000104 /* ImageTranslateViewModel.swift */; };
+		D500000000000000000000005 /* ImageTranslateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D500000000000000000000105 /* ImageTranslateView.swift */; };
+		D600000000000000000000001 /* EmailAssistantFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000101 /* EmailAssistantFeature.swift */; };
+		D600000000000000000000002 /* EmailAssistantCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000102 /* EmailAssistantCoordinator.swift */; };
+		D600000000000000000000003 /* EmailAssistantModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000103 /* EmailAssistantModels.swift */; };
+		D600000000000000000000004 /* EmailAssistantViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000104 /* EmailAssistantViewModel.swift */; };
+		D600000000000000000000005 /* EmailAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000105 /* EmailAssistantView.swift */; };
 		FE398CDB8405CA4107E65C61 /* CategoryTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795E17200E5B98842C811DAF /* CategoryTabBar.swift */; };
 /* End PBXBuildFile section */
 
@@ -60,6 +82,28 @@
 		D1A000000000000000000104 /* UTTrackerFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTTrackerFeature.swift; path = EasySearch/Features/UTTracker/UTTrackerFeature.swift; sourceTree = SOURCE_ROOT; };
 		D1A000000000000000000105 /* UTNotificationManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTNotificationManager.swift; path = EasySearch/Features/UTTracker/UTNotificationManager.swift; sourceTree = SOURCE_ROOT; };
 		D1A000000000000000000106 /* UTTrackerEntryStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTTrackerEntryStore.swift; path = EasySearch/Features/UTTracker/Models/UTTrackerEntryStore.swift; sourceTree = SOURCE_ROOT; };
+		D300000000000000000000101 /* GitHubUpdatesFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesFeature.swift; path = EasySearch/Features/GitHubUpdates/GitHubUpdatesFeature.swift; sourceTree = SOURCE_ROOT; };
+		D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesCoordinator.swift; path = EasySearch/Features/GitHubUpdates/GitHubUpdatesCoordinator.swift; sourceTree = SOURCE_ROOT; };
+		D300000000000000000000103 /* GitHubWatchedRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubWatchedRepository.swift; path = EasySearch/Features/GitHubUpdates/Models/GitHubWatchedRepository.swift; sourceTree = SOURCE_ROOT; };
+		D300000000000000000000104 /* GitHubWatchedRepositoryStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubWatchedRepositoryStore.swift; path = EasySearch/Features/GitHubUpdates/Models/GitHubWatchedRepositoryStore.swift; sourceTree = SOURCE_ROOT; };
+		D300000000000000000000105 /* GitHubUpdatesViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesViewModel.swift; path = EasySearch/Features/GitHubUpdates/ViewModels/GitHubUpdatesViewModel.swift; sourceTree = SOURCE_ROOT; };
+		D300000000000000000000106 /* GitHubUpdatesView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesView.swift; path = EasySearch/Features/GitHubUpdates/Views/GitHubUpdatesView.swift; sourceTree = SOURCE_ROOT; };
+		D400000000000000000000101 /* QingLongFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongFeature.swift; path = EasySearch/Features/QingLong/QingLongFeature.swift; sourceTree = SOURCE_ROOT; };
+		D400000000000000000000102 /* QingLongPanelProfile.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongPanelProfile.swift; path = EasySearch/Features/QingLong/Models/QingLongPanelProfile.swift; sourceTree = SOURCE_ROOT; };
+		D400000000000000000000103 /* QingLongPanelStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongPanelStore.swift; path = EasySearch/Features/QingLong/Models/QingLongPanelStore.swift; sourceTree = SOURCE_ROOT; };
+		D400000000000000000000104 /* QingLongCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongCoordinator.swift; path = EasySearch/Features/QingLong/QingLongCoordinator.swift; sourceTree = SOURCE_ROOT; };
+		D400000000000000000000105 /* QingLongViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongViewModel.swift; path = EasySearch/Features/QingLong/ViewModels/QingLongViewModel.swift; sourceTree = SOURCE_ROOT; };
+		D400000000000000000000106 /* QingLongView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongView.swift; path = EasySearch/Features/QingLong/Views/QingLongView.swift; sourceTree = SOURCE_ROOT; };
+		D500000000000000000000101 /* ImageTranslateFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateFeature.swift; path = EasySearch/Features/ImageTranslate/ImageTranslateFeature.swift; sourceTree = SOURCE_ROOT; };
+		D500000000000000000000102 /* ImageTranslateCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateCoordinator.swift; path = EasySearch/Features/ImageTranslate/ImageTranslateCoordinator.swift; sourceTree = SOURCE_ROOT; };
+		D500000000000000000000103 /* ImageTranslateModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateModels.swift; path = EasySearch/Features/ImageTranslate/Models/ImageTranslateModels.swift; sourceTree = SOURCE_ROOT; };
+		D500000000000000000000104 /* ImageTranslateViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateViewModel.swift; path = EasySearch/Features/ImageTranslate/ViewModels/ImageTranslateViewModel.swift; sourceTree = SOURCE_ROOT; };
+		D500000000000000000000105 /* ImageTranslateView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateView.swift; path = EasySearch/Features/ImageTranslate/Views/ImageTranslateView.swift; sourceTree = SOURCE_ROOT; };
+		D600000000000000000000101 /* EmailAssistantFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantFeature.swift; path = EasySearch/Features/EmailAssistant/EmailAssistantFeature.swift; sourceTree = SOURCE_ROOT; };
+		D600000000000000000000102 /* EmailAssistantCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantCoordinator.swift; path = EasySearch/Features/EmailAssistant/EmailAssistantCoordinator.swift; sourceTree = SOURCE_ROOT; };
+		D600000000000000000000103 /* EmailAssistantModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantModels.swift; path = EasySearch/Features/EmailAssistant/Models/EmailAssistantModels.swift; sourceTree = SOURCE_ROOT; };
+		D600000000000000000000104 /* EmailAssistantViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantViewModel.swift; path = EasySearch/Features/EmailAssistant/ViewModels/EmailAssistantViewModel.swift; sourceTree = SOURCE_ROOT; };
+		D600000000000000000000105 /* EmailAssistantView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantView.swift; path = EasySearch/Features/EmailAssistant/Views/EmailAssistantView.swift; sourceTree = SOURCE_ROOT; };
 		DD2DDB34B07E1AF3F585243D /* SettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = EasySearch/Features/Settings/Views/SettingsView.swift; sourceTree = SOURCE_ROOT; };
 		E53A9599509BBCA5DB03ABC4 /* SearchViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchViewModel.swift; path = EasySearch/Features/EasySearch/ViewModels/SearchViewModel.swift; sourceTree = SOURCE_ROOT; };
 		E9AD7A5FC3ED0A3372776E30 /* AppRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppRouter.swift; path = EasySearch/Core/Navigation/AppRouter.swift; sourceTree = SOURCE_ROOT; };
@@ -202,6 +246,152 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
+		D300000000000000000000201 /* GitHubUpdates */ = {
+			isa = PBXGroup;
+			children = (
+				D300000000000000000000202 /* Models */,
+				D300000000000000000000203 /* ViewModels */,
+				D300000000000000000000204 /* Views */,
+				D300000000000000000000101 /* GitHubUpdatesFeature.swift */,
+				D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */,
+			);
+			path = GitHubUpdates;
+			sourceTree = "<group>";
+		};
+		D300000000000000000000202 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				D300000000000000000000103 /* GitHubWatchedRepository.swift */,
+				D300000000000000000000104 /* GitHubWatchedRepositoryStore.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		D300000000000000000000203 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				D300000000000000000000105 /* GitHubUpdatesViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		D300000000000000000000204 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				D300000000000000000000106 /* GitHubUpdatesView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D400000000000000000000201 /* QingLong */ = {
+			isa = PBXGroup;
+			children = (
+				D400000000000000000000202 /* Models */,
+				D400000000000000000000203 /* ViewModels */,
+				D400000000000000000000204 /* Views */,
+				D400000000000000000000101 /* QingLongFeature.swift */,
+				D400000000000000000000104 /* QingLongCoordinator.swift */,
+			);
+			path = QingLong;
+			sourceTree = "<group>";
+		};
+		D400000000000000000000202 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				D400000000000000000000102 /* QingLongPanelProfile.swift */,
+				D400000000000000000000103 /* QingLongPanelStore.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		D400000000000000000000203 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				D400000000000000000000105 /* QingLongViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		D400000000000000000000204 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				D400000000000000000000106 /* QingLongView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D500000000000000000000201 /* ImageTranslate */ = {
+			isa = PBXGroup;
+			children = (
+				D500000000000000000000202 /* Models */,
+				D500000000000000000000203 /* ViewModels */,
+				D500000000000000000000204 /* Views */,
+				D500000000000000000000101 /* ImageTranslateFeature.swift */,
+				D500000000000000000000102 /* ImageTranslateCoordinator.swift */,
+			);
+			path = ImageTranslate;
+			sourceTree = "<group>";
+		};
+		D500000000000000000000202 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				D500000000000000000000103 /* ImageTranslateModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		D500000000000000000000203 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				D500000000000000000000104 /* ImageTranslateViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		D500000000000000000000204 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				D500000000000000000000105 /* ImageTranslateView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D600000000000000000000201 /* EmailAssistant */ = {
+			isa = PBXGroup;
+			children = (
+				D600000000000000000000202 /* Models */,
+				D600000000000000000000203 /* ViewModels */,
+				D600000000000000000000204 /* Views */,
+				D600000000000000000000101 /* EmailAssistantFeature.swift */,
+				D600000000000000000000102 /* EmailAssistantCoordinator.swift */,
+			);
+			path = EmailAssistant;
+			sourceTree = "<group>";
+		};
+		D600000000000000000000202 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				D600000000000000000000103 /* EmailAssistantModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		D600000000000000000000203 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				D600000000000000000000104 /* EmailAssistantViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		D600000000000000000000204 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				D600000000000000000000105 /* EmailAssistantView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
 		A0C065A5ADD67EACBE6D34A3 /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -293,6 +483,10 @@
 				214A4883BB1976CD8E3A4676 /* EasySearch */,
 				6454E79B9B44E6FA2F45817D /* Settings */,
 				D1A000000000000000000201 /* UTTracker */,
+				D300000000000000000000201 /* GitHubUpdates */,
+				D400000000000000000000201 /* QingLong */,
+				D500000000000000000000201 /* ImageTranslate */,
+				D600000000000000000000201 /* EmailAssistant */,
 				9184EB6BD9CBA9B4D5FB8E9F /* Utilities */,
 			);
 			name = Features;
@@ -407,6 +601,28 @@
 				D1A000000000000000000003 /* UTTrackerView.swift in Sources */,
 				D1A000000000000000000004 /* UTTrackerFeature.swift in Sources */,
 				D1A000000000000000000005 /* UTNotificationManager.swift in Sources */,
+				D300000000000000000000003 /* GitHubWatchedRepository.swift in Sources */,
+				D300000000000000000000004 /* GitHubWatchedRepositoryStore.swift in Sources */,
+				D300000000000000000000001 /* GitHubUpdatesFeature.swift in Sources */,
+				D300000000000000000000002 /* GitHubUpdatesCoordinator.swift in Sources */,
+				D300000000000000000000005 /* GitHubUpdatesViewModel.swift in Sources */,
+				D300000000000000000000006 /* GitHubUpdatesView.swift in Sources */,
+				D400000000000000000000001 /* QingLongFeature.swift in Sources */,
+				D400000000000000000000002 /* QingLongPanelProfile.swift in Sources */,
+				D400000000000000000000003 /* QingLongPanelStore.swift in Sources */,
+				D400000000000000000000004 /* QingLongCoordinator.swift in Sources */,
+				D400000000000000000000005 /* QingLongViewModel.swift in Sources */,
+				D400000000000000000000006 /* QingLongView.swift in Sources */,
+				D500000000000000000000003 /* ImageTranslateModels.swift in Sources */,
+				D500000000000000000000004 /* ImageTranslateViewModel.swift in Sources */,
+				D500000000000000000000001 /* ImageTranslateFeature.swift in Sources */,
+				D500000000000000000000002 /* ImageTranslateCoordinator.swift in Sources */,
+				D500000000000000000000005 /* ImageTranslateView.swift in Sources */,
+				D600000000000000000000003 /* EmailAssistantModels.swift in Sources */,
+				D600000000000000000000004 /* EmailAssistantViewModel.swift in Sources */,
+				D600000000000000000000001 /* EmailAssistantFeature.swift in Sources */,
+				D600000000000000000000002 /* EmailAssistantCoordinator.swift in Sources */,
+				D600000000000000000000005 /* EmailAssistantView.swift in Sources */,
 				0FEC531B128C7323644248F0 /* UtilitiesFeature.swift in Sources */,
 				079FA5536E042C37ED839E7D /* UtilitiesView.swift in Sources */,
 			);

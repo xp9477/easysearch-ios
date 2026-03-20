@@ -23,6 +23,10 @@ public class FeatureRegistry: ObservableObject {
     private func registerDefaultFeatures() {
         features.append(EasySearchFeature())
         features.append(UTTrackerFeature())
+        features.append(GitHubUpdatesFeature())
+        features.append(QingLongFeature())
+        features.append(ImageTranslateFeature())
+        features.append(EmailAssistantFeature())
         features.append(UtilitiesFeature())
         features.append(HiddenSpaceFeature())
     }

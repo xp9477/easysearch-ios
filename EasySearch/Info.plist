@@ -2,6 +2,19 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.easysearch.github.refresh</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>用于直接拍照识别并翻译图片中的文字。</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>用于选择截图或照片后识别并翻译其中的文字。</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>xhsdiscover</string>
@@ -28,5 +41,9 @@
 	</dict>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
 </dict>
 </plist>
