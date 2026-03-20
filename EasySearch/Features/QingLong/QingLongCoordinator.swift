@@ -394,24 +394,20 @@ actor QingLongService {
         cachedSession = nil
     }
 
-    func setEnvironmentEnabled(id: Int, enabled: Bool) async throws -> QingLongDashboardSnapshot {
+    func setEnvironmentEnabled(id: Int, enabled: Bool) async throws {
         try await performEnvironmentAction(path: enabled ? "enable" : "disable", ids: [id])
-        return try await refreshDashboard()
     }
 
-    func runCron(id: Int) async throws -> QingLongDashboardSnapshot {
+    func runCron(id: Int) async throws {
         try await performCronAction(path: "run", ids: [id])
-        return try await refreshDashboard()
     }
 
-    func stopCron(id: Int) async throws -> QingLongDashboardSnapshot {
+    func stopCron(id: Int) async throws {
         try await performCronAction(path: "stop", ids: [id])
-        return try await refreshDashboard()
     }
 
-    func setCronEnabled(id: Int, enabled: Bool) async throws -> QingLongDashboardSnapshot {
+    func setCronEnabled(id: Int, enabled: Bool) async throws {
         try await performCronAction(path: enabled ? "enable" : "disable", ids: [id])
-        return try await refreshDashboard()
     }
 
     func fetchCronLog(id: Int) async throws -> String {

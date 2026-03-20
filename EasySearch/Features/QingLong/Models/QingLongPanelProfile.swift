@@ -66,6 +66,24 @@ struct QingLongEnvironment: Identifiable, Hashable, Decodable {
         case position
     }
 
+    init(
+        id: Int,
+        name: String,
+        value: String,
+        remarks: String,
+        status: Int?,
+        isPinnedValue: Int?,
+        position: Int?
+    ) {
+        self.id = id
+        self.name = name
+        self.value = value
+        self.remarks = remarks
+        self.status = status
+        self.isPinnedValue = isPinnedValue
+        self.position = position
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decodeLossyInt(forKey: .id)
@@ -112,6 +130,18 @@ struct QingLongEnvironment: Identifiable, Hashable, Decodable {
 
         return lhs.titleText.localizedCaseInsensitiveCompare(rhs.titleText) == .orderedAscending
     }
+
+    func updatingEnabled(_ enabled: Bool) -> QingLongEnvironment {
+        QingLongEnvironment(
+            id: id,
+            name: name,
+            value: value,
+            remarks: remarks,
+            status: enabled ? 0 : 1,
+            isPinnedValue: isPinnedValue,
+            position: position
+        )
+    }
 }
 
 struct QingLongCron: Identifiable, Hashable, Decodable {
@@ -143,6 +173,32 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
         case lastRunningTime = "last_running_time"
         case logPath = "log_path"
         case extraSchedules = "extra_schedules"
+    }
+
+    init(
+        id: Int,
+        name: String,
+        command: String,
+        schedule: String,
+        statusValue: Double?,
+        isDisabledValue: Int?,
+        isPinnedValue: Int?,
+        labels: [String],
+        lastRunningTime: Int64?,
+        logPath: String,
+        extraSchedules: [ExtraSchedule]
+    ) {
+        self.id = id
+        self.name = name
+        self.command = command
+        self.schedule = schedule
+        self.statusValue = statusValue
+        self.isDisabledValue = isDisabledValue
+        self.isPinnedValue = isPinnedValue
+        self.labels = labels
+        self.lastRunningTime = lastRunningTime
+        self.logPath = logPath
+        self.extraSchedules = extraSchedules
     }
 
     init(from decoder: Decoder) throws {
@@ -229,6 +285,38 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
         }
 
         return lhs.primaryTitle.localizedCaseInsensitiveCompare(rhs.primaryTitle) == .orderedAscending
+    }
+
+    func updatingEnabled(_ enabled: Bool) -> QingLongCron {
+        QingLongCron(
+            id: id,
+            name: name,
+            command: command,
+            schedule: schedule,
+            statusValue: statusValue,
+            isDisabledValue: enabled ? 0 : 1,
+            isPinnedValue: isPinnedValue,
+            labels: labels,
+            lastRunningTime: lastRunningTime,
+            logPath: logPath,
+            extraSchedules: extraSchedules
+        )
+    }
+
+    func updatingRunning(_ running: Bool, at date: Date = Date()) -> QingLongCron {
+        QingLongCron(
+            id: id,
+            name: name,
+            command: command,
+            schedule: schedule,
+            statusValue: running ? 0 : 1,
+            isDisabledValue: isDisabledValue,
+            isPinnedValue: isPinnedValue,
+            labels: labels,
+            lastRunningTime: running ? Int64(date.timeIntervalSince1970 * 1000) : lastRunningTime,
+            logPath: logPath,
+            extraSchedules: extraSchedules
+        )
     }
 
     private static func date(from rawValue: Int64?) -> Date? {

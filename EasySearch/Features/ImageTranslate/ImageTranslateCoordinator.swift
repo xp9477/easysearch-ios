@@ -1,14 +1,12 @@
-import CoreImage
 import Foundation
-import ImageIO
 import Security
 import UIKit
-import Vision
 
 enum ImageTranslateError: LocalizedError {
     case missingAPIKey
     case emptySourceText
     case invalidImage
+    case invalidCropArea
     case noTextRecognized
     case noImageInPasteboard
     case cameraUnavailable
@@ -26,6 +24,8 @@ enum ImageTranslateError: LocalizedError {
             return "没有可翻译的文字，请先识别图片或手动补充文本。"
         case .invalidImage:
             return "图片读取失败，请重新选择。"
+        case .invalidCropArea:
+            return "裁剪区域太小或无效，请重新框选。"
         case .noTextRecognized:
             return "没有识别到清晰文字，建议换一张更清楚的图片。"
         case .noImageInPasteboard:
@@ -169,50 +169,6 @@ final class ImageTranslateConfigurationStore {
     }
 }
 
-private struct DeepSeekChatRequest: Encodable {
-    struct Message: Encodable {
-        let role: String
-        let content: String
-    }
-
-    struct ResponseFormat: Encodable {
-        let type: String
-    }
-
-    let model: String
-    let messages: [Message]
-    let responseFormat: ResponseFormat
-    let maxTokens: Int
-
-    enum CodingKeys: String, CodingKey {
-        case model
-        case messages
-        case responseFormat = "response_format"
-        case maxTokens = "max_tokens"
-    }
-}
-
-private struct DeepSeekChatResponse: Decodable {
-    struct Choice: Decodable {
-        struct Message: Decodable {
-            let content: String?
-        }
-
-        let message: Message
-    }
-
-    let choices: [Choice]
-}
-
-private struct DeepSeekErrorEnvelope: Decodable {
-    struct APIError: Decodable {
-        let message: String?
-    }
-
-    let error: APIError?
-    let message: String?
-}
-
 private struct ImageTranslateModelPayload: Decodable {
     let translation: String?
     let reply: String?
@@ -233,25 +189,16 @@ actor ImageTranslateService {
     static let shared = ImageTranslateService()
 
     private let configurationStore: ImageTranslateConfigurationStore
-    private let urlSession: URLSession
+    private let client: DeepSeekClient
     private let decoder = JSONDecoder()
-    private let endpoint = URL(string: "https://api.deepseek.com/chat/completions")!
+    private let recognitionLanguages = ["zh-Hans", "zh-Hant", "en-US", "ja-JP", "ko-KR"]
 
     init(
         configurationStore: ImageTranslateConfigurationStore = .shared,
-        urlSession: URLSession? = nil
+        client: DeepSeekClient = .shared
     ) {
         self.configurationStore = configurationStore
-
-        if let urlSession {
-            self.urlSession = urlSession
-        } else {
-            let configuration = URLSessionConfiguration.ephemeral
-            configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-            configuration.timeoutIntervalForRequest = 45
-            configuration.timeoutIntervalForResource = 60
-            self.urlSession = URLSession(configuration: configuration)
-        }
+        self.client = client
     }
 
     func loadConfiguration() -> ImageTranslateConfiguration {
@@ -263,59 +210,30 @@ actor ImageTranslateService {
     }
 
     func recognizeText(in image: UIImage) async throws -> String {
-        let preparedImage = prepareImageForOCR(image)
-        guard let cgImage = preparedImage.cgImage ?? makeCGImage(from: preparedImage) else {
-            throw ImageTranslateError.invalidImage
+        let result = try await ImageOCRService.extractText(
+            from: image,
+            recognitionLanguages: recognitionLanguages
+        )
+        return result.fullText
+    }
+
+    func cropImage(
+        _ image: UIImage,
+        normalizedRect: CGRect
+    ) throws -> UIImage {
+        guard let croppedImage = ImageOCRService.cropImage(image, normalizedRect: normalizedRect) else {
+            throw ImageTranslateError.invalidCropArea
         }
 
-        return try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let request = VNRecognizeTextRequest { request, error in
-                    if let error {
-                        continuation.resume(throwing: ImageTranslateError.ocrFailure(error.localizedDescription))
-                        return
-                    }
+        return croppedImage
+    }
 
-                    guard let observations = request.results as? [VNRecognizedTextObservation] else {
-                        continuation.resume(throwing: ImageTranslateError.invalidResponse)
-                        return
-                    }
+    func storedImageData(from image: UIImage) -> Data? {
+        ImageOCRService.storedImageData(from: image)
+    }
 
-                    let text = observations
-                        .sorted { lhs, rhs in
-                            Self.compareObservation(lhs: lhs, rhs: rhs)
-                        }
-                        .compactMap { observation in
-                            observation.topCandidates(1).first?.string.trimmingCharacters(in: .whitespacesAndNewlines)
-                        }
-                        .filter { !$0.isEmpty }
-                        .joined(separator: "\n")
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-
-                    guard !text.isEmpty else {
-                        continuation.resume(throwing: ImageTranslateError.noTextRecognized)
-                        return
-                    }
-
-                    continuation.resume(returning: text)
-                }
-
-                request.recognitionLevel = .accurate
-                request.usesLanguageCorrection = true
-                request.recognitionLanguages = ["zh-Hans", "zh-Hant", "en-US", "ja-JP", "ko-KR"]
-
-                do {
-                    let handler = VNImageRequestHandler(
-                        cgImage: cgImage,
-                        orientation: CGImagePropertyOrientation(preparedImage.imageOrientation),
-                        options: [:]
-                    )
-                    try handler.perform([request])
-                } catch {
-                    continuation.resume(throwing: ImageTranslateError.ocrFailure(error.localizedDescription))
-                }
-            }
-        }
+    func previewImageData(from image: UIImage) -> Data? {
+        ImageOCRService.previewImageData(from: image)
     }
 
     func translate(
@@ -333,8 +251,8 @@ actor ImageTranslateService {
         }
 
         let messages = [
-            DeepSeekChatRequest.Message(role: "system", content: translationSystemPrompt),
-            DeepSeekChatRequest.Message(
+            DeepSeekChatMessage(role: "system", content: translationSystemPrompt),
+            DeepSeekChatMessage(
                 role: "user",
                 content: initialUserPrompt(
                     sourceText: trimmedSourceText,
@@ -381,8 +299,8 @@ actor ImageTranslateService {
             .joined(separator: "\n")
 
         let messages = [
-            DeepSeekChatRequest.Message(role: "system", content: translationSystemPrompt),
-            DeepSeekChatRequest.Message(
+            DeepSeekChatMessage(role: "system", content: translationSystemPrompt),
+            DeepSeekChatMessage(
                 role: "user",
                 content: followUpUserPrompt(
                     sourceText: trimmedSourceText,
@@ -403,43 +321,19 @@ actor ImageTranslateService {
 
     private func sendChatRequest(
         configuration: ImageTranslateConfiguration,
-        messages: [DeepSeekChatRequest.Message],
+        messages: [DeepSeekChatMessage],
         fallbackTranslation: String?
     ) async throws -> ImageTranslateResult {
-        var request = URLRequest(url: endpoint, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 60)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(configuration.apiKey.trimmingCharacters(in: .whitespacesAndNewlines))", forHTTPHeaderField: "Authorization")
-
-        let payload = DeepSeekChatRequest(
-            model: configuration.resolvedModel,
-            messages: messages,
-            responseFormat: .init(type: "json_object"),
-            maxTokens: 1800
-        )
-        request.httpBody = try JSONEncoder().encode(payload)
-
         do {
-            let (data, response) = try await urlSession.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw ImageTranslateError.invalidResponse
-            }
-
-            guard (200 ..< 300).contains(httpResponse.statusCode) else {
-                let message = extractServerMessage(from: data)
-                    ?? HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)
-                throw ImageTranslateError.serverError("DeepSeek 请求失败（\(httpResponse.statusCode)）：\(message)")
-            }
-
-            let responsePayload = try decoder.decode(DeepSeekChatResponse.self, from: data)
-            guard let content = responsePayload.choices.first?.message.content?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-                  !content.isEmpty else {
-                throw ImageTranslateError.emptyModelResponse
-            }
-
+            let content = try await client.completeText(
+                configuration: configuration.deepSeekConfiguration,
+                messages: messages,
+                responseFormat: .jsonObject,
+                maxTokens: 1800
+            )
             return try parseModelPayload(content, fallbackTranslation: fallbackTranslation)
+        } catch let error as DeepSeekClientError {
+            throw mapDeepSeekError(error)
         } catch let error as ImageTranslateError {
             throw error
         } catch {
@@ -487,14 +381,6 @@ actor ImageTranslateService {
 
         let fallback = ["更自然一点", "解释关键词", "保留原文术语"]
         return Array((normalized + fallback).prefix(3))
-    }
-
-    private func extractServerMessage(from data: Data) -> String? {
-        if let payload = try? decoder.decode(DeepSeekErrorEnvelope.self, from: data) {
-            return payload.error?.message ?? payload.message
-        }
-        return String(data: data, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func sanitizeJSONContent(_ content: String) -> String {
@@ -591,64 +477,18 @@ actor ImageTranslateService {
         """
     }
 
-    private func prepareImageForOCR(_ image: UIImage) -> UIImage {
-        let maxDimension: CGFloat = 2400
-        let size = image.size
-        let longestSide = max(size.width, size.height)
-
-        guard longestSide > maxDimension, longestSide > 0 else {
-            return image
-        }
-
-        let scale = maxDimension / longestSide
-        let targetSize = CGSize(width: size.width * scale, height: size.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
-
-        return renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: targetSize))
-        }
-    }
-
-    private func makeCGImage(from image: UIImage) -> CGImage? {
-        if let ciImage = image.ciImage {
-            return CIContext().createCGImage(ciImage, from: ciImage.extent)
-        }
-        return nil
-    }
-
-    private static func compareObservation(
-        lhs: VNRecognizedTextObservation,
-        rhs: VNRecognizedTextObservation
-    ) -> Bool {
-        let yDifference = lhs.boundingBox.maxY - rhs.boundingBox.maxY
-        if abs(yDifference) > 0.02 {
-            return lhs.boundingBox.maxY > rhs.boundingBox.maxY
-        }
-        return lhs.boundingBox.minX < rhs.boundingBox.minX
-    }
-}
-
-private extension CGImagePropertyOrientation {
-    init(_ orientation: UIImage.Orientation) {
-        switch orientation {
-        case .up:
-            self = .up
-        case .down:
-            self = .down
-        case .left:
-            self = .left
-        case .right:
-            self = .right
-        case .upMirrored:
-            self = .upMirrored
-        case .downMirrored:
-            self = .downMirrored
-        case .leftMirrored:
-            self = .leftMirrored
-        case .rightMirrored:
-            self = .rightMirrored
-        @unknown default:
-            self = .up
+    private func mapDeepSeekError(_ error: DeepSeekClientError) -> ImageTranslateError {
+        switch error {
+        case .missingAPIKey:
+            return .missingAPIKey
+        case .invalidResponse:
+            return .invalidResponse
+        case .emptyResponse:
+            return .emptyModelResponse
+        case let .serverError(message):
+            return .serverError(message)
+        case let .networkError(message):
+            return .networkError(message)
         }
     }
 }

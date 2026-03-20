@@ -8,6 +8,7 @@ public struct ImageTranslateView: View {
     @State private var cameraImage: UIImage?
     @State private var isPhotoPickerPresented = false
     @State private var isCameraPresented = false
+    @State private var isCropSheetPresented = false
 
     public init() {}
 
@@ -20,6 +21,7 @@ public struct ImageTranslateView: View {
                     noticeBanner(notice)
                 }
 
+                historyCard
                 imageCard
                 editorCard
 
@@ -38,6 +40,7 @@ public struct ImageTranslateView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("截图翻译")
         .navigationBarTitleDisplayMode(.inline)
+        .scrollDismissesKeyboard(.interactively)
         .task {
             await viewModel.prepare()
         }
@@ -64,6 +67,15 @@ public struct ImageTranslateView: View {
             CameraImagePicker(image: $cameraImage)
                 .ignoresSafeArea()
         }
+        .sheet(isPresented: $isCropSheetPresented) {
+            if let selectedImage = viewModel.selectedImage {
+                CropImageEditor(image: selectedImage) { rect in
+                    Task {
+                        await viewModel.cropCurrentImage(to: rect)
+                    }
+                }
+            }
+        }
     }
 
     private var heroCard: some View {
@@ -78,7 +90,7 @@ public struct ImageTranslateView: View {
                         .font(.system(size: 28, weight: .bold))
                         .foregroundStyle(.white)
 
-                    Text("先在本地识别图片文字，再把识别结果交给 DeepSeek 做翻译和多轮优化。识别文本可手动修改，适合截图、菜单、文档和界面文案。")
+                    Text("先在本地识别图片文字，再把识别结果交给 DeepSeek 做翻译和多轮优化。识别文本可手动修改，支持最近会话恢复和局部裁剪翻译。")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.82))
                         .fixedSize(horizontal: false, vertical: true)
@@ -122,6 +134,21 @@ public struct ImageTranslateView: View {
                 }
 
                 Spacer()
+
+                Button {
+                    viewModel.startFreshSession()
+                } label: {
+                    Label("新会话", systemImage: "plus.circle.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.white.opacity(0.14))
+                        )
+                }
+                .buttonStyle(.plain)
             }
 
             HStack(spacing: 12) {
@@ -191,6 +218,34 @@ public struct ImageTranslateView: View {
         )
     }
 
+    private var historyCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            sectionHeader(
+                eyebrow: "History",
+                title: "最近会话",
+                description: viewModel.hasHistory
+                    ? "会自动保存最近 20 条截图翻译记录，点一条即可恢复继续讨论。"
+                    : "首个翻译结果生成后，会自动进入最近会话。"
+            )
+
+            if viewModel.history.isEmpty {
+                emptyState(
+                    icon: "clock.arrow.trianglehead.counterclockwise.rotate.90",
+                    title: "还没有历史记录",
+                    description: "先完成一次翻译，这里会保留最近会话，方便继续修改或回看。"
+                )
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(viewModel.history) { record in
+                        historyRow(record)
+                    }
+                }
+            }
+        }
+        .padding(24)
+        .cardStyle()
+    }
+
     private var imageCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader(
@@ -198,7 +253,7 @@ public struct ImageTranslateView: View {
                 title: "图片预览",
                 description: viewModel.selectedImage == nil
                     ? "支持拍照、相册或剪贴板图片。即使暂时不选图，也可以直接在下面粘贴文本后翻译。"
-                    : "当前图片已经载入。需要更换时，直接在顶部重新选择即可。"
+                    : "当前图片已经载入。需要局部翻译时，直接裁剪目标区域即可。"
             )
 
             if let image = viewModel.selectedImage {
@@ -220,6 +275,34 @@ public struct ImageTranslateView: View {
                     } else if viewModel.isTranslating {
                         statusChip(title: "翻译中", color: .green)
                     }
+                }
+
+                HStack(spacing: 12) {
+                    Button {
+                        isCropSheetPresented = true
+                    } label: {
+                        Label("局部裁剪翻译", systemImage: "crop")
+                            .font(.system(size: 15, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.cyan)
+                    .disabled(viewModel.isRecognizingText || viewModel.isTranslating)
+
+                    Button {
+                        Task {
+                            await viewModel.reRecognizeSelectedImage()
+                        }
+                    } label: {
+                        Label("整图重识别", systemImage: "viewfinder")
+                            .font(.system(size: 15, weight: .semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.secondary)
+                    .disabled(viewModel.isRecognizingText || viewModel.isTranslating)
                 }
             } else {
                 emptyState(
@@ -285,50 +368,28 @@ public struct ImageTranslateView: View {
                 }
             }
 
-            HStack(spacing: 12) {
-                Button {
-                    Task {
-                        await viewModel.reRecognizeSelectedImage()
-                    }
-                } label: {
-                    HStack {
-                        Label("重新识别", systemImage: "viewfinder")
-                        Spacer()
-                        if viewModel.isRecognizingText {
-                            ProgressView()
-                        }
-                    }
-                    .font(.system(size: 16, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+            Button {
+                Task {
+                    await viewModel.translateCurrentText()
                 }
-                .buttonStyle(.bordered)
-                .tint(.cyan)
-                .disabled(viewModel.selectedImage == nil || viewModel.isRecognizingText || viewModel.isTranslating)
-
-                Button {
-                    Task {
-                        await viewModel.translateCurrentText()
+            } label: {
+                HStack {
+                    Label(
+                        viewModel.hasTranslation ? "重新翻译" : "AI 翻译",
+                        systemImage: "sparkles"
+                    )
+                    Spacer()
+                    if viewModel.isTranslating {
+                        ProgressView()
                     }
-                } label: {
-                    HStack {
-                        Label(
-                            viewModel.hasTranslation ? "重新翻译" : "AI 翻译",
-                            systemImage: "sparkles"
-                        )
-                        Spacer()
-                        if viewModel.isTranslating {
-                            ProgressView()
-                        }
-                    }
-                    .font(.system(size: 16, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.cyan)
-                .disabled(!viewModel.canTranslate)
+                .font(.system(size: 16, weight: .semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
             }
+            .buttonStyle(.borderedProminent)
+            .tint(.cyan)
+            .disabled(!viewModel.canTranslate)
         }
         .padding(24)
         .cardStyle()
@@ -339,7 +400,7 @@ public struct ImageTranslateView: View {
             sectionHeader(
                 eyebrow: "Translation",
                 title: "翻译结果",
-                description: "结果支持直接复制。如果你希望更口语、更正式、保留专有名词，直接在下方继续说。"
+                description: "上面是可直接复制的最终译文，下面保留原文 / 译文对照，方便快速校对。"
             )
 
             VStack(alignment: .leading, spacing: 14) {
@@ -366,6 +427,18 @@ public struct ImageTranslateView: View {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .fill(Color(.tertiarySystemFill))
             )
+
+            if !viewModel.alignedSections.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("原文 / 译文对照")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.primary)
+
+                    ForEach(viewModel.alignedSections) { section in
+                        comparisonRow(section)
+                    }
+                }
+            }
 
             Button {
                 viewModel.copyText(viewModel.latestTranslation, successMessage: "已复制翻译结果。")
@@ -447,6 +520,112 @@ public struct ImageTranslateView: View {
         .cardStyle()
     }
 
+    private func historyRow(_ record: ImageTranslateHistoryRecord) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Group {
+                if let data = record.previewImageData,
+                   let image = UIImage(data: data) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Image(systemName: record.imageSource?.symbolName ?? "text.viewfinder")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.cyan)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color.cyan.opacity(0.10))
+                }
+            }
+            .frame(width: 54, height: 54)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(record.title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    Spacer(minLength: 8)
+
+                    Text(relativeDateText(record.updatedAt))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 8) {
+                    statusChip(title: record.targetLanguage.title, color: .cyan)
+
+                    if let detectedSourceLanguage = record.detectedSourceLanguage,
+                       !detectedSourceLanguage.isEmpty {
+                        statusChip(title: detectedSourceLanguage, color: .secondary)
+                    }
+                }
+
+                Text(record.sourceSnippet)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+
+                Text(record.translationSnippet)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+            }
+
+            Button(role: .destructive) {
+                viewModel.deleteHistoryRecord(record)
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 13, weight: .bold))
+                    .padding(8)
+            }
+            .buttonStyle(.borderless)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(.tertiarySystemFill))
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .onTapGesture {
+            viewModel.loadHistorySession(record)
+        }
+    }
+
+    private func comparisonRow(_ section: AlignedTextSection) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("原文")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+
+                Text(section.sourceText.isEmpty ? " " : section.sourceText)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .textSelection(.enabled)
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("译文")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+
+                Text(section.translatedText.isEmpty ? " " : section.translatedText)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .textSelection(.enabled)
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(.tertiarySystemFill))
+        )
+    }
+
     private func loadPhoto(from item: PhotosPickerItem) async {
         do {
             guard let data = try await item.loadTransferable(type: Data.self),
@@ -459,6 +638,13 @@ public struct ImageTranslateView: View {
         } catch {
             viewModel.presentNotice(tone: .caution, message: error.localizedDescription)
         }
+    }
+
+    private func relativeDateText(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = Locale(identifier: "zh_Hans")
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 
     private func sectionHeader(eyebrow: String, title: String, description: String) -> some View {
@@ -634,6 +820,151 @@ public struct ImageTranslateView: View {
     }
 }
 
+private struct CropImageEditor: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let image: UIImage
+    let onConfirm: (CGRect) -> Void
+
+    @State private var selectionRect: CGRect?
+    @State private var imageFrame: CGRect = .zero
+
+    var body: some View {
+        NavigationStack {
+            GeometryReader { proxy in
+                let containerFrame = CGRect(origin: .zero, size: proxy.size)
+                let resolvedImageFrame = aspectFitRect(
+                    for: image.size,
+                    in: containerFrame.insetBy(dx: 20, dy: 20)
+                )
+
+                ZStack {
+                    Color(.systemGroupedBackground)
+                        .ignoresSafeArea()
+
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: resolvedImageFrame.width, height: resolvedImageFrame.height)
+                        .position(x: resolvedImageFrame.midX, y: resolvedImageFrame.midY)
+
+                    Rectangle()
+                        .fill(Color.clear)
+                        .contentShape(Rectangle())
+                        .frame(width: resolvedImageFrame.width, height: resolvedImageFrame.height)
+                        .position(x: resolvedImageFrame.midX, y: resolvedImageFrame.midY)
+                        .gesture(selectionGesture(in: resolvedImageFrame))
+
+                    if let selectionRect {
+                        Rectangle()
+                            .stroke(Color.cyan, style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                            .frame(width: selectionRect.width, height: selectionRect.height)
+                            .position(x: selectionRect.midX, y: selectionRect.midY)
+                    }
+
+                    VStack {
+                        Spacer()
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("在图片上拖出要翻译的区域")
+                                .font(.system(size: 15, weight: .semibold))
+                            Text("重新拖动即可改选。适合长截图、菜单局部或只想翻一块界面文案。")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(Color(.secondarySystemGroupedBackground))
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 20)
+                    }
+                }
+                .onAppear {
+                    imageFrame = resolvedImageFrame
+                }
+                .onChange(of: proxy.size) { _ in
+                    imageFrame = resolvedImageFrame
+                }
+            }
+            .navigationTitle("裁剪区域")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("使用选区") {
+                        guard let normalizedRect = normalizedSelectionRect else { return }
+                        onConfirm(normalizedRect)
+                        dismiss()
+                    }
+                    .disabled(normalizedSelectionRect == nil)
+                }
+            }
+        }
+    }
+
+    private var normalizedSelectionRect: CGRect? {
+        guard let selectionRect else { return nil }
+        let frame = imageFrame
+        guard frame.width > 0, frame.height > 0 else { return nil }
+
+        let normalizedRect = CGRect(
+            x: (selectionRect.minX - frame.minX) / frame.width,
+            y: (selectionRect.minY - frame.minY) / frame.height,
+            width: selectionRect.width / frame.width,
+            height: selectionRect.height / frame.height
+        )
+
+        guard normalizedRect.width > 0.02, normalizedRect.height > 0.02 else {
+            return nil
+        }
+
+        return normalizedRect
+    }
+
+    private func selectionGesture(in imageFrame: CGRect) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                let start = clamped(value.startLocation, to: imageFrame)
+                let current = clamped(value.location, to: imageFrame)
+                selectionRect = CGRect(
+                    x: min(start.x, current.x),
+                    y: min(start.y, current.y),
+                    width: abs(current.x - start.x),
+                    height: abs(current.y - start.y)
+                )
+            }
+    }
+
+    private func clamped(_ point: CGPoint, to frame: CGRect) -> CGPoint {
+        CGPoint(
+            x: min(max(point.x, frame.minX), frame.maxX),
+            y: min(max(point.y, frame.minY), frame.maxY)
+        )
+    }
+
+    private func aspectFitRect(for imageSize: CGSize, in containerRect: CGRect) -> CGRect {
+        guard imageSize.width > 0, imageSize.height > 0 else { return containerRect }
+
+        let scale = min(containerRect.width / imageSize.width, containerRect.height / imageSize.height)
+        let fittedSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+
+        return CGRect(
+            x: containerRect.midX - fittedSize.width / 2,
+            y: containerRect.midY - fittedSize.height / 2,
+            width: fittedSize.width,
+            height: fittedSize.height
+        )
+    }
+}
+
 private struct CameraImagePicker: UIViewControllerRepresentable {
     @Binding var image: UIImage?
     @Environment(\.dismiss) private var dismiss
@@ -670,19 +1001,6 @@ private struct CameraImagePicker: UIViewControllerRepresentable {
             parent.image = info[.originalImage] as? UIImage
             parent.dismiss()
         }
-    }
-}
-
-private extension View {
-    func cardStyle() -> some View {
-        background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-        )
     }
 }
 

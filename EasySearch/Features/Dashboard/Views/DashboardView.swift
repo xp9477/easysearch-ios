@@ -1,7 +1,7 @@
 import SwiftUI
 import WebKit
 import AVKit
-import AVFoundation
+@preconcurrency import AVFoundation
 import UIKit
 
 public struct DashboardView: View {

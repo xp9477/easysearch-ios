@@ -11,27 +11,32 @@
 		08F64AB6A4B3B085A9FDDA21 /* AppFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7776F48C8127AD4F470DB7EF /* AppFeature.swift */; };
 		0FEC531B128C7323644248F0 /* UtilitiesFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5905F9F946A778C37D0F7CCD /* UtilitiesFeature.swift */; };
 		1A145786259D610FACA711A5 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9AD7A5FC3ED0A3372776E30 /* AppRouter.swift */; };
+		36B9C9E9DE2EAFB91FE29C76 /* ImageTranslateHistoryReducerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AED5424721AE4AFD4354443F /* ImageTranslateHistoryReducerTests.swift */; };
+		385A49DB482D3D46438A8BBE /* ImageTranslateFileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3195DD59E264422624CF152A /* ImageTranslateFileStoreTests.swift */; };
 		45B8F0995303899D66B4CFFF /* EasySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D66418FE785F8E727F9BAE4 /* EasySearchView.swift */; };
 		51CC8897363EE934F77838D5 /* SearchBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2376609760E7B3F32B6F9FD /* SearchBar.swift */; };
 		683A685A33F3D4FF8465BC10 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F142A2111DC88139890E4CC /* DashboardView.swift */; };
 		689CF6B202785041EFC90676 /* EasySearchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5166978A4A4BE388668D0139 /* EasySearchApp.swift */; };
 		72DB17919586AA7269F7BCB2 /* SearchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53A9599509BBCA5DB03ABC4 /* SearchViewModel.swift */; };
+		8201BB664FA9082DDB04AF65 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D736F78B02EC6C18E86147F2 /* XCTest.framework */; };
+		864F62200F337B5F7234088D /* ImageOCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015EF0031C7687BCB7F6A2EE /* ImageOCRService.swift */; };
 		8AFD20AC531C4A867E1490CE /* FeatureRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3533C5449EDD66685F0582EE /* FeatureRegistry.swift */; };
 		A041D1E79D1248AD59FEB7A8 /* SearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E97BF05A1233442C2B30768 /* SearchEngine.swift */; };
 		A1000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000009 /* Assets.xcassets */; };
 		A1000010 /* search-engines.json in Resources */ = {isa = PBXBuildFile; fileRef = A2000010 /* search-engines.json */; };
 		A35591F7C8AD2C96DD95006F /* EngineGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0697B7D17CAD38D2E763F4 /* EngineGridView.swift */; };
+		B7EF418F52080658CAC257DD /* TextAlignment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77B71B90FD37F678F1BE7721 /* TextAlignment.swift */; };
 		BA0E54A01A17C1BBEDEF6FCF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2DDB34B07E1AF3F585243D /* SettingsView.swift */; };
 		CC969EB33B7401F02D4A2B62 /* EasySearchFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA114C3137BB97879C05067 /* EasySearchFeature.swift */; };
-		D2A000000000000000000001 /* CloudSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000101 /* CloudSyncCoordinator.swift */; };
-		D2A000000000000000000002 /* HiddenSyncModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000102 /* HiddenSyncModels.swift */; };
-		D2A000000000000000000003 /* HiddenCloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000103 /* HiddenCloudSync.swift */; };
 		D1A000000000000000000001 /* UTEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000101 /* UTEntry.swift */; };
 		D1A000000000000000000002 /* UTTrackerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000102 /* UTTrackerViewModel.swift */; };
 		D1A000000000000000000003 /* UTTrackerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000103 /* UTTrackerView.swift */; };
 		D1A000000000000000000004 /* UTTrackerFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000104 /* UTTrackerFeature.swift */; };
 		D1A000000000000000000005 /* UTNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000105 /* UTNotificationManager.swift */; };
 		D1A000000000000000000006 /* UTTrackerEntryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000106 /* UTTrackerEntryStore.swift */; };
+		D2A000000000000000000001 /* CloudSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000101 /* CloudSyncCoordinator.swift */; };
+		D2A000000000000000000002 /* HiddenSyncModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000102 /* HiddenSyncModels.swift */; };
+		D2A000000000000000000003 /* HiddenCloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000103 /* HiddenCloudSync.swift */; };
 		D300000000000000000000001 /* GitHubUpdatesFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000101 /* GitHubUpdatesFeature.swift */; };
 		D300000000000000000000002 /* GitHubUpdatesCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */; };
 		D300000000000000000000003 /* GitHubWatchedRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000103 /* GitHubWatchedRepository.swift */; };
@@ -44,6 +49,10 @@
 		D400000000000000000000004 /* QingLongCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000104 /* QingLongCoordinator.swift */; };
 		D400000000000000000000005 /* QingLongViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000105 /* QingLongViewModel.swift */; };
 		D400000000000000000000006 /* QingLongView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000106 /* QingLongView.swift */; };
+		D400000000000000000000007 /* QingLongOverviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000107 /* QingLongOverviewCard.swift */; };
+		D400000000000000000000008 /* QingLongConnectionViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000108 /* QingLongConnectionViews.swift */; };
+		D400000000000000000000009 /* QingLongSharedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000109 /* QingLongSharedViews.swift */; };
+		D400000000000000000000010 /* QingLongWorkspaceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000110 /* QingLongWorkspaceViews.swift */; };
 		D500000000000000000000001 /* ImageTranslateFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D500000000000000000000101 /* ImageTranslateFeature.swift */; };
 		D500000000000000000000002 /* ImageTranslateCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D500000000000000000000102 /* ImageTranslateCoordinator.swift */; };
 		D500000000000000000000003 /* ImageTranslateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D500000000000000000000103 /* ImageTranslateModels.swift */; };
@@ -54,34 +63,54 @@
 		D600000000000000000000003 /* EmailAssistantModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000103 /* EmailAssistantModels.swift */; };
 		D600000000000000000000004 /* EmailAssistantViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000104 /* EmailAssistantViewModel.swift */; };
 		D600000000000000000000005 /* EmailAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000105 /* EmailAssistantView.swift */; };
+		D700000000000000000000001 /* DeepSeekClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D700000000000000000000101 /* DeepSeekClient.swift */; };
+		DC00DBD3D1788263EDDB8459 /* ImageTranslateTextAlignmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A9CB8EA30ED3CE55AC2A70 /* ImageTranslateTextAlignmentTests.swift */; };
+		E362E51FD8833EE073E17BDE /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DE58CC4FBE5DDA9B8E6C8416 /* Foundation.framework */; };
+		E3CE5ADE8C75D1F8EE33B52A /* ImageTranslateSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEE5D4584B694CD5678242E5 /* ImageTranslateSessionStore.swift */; };
 		FE398CDB8405CA4107E65C61 /* CategoryTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795E17200E5B98842C811DAF /* CategoryTabBar.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		AD7C93F49EAE3E78A8A508FB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A7000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A6000000;
+			remoteInfo = EasySearch;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		015EF0031C7687BCB7F6A2EE /* ImageOCRService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageOCRService.swift; sourceTree = "<group>"; };
 		0F142A2111DC88139890E4CC /* DashboardView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DashboardView.swift; path = EasySearch/Features/Dashboard/Views/DashboardView.swift; sourceTree = SOURCE_ROOT; };
 		10881B6CB925A5285200D50B /* UtilitiesView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UtilitiesView.swift; path = EasySearch/Features/Utilities/Views/UtilitiesView.swift; sourceTree = SOURCE_ROOT; };
+		3195DD59E264422624CF152A /* ImageTranslateFileStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageTranslateFileStoreTests.swift; sourceTree = "<group>"; };
 		3533C5449EDD66685F0582EE /* FeatureRegistry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FeatureRegistry.swift; path = EasySearch/Core/Architecture/FeatureRegistry.swift; sourceTree = SOURCE_ROOT; };
 		3FA114C3137BB97879C05067 /* EasySearchFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EasySearchFeature.swift; path = EasySearch/Features/EasySearch/EasySearchFeature.swift; sourceTree = SOURCE_ROOT; };
 		5166978A4A4BE388668D0139 /* EasySearchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EasySearchApp.swift; path = EasySearch/App/EasySearchApp.swift; sourceTree = SOURCE_ROOT; };
 		5905F9F946A778C37D0F7CCD /* UtilitiesFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UtilitiesFeature.swift; path = EasySearch/Features/Utilities/UtilitiesFeature.swift; sourceTree = SOURCE_ROOT; };
 		7776F48C8127AD4F470DB7EF /* AppFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppFeature.swift; path = EasySearch/Core/Architecture/AppFeature.swift; sourceTree = SOURCE_ROOT; };
+		77B71B90FD37F678F1BE7721 /* TextAlignment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TextAlignment.swift; sourceTree = "<group>"; };
 		795E17200E5B98842C811DAF /* CategoryTabBar.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CategoryTabBar.swift; path = EasySearch/Features/EasySearch/Views/CategoryTabBar.swift; sourceTree = SOURCE_ROOT; };
 		7E97BF05A1233442C2B30768 /* SearchEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchEngine.swift; path = EasySearch/Features/EasySearch/Models/SearchEngine.swift; sourceTree = SOURCE_ROOT; };
+		84A9CB8EA30ED3CE55AC2A70 /* ImageTranslateTextAlignmentTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageTranslateTextAlignmentTests.swift; sourceTree = "<group>"; };
 		8A0697B7D17CAD38D2E763F4 /* EngineGridView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EngineGridView.swift; path = EasySearch/Features/EasySearch/Views/EngineGridView.swift; sourceTree = SOURCE_ROOT; };
 		9D66418FE785F8E727F9BAE4 /* EasySearchView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EasySearchView.swift; path = EasySearch/Features/EasySearch/Views/EasySearchView.swift; sourceTree = SOURCE_ROOT; };
 		A2000009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A2000010 /* search-engines.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "search-engines.json"; sourceTree = "<group>"; };
 		A3000000 /* EasySearch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EasySearch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AED5424721AE4AFD4354443F /* ImageTranslateHistoryReducerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageTranslateHistoryReducerTests.swift; sourceTree = "<group>"; };
 		C2376609760E7B3F32B6F9FD /* SearchBar.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchBar.swift; path = EasySearch/Features/EasySearch/Views/SearchBar.swift; sourceTree = SOURCE_ROOT; };
-		D2A000000000000000000101 /* CloudSyncCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncCoordinator.swift; path = EasySearch/Core/CloudSync/CloudSyncCoordinator.swift; sourceTree = SOURCE_ROOT; };
-		D2A000000000000000000102 /* HiddenSyncModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSyncModels.swift; path = EasySearch/Features/Dashboard/Models/HiddenSyncModels.swift; sourceTree = SOURCE_ROOT; };
-		D2A000000000000000000103 /* HiddenCloudSync.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenCloudSync.swift; path = EasySearch/Features/Dashboard/Sync/HiddenCloudSync.swift; sourceTree = SOURCE_ROOT; };
+		CC601343648B48283FAC97DF /* EasySearchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EasySearchTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D1A000000000000000000101 /* UTEntry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTEntry.swift; path = EasySearch/Features/UTTracker/Models/UTEntry.swift; sourceTree = SOURCE_ROOT; };
 		D1A000000000000000000102 /* UTTrackerViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTTrackerViewModel.swift; path = EasySearch/Features/UTTracker/ViewModels/UTTrackerViewModel.swift; sourceTree = SOURCE_ROOT; };
 		D1A000000000000000000103 /* UTTrackerView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTTrackerView.swift; path = EasySearch/Features/UTTracker/Views/UTTrackerView.swift; sourceTree = SOURCE_ROOT; };
 		D1A000000000000000000104 /* UTTrackerFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTTrackerFeature.swift; path = EasySearch/Features/UTTracker/UTTrackerFeature.swift; sourceTree = SOURCE_ROOT; };
 		D1A000000000000000000105 /* UTNotificationManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTNotificationManager.swift; path = EasySearch/Features/UTTracker/UTNotificationManager.swift; sourceTree = SOURCE_ROOT; };
 		D1A000000000000000000106 /* UTTrackerEntryStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTTrackerEntryStore.swift; path = EasySearch/Features/UTTracker/Models/UTTrackerEntryStore.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000101 /* CloudSyncCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncCoordinator.swift; path = EasySearch/Core/CloudSync/CloudSyncCoordinator.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000102 /* HiddenSyncModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSyncModels.swift; path = EasySearch/Features/Dashboard/Models/HiddenSyncModels.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000103 /* HiddenCloudSync.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenCloudSync.swift; path = EasySearch/Features/Dashboard/Sync/HiddenCloudSync.swift; sourceTree = SOURCE_ROOT; };
 		D300000000000000000000101 /* GitHubUpdatesFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesFeature.swift; path = EasySearch/Features/GitHubUpdates/GitHubUpdatesFeature.swift; sourceTree = SOURCE_ROOT; };
 		D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesCoordinator.swift; path = EasySearch/Features/GitHubUpdates/GitHubUpdatesCoordinator.swift; sourceTree = SOURCE_ROOT; };
 		D300000000000000000000103 /* GitHubWatchedRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubWatchedRepository.swift; path = EasySearch/Features/GitHubUpdates/Models/GitHubWatchedRepository.swift; sourceTree = SOURCE_ROOT; };
@@ -94,6 +123,10 @@
 		D400000000000000000000104 /* QingLongCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongCoordinator.swift; path = EasySearch/Features/QingLong/QingLongCoordinator.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000105 /* QingLongViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongViewModel.swift; path = EasySearch/Features/QingLong/ViewModels/QingLongViewModel.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000106 /* QingLongView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongView.swift; path = EasySearch/Features/QingLong/Views/QingLongView.swift; sourceTree = SOURCE_ROOT; };
+		D400000000000000000000107 /* QingLongOverviewCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongOverviewCard.swift; path = EasySearch/Features/QingLong/Views/QingLongOverviewCard.swift; sourceTree = SOURCE_ROOT; };
+		D400000000000000000000108 /* QingLongConnectionViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongConnectionViews.swift; path = EasySearch/Features/QingLong/Views/QingLongConnectionViews.swift; sourceTree = SOURCE_ROOT; };
+		D400000000000000000000109 /* QingLongSharedViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongSharedViews.swift; path = EasySearch/Features/QingLong/Views/QingLongSharedViews.swift; sourceTree = SOURCE_ROOT; };
+		D400000000000000000000110 /* QingLongWorkspaceViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongWorkspaceViews.swift; path = EasySearch/Features/QingLong/Views/QingLongWorkspaceViews.swift; sourceTree = SOURCE_ROOT; };
 		D500000000000000000000101 /* ImageTranslateFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateFeature.swift; path = EasySearch/Features/ImageTranslate/ImageTranslateFeature.swift; sourceTree = SOURCE_ROOT; };
 		D500000000000000000000102 /* ImageTranslateCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateCoordinator.swift; path = EasySearch/Features/ImageTranslate/ImageTranslateCoordinator.swift; sourceTree = SOURCE_ROOT; };
 		D500000000000000000000103 /* ImageTranslateModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateModels.swift; path = EasySearch/Features/ImageTranslate/Models/ImageTranslateModels.swift; sourceTree = SOURCE_ROOT; };
@@ -104,10 +137,26 @@
 		D600000000000000000000103 /* EmailAssistantModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantModels.swift; path = EasySearch/Features/EmailAssistant/Models/EmailAssistantModels.swift; sourceTree = SOURCE_ROOT; };
 		D600000000000000000000104 /* EmailAssistantViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantViewModel.swift; path = EasySearch/Features/EmailAssistant/ViewModels/EmailAssistantViewModel.swift; sourceTree = SOURCE_ROOT; };
 		D600000000000000000000105 /* EmailAssistantView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantView.swift; path = EasySearch/Features/EmailAssistant/Views/EmailAssistantView.swift; sourceTree = SOURCE_ROOT; };
+		D700000000000000000000101 /* DeepSeekClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DeepSeekClient.swift; path = EasySearch/Core/AI/DeepSeekClient.swift; sourceTree = SOURCE_ROOT; };
+		D736F78B02EC6C18E86147F2 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
 		DD2DDB34B07E1AF3F585243D /* SettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = EasySearch/Features/Settings/Views/SettingsView.swift; sourceTree = SOURCE_ROOT; };
+		DE58CC4FBE5DDA9B8E6C8416 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		DEE5D4584B694CD5678242E5 /* ImageTranslateSessionStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateSessionStore.swift; path = EasySearch/Features/ImageTranslate/Models/ImageTranslateSessionStore.swift; sourceTree = SOURCE_ROOT; };
 		E53A9599509BBCA5DB03ABC4 /* SearchViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchViewModel.swift; path = EasySearch/Features/EasySearch/ViewModels/SearchViewModel.swift; sourceTree = SOURCE_ROOT; };
 		E9AD7A5FC3ED0A3372776E30 /* AppRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppRouter.swift; path = EasySearch/Core/Navigation/AppRouter.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		EEDD261BC3F071CE81848894 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E362E51FD8833EE073E17BDE /* Foundation.framework in Frameworks */,
+				8201BB664FA9082DDB04AF65 /* XCTest.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		0FB4DB06D5AE9B9FED0B57B4 /* Architecture */ = {
@@ -122,6 +171,7 @@
 		1306B2A371C9CE9DF0C7EB7F /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				D700000000000000000000201 /* AI */,
 				1F0AA6DA19AA7B223C223FA9 /* Navigation */,
 				8C99C0002060773331CA9541 /* Extensions */,
 				E59C8AA3A5C7B7392A388AF9 /* UIComponents */,
@@ -148,6 +198,15 @@
 				8D9943CCA7202BDADB97664D /* Views */,
 			);
 			name = EasySearch;
+			sourceTree = "<group>";
+		};
+		2387C38094A7646C59A5C931 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				DE58CC4FBE5DDA9B8E6C8416 /* Foundation.framework */,
+				D736F78B02EC6C18E86147F2 /* XCTest.framework */,
+			);
+			name = iOS;
 			sourceTree = "<group>";
 		};
 		2EBBB262442174C005F11C85 /* ViewModels */ = {
@@ -182,6 +241,14 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
+		669A203D6FEC862139AC385F /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				2387C38094A7646C59A5C931 /* iOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		8C99C0002060773331CA9541 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
@@ -207,6 +274,106 @@
 				51D1A4B114AD7B94AC04D42D /* Views */,
 			);
 			path = Utilities;
+			sourceTree = "<group>";
+		};
+		A0C065A5ADD67EACBE6D34A3 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				DD2DDB34B07E1AF3F585243D /* SettingsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A5000000 = {
+			isa = PBXGroup;
+			children = (
+				A5000001 /* EasySearch */,
+				A5000099 /* Products */,
+				B924F2B5DBEE2D8D30100156 /* EasySearchTests */,
+				669A203D6FEC862139AC385F /* Frameworks */,
+			);
+			sourceTree = "<group>";
+		};
+		A5000001 /* EasySearch */ = {
+			isa = PBXGroup;
+			children = (
+				B98B4BEC9BF3900EB352D608 /* App */,
+				1306B2A371C9CE9DF0C7EB7F /* Core */,
+				CABB44AE871E03479E9CEB1F /* Features */,
+				A5000005 /* Resources */,
+				A2000009 /* Assets.xcassets */,
+			);
+			path = EasySearch;
+			sourceTree = "<group>";
+		};
+		A5000005 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A2000010 /* search-engines.json */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		A5000099 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A3000000 /* EasySearch.app */,
+				CC601343648B48283FAC97DF /* EasySearchTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B924F2B5DBEE2D8D30100156 /* EasySearchTests */ = {
+			isa = PBXGroup;
+			children = (
+				84A9CB8EA30ED3CE55AC2A70 /* ImageTranslateTextAlignmentTests.swift */,
+				AED5424721AE4AFD4354443F /* ImageTranslateHistoryReducerTests.swift */,
+				3195DD59E264422624CF152A /* ImageTranslateFileStoreTests.swift */,
+			);
+			name = EasySearchTests;
+			path = EasySearchTests;
+			sourceTree = "<group>";
+		};
+		B94B1FCC32BDB8A777E81E22 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				0F142A2111DC88139890E4CC /* DashboardView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		B98B4BEC9BF3900EB352D608 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				5166978A4A4BE388668D0139 /* EasySearchApp.swift */,
+			);
+			name = App;
+			sourceTree = "<group>";
+		};
+		CABB44AE871E03479E9CEB1F /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				CD7CFE82B7B0EDACEF2A77A2 /* Dashboard */,
+				214A4883BB1976CD8E3A4676 /* EasySearch */,
+				6454E79B9B44E6FA2F45817D /* Settings */,
+				D1A000000000000000000201 /* UTTracker */,
+				D300000000000000000000201 /* GitHubUpdates */,
+				D400000000000000000000201 /* QingLong */,
+				D500000000000000000000201 /* ImageTranslate */,
+				D600000000000000000000201 /* EmailAssistant */,
+				9184EB6BD9CBA9B4D5FB8E9F /* Utilities */,
+			);
+			name = Features;
+			sourceTree = "<group>";
+		};
+		CD7CFE82B7B0EDACEF2A77A2 /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				D2A000000000000000000202 /* Models */,
+				D2A000000000000000000203 /* Sync */,
+				B94B1FCC32BDB8A777E81E22 /* Views */,
+			);
+			path = Dashboard;
 			sourceTree = "<group>";
 		};
 		D1A000000000000000000201 /* UTTracker */ = {
@@ -244,6 +411,30 @@
 				D1A000000000000000000103 /* UTTrackerView.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		D2A000000000000000000201 /* CloudSync */ = {
+			isa = PBXGroup;
+			children = (
+				D2A000000000000000000101 /* CloudSyncCoordinator.swift */,
+			);
+			path = CloudSync;
+			sourceTree = "<group>";
+		};
+		D2A000000000000000000202 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				D2A000000000000000000102 /* HiddenSyncModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		D2A000000000000000000203 /* Sync */ = {
+			isa = PBXGroup;
+			children = (
+				D2A000000000000000000103 /* HiddenCloudSync.swift */,
+			);
+			path = Sync;
 			sourceTree = "<group>";
 		};
 		D300000000000000000000201 /* GitHubUpdates */ = {
@@ -315,7 +506,11 @@
 		D400000000000000000000204 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				D400000000000000000000108 /* QingLongConnectionViews.swift */,
+				D400000000000000000000107 /* QingLongOverviewCard.swift */,
+				D400000000000000000000109 /* QingLongSharedViews.swift */,
 				D400000000000000000000106 /* QingLongView.swift */,
+				D400000000000000000000110 /* QingLongWorkspaceViews.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -336,6 +531,7 @@
 			isa = PBXGroup;
 			children = (
 				D500000000000000000000103 /* ImageTranslateModels.swift */,
+				DEE5D4584B694CD5678242E5 /* ImageTranslateSessionStore.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -392,114 +588,14 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
-		A0C065A5ADD67EACBE6D34A3 /* Views */ = {
+		D700000000000000000000201 /* AI */ = {
 			isa = PBXGroup;
 			children = (
-				DD2DDB34B07E1AF3F585243D /* SettingsView.swift */,
+				D700000000000000000000101 /* DeepSeekClient.swift */,
+				015EF0031C7687BCB7F6A2EE /* ImageOCRService.swift */,
+				77B71B90FD37F678F1BE7721 /* TextAlignment.swift */,
 			);
-			path = Views;
-			sourceTree = "<group>";
-		};
-		A5000000 = {
-			isa = PBXGroup;
-			children = (
-				A5000001 /* EasySearch */,
-				A5000099 /* Products */,
-			);
-			sourceTree = "<group>";
-		};
-		A5000001 /* EasySearch */ = {
-			isa = PBXGroup;
-			children = (
-				B98B4BEC9BF3900EB352D608 /* App */,
-				1306B2A371C9CE9DF0C7EB7F /* Core */,
-				CABB44AE871E03479E9CEB1F /* Features */,
-				A5000005 /* Resources */,
-				A2000009 /* Assets.xcassets */,
-			);
-			path = EasySearch;
-			sourceTree = "<group>";
-		};
-		A5000005 /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				A2000010 /* search-engines.json */,
-			);
-			path = Resources;
-			sourceTree = "<group>";
-		};
-		A5000099 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				A3000000 /* EasySearch.app */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		B94B1FCC32BDB8A777E81E22 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				0F142A2111DC88139890E4CC /* DashboardView.swift */,
-			);
-			path = Views;
-			sourceTree = "<group>";
-		};
-		D2A000000000000000000201 /* CloudSync */ = {
-			isa = PBXGroup;
-			children = (
-				D2A000000000000000000101 /* CloudSyncCoordinator.swift */,
-			);
-			path = CloudSync;
-			sourceTree = "<group>";
-		};
-		D2A000000000000000000202 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				D2A000000000000000000102 /* HiddenSyncModels.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		D2A000000000000000000203 /* Sync */ = {
-			isa = PBXGroup;
-			children = (
-				D2A000000000000000000103 /* HiddenCloudSync.swift */,
-			);
-			path = Sync;
-			sourceTree = "<group>";
-		};
-		B98B4BEC9BF3900EB352D608 /* App */ = {
-			isa = PBXGroup;
-			children = (
-				5166978A4A4BE388668D0139 /* EasySearchApp.swift */,
-			);
-			name = App;
-			sourceTree = "<group>";
-		};
-		CABB44AE871E03479E9CEB1F /* Features */ = {
-			isa = PBXGroup;
-			children = (
-				CD7CFE82B7B0EDACEF2A77A2 /* Dashboard */,
-				214A4883BB1976CD8E3A4676 /* EasySearch */,
-				6454E79B9B44E6FA2F45817D /* Settings */,
-				D1A000000000000000000201 /* UTTracker */,
-				D300000000000000000000201 /* GitHubUpdates */,
-				D400000000000000000000201 /* QingLong */,
-				D500000000000000000000201 /* ImageTranslate */,
-				D600000000000000000000201 /* EmailAssistant */,
-				9184EB6BD9CBA9B4D5FB8E9F /* Utilities */,
-			);
-			name = Features;
-			sourceTree = "<group>";
-		};
-		CD7CFE82B7B0EDACEF2A77A2 /* Dashboard */ = {
-			isa = PBXGroup;
-			children = (
-				D2A000000000000000000202 /* Models */,
-				D2A000000000000000000203 /* Sync */,
-				B94B1FCC32BDB8A777E81E22 /* Views */,
-			);
-			path = Dashboard;
+			path = AI;
 			sourceTree = "<group>";
 		};
 		E59C8AA3A5C7B7392A388AF9 /* UIComponents */ = {
@@ -512,12 +608,31 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		78345ACD5240AE76362DCBB7 /* EasySearchTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3897BD90ABA8A80E5B46D458 /* Build configuration list for PBXNativeTarget "EasySearchTests" */;
+			buildPhases = (
+				35562CF8C17B7D497379E492 /* Sources */,
+				EEDD261BC3F071CE81848894 /* Frameworks */,
+				42571D244B3A8172C5FA4989 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7E1251E9405E38D25C242B4F /* PBXTargetDependency */,
+			);
+			name = EasySearchTests;
+			productName = EasySearchTests;
+			productReference = CC601343648B48283FAC97DF /* EasySearchTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		A6000000 /* EasySearch */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A8000002 /* Build configuration list for PBXNativeTarget "EasySearch" */;
 			buildPhases = (
 				A4000000 /* Sources */,
 				A4000002 /* Resources */,
+				A4000001 /* Dynamic Build Version */,
 			);
 			buildRules = (
 			);
@@ -558,11 +673,19 @@
 			projectRoot = "";
 			targets = (
 				A6000000 /* EasySearch */,
+				78345ACD5240AE76362DCBB7 /* EasySearchTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		42571D244B3A8172C5FA4989 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A4000002 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -574,7 +697,36 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		A4000001 /* Dynamic Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Dynamic Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/easysearch_versioning/build_number",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\nSTAMP_DIR=\"${DERIVED_FILE_DIR}/easysearch_versioning\"\nHASH_FILE=\"${STAMP_DIR}/source_hash\"\nBUILD_FILE=\"${STAMP_DIR}/build_number\"\nAPP_INFO_PLIST=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\nmkdir -p \"${STAMP_DIR}\"\ncollect_version_inputs() {\n  find \"${SRCROOT}/EasySearch\" -type f \\( -name \"*.swift\" -o -name \"*.plist\" -o -name \"*.json\" \\) -print\n  if [ -d \"${SRCROOT}/supabase\" ]; then\n    find \"${SRCROOT}/supabase\" -type f -print\n  fi\n  if [ -f \"${SRCROOT}/scripts/update_dynamic_build_version.sh\" ]; then\n    printf '%s\\n' \"${SRCROOT}/scripts/update_dynamic_build_version.sh\"\n  fi\n  printf '%s\\n' \"${SRCROOT}/EasySearch.xcodeproj/project.pbxproj\"\n}\nCURRENT_HASH=\"$({ collect_version_inputs | LC_ALL=C sort | while IFS= read -r file_path; do [ -f \"${file_path}\" ] || continue; shasum \"${file_path}\"; done; } | shasum | awk '{ print $1 }')\"\nPREVIOUS_HASH=\"\"\nif [ -f \"${HASH_FILE}\" ]; then\n  PREVIOUS_HASH=\"$(cat \"${HASH_FILE}\")\"\nfi\nif [ \"${CURRENT_HASH}\" = \"${PREVIOUS_HASH}\" ] && [ -f \"${BUILD_FILE}\" ]; then\n  BUILD_VERSION=\"$(cat \"${BUILD_FILE}\")\"\nelse\n  YEAR=\"$(date '+%Y')\"\n  MONTH=\"$(date '+%m')\"\n  DAY=\"$(date '+%d')\"\n  HOUR=\"$(date '+%H')\"\n  MINUTE=\"$(date '+%M')\"\n  SEGMENT_TWO=$((10#${MONTH} * 100 + 10#${DAY}))\n  SEGMENT_THREE=$((10#${HOUR} * 100 + 10#${MINUTE}))\n  BUILD_VERSION=\"${YEAR}.${SEGMENT_TWO}.${SEGMENT_THREE}\"\n  printf '%s' \"${CURRENT_HASH}\" > \"${HASH_FILE}\"\n  printf '%s' \"${BUILD_VERSION}\" > \"${BUILD_FILE}\"\nfi\nif [ ! -f \"${APP_INFO_PLIST}\" ]; then\n  echo \"warning: Dynamic versioning skipped because ${APP_INFO_PLIST} does not exist yet.\"\n  exit 0\nfi\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion ${BUILD_VERSION}\" \"${APP_INFO_PLIST}\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :CFBundleVersion string ${BUILD_VERSION}\" \"${APP_INFO_PLIST}\"\necho \"Dynamic build version: ${BUILD_VERSION}\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
+		35562CF8C17B7D497379E492 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DC00DBD3D1788263EDDB8459 /* ImageTranslateTextAlignmentTests.swift in Sources */,
+				36B9C9E9DE2EAFB91FE29C76 /* ImageTranslateHistoryReducerTests.swift in Sources */,
+				385A49DB482D3D46438A8BBE /* ImageTranslateFileStoreTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A4000000 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -612,7 +764,11 @@
 				D400000000000000000000003 /* QingLongPanelStore.swift in Sources */,
 				D400000000000000000000004 /* QingLongCoordinator.swift in Sources */,
 				D400000000000000000000005 /* QingLongViewModel.swift in Sources */,
+				D400000000000000000000008 /* QingLongConnectionViews.swift in Sources */,
+				D400000000000000000000007 /* QingLongOverviewCard.swift in Sources */,
+				D400000000000000000000009 /* QingLongSharedViews.swift in Sources */,
 				D400000000000000000000006 /* QingLongView.swift in Sources */,
+				D400000000000000000000010 /* QingLongWorkspaceViews.swift in Sources */,
 				D500000000000000000000003 /* ImageTranslateModels.swift in Sources */,
 				D500000000000000000000004 /* ImageTranslateViewModel.swift in Sources */,
 				D500000000000000000000001 /* ImageTranslateFeature.swift in Sources */,
@@ -623,14 +779,53 @@
 				D600000000000000000000001 /* EmailAssistantFeature.swift in Sources */,
 				D600000000000000000000002 /* EmailAssistantCoordinator.swift in Sources */,
 				D600000000000000000000005 /* EmailAssistantView.swift in Sources */,
+				D700000000000000000000001 /* DeepSeekClient.swift in Sources */,
 				0FEC531B128C7323644248F0 /* UtilitiesFeature.swift in Sources */,
 				079FA5536E042C37ED839E7D /* UtilitiesView.swift in Sources */,
+				864F62200F337B5F7234088D /* ImageOCRService.swift in Sources */,
+				B7EF418F52080658CAC257DD /* TextAlignment.swift in Sources */,
+				E3CE5ADE8C75D1F8EE33B52A /* ImageTranslateSessionStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		7E1251E9405E38D25C242B4F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = EasySearch;
+			target = A6000000 /* EasySearch */;
+			targetProxy = AD7C93F49EAE3E78A8A508FB /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		13D3D8054E89806665769AA9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 2NTKHNF6H6;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.easysearch.xp9477.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/EasySearch.app/EasySearch";
+				TEST_TARGET_NAME = EasySearch;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		A9000000 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -756,20 +951,21 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 2NTKHNF6H6;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = EasySearch/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = EasySearch;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-					INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.easysearch.xp9477;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -786,20 +982,21 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 2NTKHNF6H6;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = EasySearch/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = EasySearch;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-					INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.easysearch.xp9477;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -810,9 +1007,43 @@
 			};
 			name = Release;
 		};
+		DC127191C7D584C7EFAEE11A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 2NTKHNF6H6;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.easysearch.xp9477.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/EasySearch.app/EasySearch";
+				TEST_TARGET_NAME = EasySearch;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		3897BD90ABA8A80E5B46D458 /* Build configuration list for PBXNativeTarget "EasySearchTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				13D3D8054E89806665769AA9 /* Release */,
+				DC127191C7D584C7EFAEE11A /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		A8000000 /* Build configuration list for PBXProject "EasySearch" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

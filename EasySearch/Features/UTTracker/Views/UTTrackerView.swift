@@ -467,19 +467,6 @@ private struct UTEntryRow: View {
     }
 }
 
-private extension View {
-    func cardStyle() -> some View {
-        background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-        )
-    }
-}
-
 #Preview {
     NavigationStack {
         UTTrackerView()

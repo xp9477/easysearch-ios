@@ -4,31 +4,61 @@ import UIKit
 @MainActor
 final class ImageTranslateViewModel: ObservableObject {
     @Published private(set) var selectedImage: UIImage?
-    @Published private(set) var imageSource: ImageTranslateInputSource?
-    @Published var extractedText = ""
-    @Published private(set) var latestTranslation = ""
-    @Published private(set) var translationNotes = ""
-    @Published private(set) var detectedSourceLanguage: String?
-    @Published private(set) var conversation: [ImageTranslateConversationMessage] = []
-    @Published private(set) var suggestedReplies: [String] = []
+    @Published private(set) var imageSource: ImageTranslateInputSource? {
+        didSet { persistCurrentStateIfNeeded() }
+    }
+    @Published var extractedText = "" {
+        didSet { persistCurrentStateIfNeeded() }
+    }
+    @Published private(set) var latestTranslation = "" {
+        didSet { persistCurrentStateIfNeeded() }
+    }
+    @Published private(set) var translationNotes = "" {
+        didSet { persistCurrentStateIfNeeded() }
+    }
+    @Published private(set) var detectedSourceLanguage: String? {
+        didSet { persistCurrentStateIfNeeded() }
+    }
+    @Published private(set) var conversation: [ImageTranslateConversationMessage] = [] {
+        didSet { persistCurrentStateIfNeeded() }
+    }
+    @Published private(set) var suggestedReplies: [String] = [] {
+        didSet { persistCurrentStateIfNeeded() }
+    }
+    @Published private(set) var history: [ImageTranslateHistoryRecord] = []
     @Published private(set) var notice: ImageTranslateNotice?
-    @Published var composerText = ""
-    @Published var targetLanguage: ImageTranslateTargetLanguage = .simplifiedChinese
+    @Published var composerText = "" {
+        didSet { persistCurrentStateIfNeeded() }
+    }
+    @Published var targetLanguage: ImageTranslateTargetLanguage = .simplifiedChinese {
+        didSet { persistCurrentStateIfNeeded() }
+    }
     @Published private(set) var currentModel = "deepseek-chat"
     @Published private(set) var hasConfiguredAPIKey = false
     @Published private(set) var isRecognizingText = false
     @Published private(set) var isTranslating = false
 
     private let service: ImageTranslateService
+    private let store: any ImageTranslateSessionStore
     private let notificationCenter: NotificationCenter
     private var configurationObserver: NSObjectProtocol?
-    private var lastTranslatedSourceText = ""
+    private var hasPrepared = false
+    private var isRestoringState = false
+    private var currentSessionID = UUID()
+    private var configuredTargetLanguage: ImageTranslateTargetLanguage = .simplifiedChinese
+    private var currentImageData: Data?
+    private var currentPreviewImageData: Data?
+    private var lastTranslatedSourceText = "" {
+        didSet { persistCurrentStateIfNeeded() }
+    }
 
     init(
         service: ImageTranslateService = .shared,
+        store: any ImageTranslateSessionStore = ImageTranslateFileStore(),
         notificationCenter: NotificationCenter = .default
     ) {
         self.service = service
+        self.store = store
         self.notificationCenter = notificationCenter
         configurationObserver = notificationCenter.addObserver(
             forName: .imageTranslateConfigurationDidChange,
@@ -36,7 +66,7 @@ final class ImageTranslateViewModel: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                await self?.reloadConfiguration()
+                await self?.reloadConfiguration(applyDefaultTargetLanguage: false)
             }
         }
     }
@@ -71,8 +101,19 @@ final class ImageTranslateViewModel: ObservableObject {
         !latestTranslation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    var hasHistory: Bool {
+        !history.isEmpty
+    }
+
     var shouldShowConversation: Bool {
         hasTranslation || !conversation.isEmpty
+    }
+
+    var alignedSections: [AlignedTextSection] {
+        ImageTranslateTextAlignment.sections(
+            source: extractedText,
+            translation: latestTranslation
+        )
     }
 
     var imageStatusText: String {
@@ -88,11 +129,31 @@ final class ImageTranslateViewModel: ObservableObject {
     }
 
     func prepare() async {
-        await reloadConfiguration()
+        guard !hasPrepared else {
+            await reloadConfiguration(applyDefaultTargetLanguage: false)
+            history = store.loadHistory()
+            return
+        }
+
+        hasPrepared = true
+        await reloadConfiguration(applyDefaultTargetLanguage: true)
+        restorePersistedStateIfNeeded()
+        history = store.loadHistory()
+
+        if selectedImage == nil,
+           extractedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           latestTranslation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           notice == nil {
+            setNotice(
+                tone: .neutral,
+                message: "先粘贴截图、选图或拍照。识别结果支持手动校对，后面可继续追问优化翻译。"
+            )
+        }
     }
 
     func updateTargetLanguage(_ targetLanguage: ImageTranslateTargetLanguage) async {
         self.targetLanguage = targetLanguage
+        configuredTargetLanguage = targetLanguage
         await service.updateTargetLanguage(targetLanguage)
 
         if hasTranslation {
@@ -103,10 +164,16 @@ final class ImageTranslateViewModel: ObservableObject {
         }
     }
 
+    func startFreshSession() {
+        resetSessionState(newSessionID: true)
+        targetLanguage = configuredTargetLanguage
+        store.clearCurrentState()
+        setNotice(tone: .neutral, message: "已开始新会话。")
+    }
+
     func importImage(_ image: UIImage, from source: ImageTranslateInputSource) async {
-        resetForNewImage()
-        selectedImage = image
-        imageSource = source
+        applySessionReset(newSessionID: true)
+        await assignImage(image, source: source)
         setNotice(tone: .neutral, message: "已载入\(source.title)图片，正在识别文字。")
         await recognizeSelectedImage(autoTranslate: hasConfiguredAPIKey)
     }
@@ -120,20 +187,30 @@ final class ImageTranslateViewModel: ObservableObject {
         await importImage(image, from: .clipboard)
     }
 
+    func cropCurrentImage(to normalizedRect: CGRect) async {
+        guard let selectedImage else {
+            setNotice(tone: .caution, message: "还没有图片可裁剪。")
+            return
+        }
+
+        do {
+            let croppedImage = try await service.cropImage(selectedImage, normalizedRect: normalizedRect)
+            applySessionReset(newSessionID: false)
+            await assignImage(croppedImage, source: imageSource)
+            setNotice(tone: .neutral, message: "已按选区裁剪，正在重新识别文字。")
+            await recognizeSelectedImage(autoTranslate: hasConfiguredAPIKey)
+        } catch {
+            setNotice(tone: .caution, message: error.localizedDescription)
+        }
+    }
+
     func reRecognizeSelectedImage() async {
         guard selectedImage != nil else {
             setNotice(tone: .caution, message: "还没有图片，先从拍照、相册或剪贴板导入。")
             return
         }
 
-        latestTranslation = ""
-        translationNotes = ""
-        detectedSourceLanguage = nil
-        suggestedReplies = []
-        conversation = []
-        composerText = ""
-        lastTranslatedSourceText = ""
-
+        clearTranslationState()
         await recognizeSelectedImage(autoTranslate: hasConfiguredAPIKey)
     }
 
@@ -159,6 +236,7 @@ final class ImageTranslateViewModel: ObservableObject {
             )
             applyTranslationResult(result, resetConversation: true)
             lastTranslatedSourceText = sourceText
+            upsertHistorySnapshot()
             let message = result.detectedSourceLanguage.map { "已完成 \($0) -> \(targetLanguage.title) 翻译。" }
                 ?? "已完成 AI 翻译。"
             setNotice(tone: .success, message: message)
@@ -194,6 +272,7 @@ final class ImageTranslateViewModel: ObservableObject {
             )
             applyTranslationResult(result, resetConversation: false)
             lastTranslatedSourceText = extractedText.trimmingCharacters(in: .whitespacesAndNewlines)
+            upsertHistorySnapshot()
             setNotice(tone: .success, message: "已更新翻译和讨论结果。")
         } catch {
             if conversation.last?.id == userMessage.id {
@@ -211,6 +290,34 @@ final class ImageTranslateViewModel: ObservableObject {
         await sendFollowUp()
     }
 
+    func loadHistorySession(_ record: ImageTranslateHistoryRecord) {
+        isRestoringState = true
+        currentSessionID = record.id
+        let restoredImageData = record.selectedImageData ?? record.previewImageData
+        selectedImage = restoredImageData.flatMap(UIImage.init(data:))
+        currentImageData = restoredImageData
+        currentPreviewImageData = record.previewImageData
+        imageSource = record.imageSource
+        targetLanguage = record.targetLanguage
+        extractedText = record.sourceText
+        latestTranslation = record.translation
+        translationNotes = record.translationNotes
+        detectedSourceLanguage = record.detectedSourceLanguage
+        conversation = record.conversation
+        suggestedReplies = record.suggestedReplies
+        composerText = ""
+        lastTranslatedSourceText = record.sourceText
+        isRestoringState = false
+        persistCurrentStateIfNeeded()
+        setNotice(tone: .success, message: "已恢复一条最近会话。")
+    }
+
+    func deleteHistoryRecord(_ record: ImageTranslateHistoryRecord) {
+        history = ImageTranslateHistoryReducer.delete(recordID: record.id, from: history)
+        store.saveHistory(history)
+        setNotice(tone: .neutral, message: "已从最近历史中移除。")
+    }
+
     func copyText(_ text: String, successMessage: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -222,11 +329,51 @@ final class ImageTranslateViewModel: ObservableObject {
         setNotice(tone: tone, message: message)
     }
 
-    private func reloadConfiguration() async {
+    private func reloadConfiguration(applyDefaultTargetLanguage: Bool) async {
         let configuration = await service.loadConfiguration()
-        targetLanguage = configuration.targetLanguage
         currentModel = configuration.resolvedModel
         hasConfiguredAPIKey = configuration.hasAPIKey
+        configuredTargetLanguage = configuration.targetLanguage
+
+        if applyDefaultTargetLanguage || shouldAdoptConfiguredTargetLanguage {
+            targetLanguage = configuration.targetLanguage
+        }
+    }
+
+    private var shouldAdoptConfiguredTargetLanguage: Bool {
+        selectedImage == nil
+            && extractedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && latestTranslation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && conversation.isEmpty
+    }
+
+    private func restorePersistedStateIfNeeded() {
+        guard let state = store.loadCurrentState() else { return }
+
+        isRestoringState = true
+        currentSessionID = state.sessionID
+        selectedImage = state.selectedImageData.flatMap(UIImage.init(data:))
+        currentImageData = state.selectedImageData
+        currentPreviewImageData = state.previewImageData
+        imageSource = state.imageSource
+        targetLanguage = state.targetLanguage
+        extractedText = state.extractedText
+        latestTranslation = state.latestTranslation
+        translationNotes = state.translationNotes
+        detectedSourceLanguage = state.detectedSourceLanguage
+        conversation = state.conversation
+        suggestedReplies = state.suggestedReplies
+        composerText = state.composerText
+        lastTranslatedSourceText = state.lastTranslatedSourceText
+        isRestoringState = false
+    }
+
+    private func assignImage(_ image: UIImage, source: ImageTranslateInputSource?) async {
+        selectedImage = image
+        imageSource = source
+        currentImageData = await service.storedImageData(from: image)
+        currentPreviewImageData = await service.previewImageData(from: image)
+        persistCurrentStateIfNeeded()
     }
 
     private func recognizeSelectedImage(autoTranslate: Bool) async {
@@ -295,9 +442,21 @@ final class ImageTranslateViewModel: ObservableObject {
         return "已按你的要求更新翻译。"
     }
 
-    private func resetForNewImage() {
+    private func applySessionReset(newSessionID: Bool) {
+        isRestoringState = true
+        if newSessionID {
+            currentSessionID = UUID()
+        }
+        clearTranslationState()
         selectedImage = nil
         imageSource = nil
+        currentImageData = nil
+        currentPreviewImageData = nil
+        isRestoringState = false
+        persistCurrentStateIfNeeded()
+    }
+
+    private func clearTranslationState() {
         extractedText = ""
         latestTranslation = ""
         translationNotes = ""
@@ -306,7 +465,98 @@ final class ImageTranslateViewModel: ObservableObject {
         suggestedReplies = []
         composerText = ""
         lastTranslatedSourceText = ""
-        notice = nil
+    }
+
+    private func resetSessionState(newSessionID: Bool) {
+        applySessionReset(newSessionID: newSessionID)
+    }
+
+    private func upsertHistorySnapshot() {
+        let trimmedTranslation = latestTranslation.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedSource = extractedText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTranslation.isEmpty, !trimmedSource.isEmpty else { return }
+
+        let record = ImageTranslateHistoryRecord(
+            id: currentSessionID,
+            updatedAt: Date(),
+            imageSource: imageSource,
+            targetLanguage: targetLanguage,
+            detectedSourceLanguage: detectedSourceLanguage,
+            title: makeHistoryTitle(from: trimmedSource),
+            sourceSnippet: makeSnippet(from: trimmedSource),
+            translationSnippet: makeSnippet(from: trimmedTranslation),
+            sourceText: trimmedSource,
+            translation: trimmedTranslation,
+            translationNotes: translationNotes,
+            conversation: conversation,
+            suggestedReplies: suggestedReplies,
+            selectedImageData: currentImageData,
+            previewImageData: currentPreviewImageData
+        )
+
+        history = ImageTranslateHistoryReducer.upsert(record, into: history)
+        store.saveHistory(history)
+    }
+
+    private func makeHistoryTitle(from text: String) -> String {
+        let firstLine = text
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty } ?? "未命名翻译"
+
+        if firstLine.count <= 28 {
+            return firstLine
+        }
+
+        return String(firstLine.prefix(28)) + "..."
+    }
+
+    private func makeSnippet(from text: String) -> String {
+        let normalized = text
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if normalized.count <= 72 {
+            return normalized
+        }
+
+        return String(normalized.prefix(72)) + "..."
+    }
+
+    private var hasSessionContent: Bool {
+        selectedImage != nil
+            || !extractedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !latestTranslation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !conversation.isEmpty
+            || !composerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func makePersistedState() -> ImageTranslatePersistedState {
+        ImageTranslatePersistedState(
+            sessionID: currentSessionID,
+            imageSource: imageSource,
+            targetLanguage: targetLanguage,
+            selectedImageData: currentImageData,
+            previewImageData: currentPreviewImageData,
+            extractedText: extractedText,
+            latestTranslation: latestTranslation,
+            translationNotes: translationNotes,
+            detectedSourceLanguage: detectedSourceLanguage,
+            conversation: conversation,
+            suggestedReplies: suggestedReplies,
+            composerText: composerText,
+            lastTranslatedSourceText: lastTranslatedSourceText
+        )
+    }
+
+    private func persistCurrentStateIfNeeded() {
+        guard !isRestoringState else { return }
+
+        if hasSessionContent {
+            store.saveCurrentState(makePersistedState())
+        } else {
+            store.clearCurrentState()
+        }
     }
 
     private func setNotice(tone: ImageTranslateNoticeTone, message: String?) {

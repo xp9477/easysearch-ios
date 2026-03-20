@@ -133,26 +133,6 @@ final class GitHubUpdatesViewModel: ObservableObject {
         repositories.compactMap(\.lastCheckedAt).max()
     }
 
-    var latestPushedAt: Date? {
-        repositories.compactMap(\.lastKnownPushedAt).max()
-    }
-
-    var activeRepositoryCount: Int {
-        repositories.filter { !$0.isArchived && !$0.isDisabled }.count
-    }
-
-    var archivedRepositoryCount: Int {
-        repositories.filter { $0.isArchived || $0.isDisabled }.count
-    }
-
-    var recentlyUpdatedCount: Int {
-        let cutoff = Date().addingTimeInterval(-7 * 24 * 60 * 60)
-        return repositories.filter { repository in
-            guard let pushedAt = repository.lastKnownPushedAt else { return false }
-            return pushedAt >= cutoff
-        }.count
-    }
-
     func isDeletingRepository(_ repository: GitHubWatchedRepository) -> Bool {
         deletingRepositoryIDs.contains(repository.id)
     }

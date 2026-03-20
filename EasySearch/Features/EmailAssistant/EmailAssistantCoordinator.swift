@@ -1,9 +1,13 @@
 import Foundation
-import Vision
 
 struct EmailAssistantConfigurationState: Equatable {
     let hasAPIKey: Bool
     let keySummary: String?
+}
+
+struct EmailAssistantOCRResult {
+    let fullText: String
+    let segments: [EmailAssistantOCRSegment]
 }
 
 enum EmailAssistantError: LocalizedError {
@@ -38,62 +42,18 @@ enum EmailAssistantError: LocalizedError {
     }
 }
 
-private struct DeepSeekChatCompletionRequest: Encodable {
-    struct Message: Encodable {
-        let role: String
-        let content: String
-    }
-
-    let model: String
-    let messages: [Message]
-    let temperature: Double
-    let stream: Bool
-}
-
-private struct DeepSeekChatCompletionResponse: Decodable {
-    struct Choice: Decodable {
-        struct Message: Decodable {
-            let content: String?
-        }
-
-        let message: Message
-    }
-
-    let choices: [Choice]
-}
-
-private struct DeepSeekErrorEnvelope: Decodable {
-    struct DeepSeekErrorPayload: Decodable {
-        let message: String?
-    }
-
-    let error: DeepSeekErrorPayload?
-    let message: String?
-}
-
 actor EmailAssistantService {
     static let shared = EmailAssistantService()
 
     private let configurationStore: ImageTranslateConfigurationStore
-    private let urlSession: URLSession
-    private let endpoint = URL(string: "https://api.deepseek.com/chat/completions")!
+    private let client: DeepSeekClient
 
     private init(
         configurationStore: ImageTranslateConfigurationStore = .shared,
-        urlSession: URLSession? = nil
+        client: DeepSeekClient = .shared
     ) {
         self.configurationStore = configurationStore
-
-        if let urlSession {
-            self.urlSession = urlSession
-        } else {
-            let configuration = URLSessionConfiguration.ephemeral
-            configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-            configuration.timeoutIntervalForRequest = 60
-            configuration.timeoutIntervalForResource = 90
-            configuration.urlCache = nil
-            self.urlSession = URLSession(configuration: configuration)
-        }
+        self.client = client
     }
 
     func loadConfigurationState() -> EmailAssistantConfigurationState {
@@ -129,142 +89,260 @@ actor EmailAssistantService {
         )
     }
 
-    func generateReply(
+    func generateReplyStream(
         context: EmailAssistantContext,
         conversationHistory: [EmailAssistantThreadMessage],
-        latestUserMessage: String
-    ) async throws -> String {
+        latestUserMessage: String,
+        onDelta: @escaping @Sendable (String) -> Void
+    ) async throws -> EmailAssistantStructuredOutput {
         guard context.hasUsableContent || !conversationHistory.isEmpty else {
             throw EmailAssistantError.emptyContext
         }
 
         let configuration = configurationStore.loadConfiguration()
-        let apiKey = configuration.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !apiKey.isEmpty else {
+        guard configuration.hasAPIKey else {
             throw EmailAssistantError.missingAPIKey
         }
 
-        let systemPrompt = Self.systemPrompt(for: context)
-        let trimmedHistory = Array(conversationHistory.suffix(10))
-        let messages = [DeepSeekChatCompletionRequest.Message(role: "system", content: systemPrompt)]
-            + trimmedHistory.map {
-                DeepSeekChatCompletionRequest.Message(role: $0.role.rawValue, content: $0.content)
-            }
-            + [DeepSeekChatCompletionRequest.Message(role: "user", content: latestUserMessage)]
-
-        let payload = DeepSeekChatCompletionRequest(
-            model: configuration.resolvedModel,
-            messages: messages,
-            temperature: 0.35,
-            stream: false
+        let messages = buildMessages(
+            context: context,
+            conversationHistory: conversationHistory,
+            latestUserMessage: latestUserMessage
         )
 
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try JSONEncoder().encode(payload)
-
-        let data: Data
-        let response: URLResponse
-
         do {
-            (data, response) = try await urlSession.data(for: request)
+            let content = try await client.streamText(
+                configuration: configuration.deepSeekConfiguration,
+                messages: messages,
+                temperature: 0.35,
+                maxTokens: 2200,
+                onDelta: onDelta
+            )
+            return try parseStructuredOutput(from: content)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as DeepSeekClientError {
+            throw mapDeepSeekError(error)
+        } catch let error as EmailAssistantError {
+            throw error
         } catch {
             throw EmailAssistantError.networkError(error.localizedDescription)
         }
+    }
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw EmailAssistantError.invalidResponse
+    private func buildMessages(
+        context: EmailAssistantContext,
+        conversationHistory: [EmailAssistantThreadMessage],
+        latestUserMessage: String
+    ) -> [DeepSeekChatMessage] {
+        let systemMessage = DeepSeekChatMessage(
+            role: "system",
+            content: Self.systemPrompt(for: context)
+        )
+
+        let historyMessages = Array(
+            conversationHistory
+                .filter { !$0.isPartial }
+                .suffix(10)
+        )
+        .map { message in
+            DeepSeekChatMessage(role: message.role.rawValue, content: message.transcriptContent)
         }
 
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            throw Self.serverError(from: data, statusCode: httpResponse.statusCode)
-        }
-
-        let completion = try JSONDecoder().decode(DeepSeekChatCompletionResponse.self, from: data)
-        guard let content = completion.choices.first?.message.content?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !content.isEmpty else {
-            throw EmailAssistantError.emptyResponse
-        }
-
-        return content
+        let latestMessage = DeepSeekChatMessage(role: "user", content: latestUserMessage)
+        return [systemMessage] + historyMessages + [latestMessage]
     }
 
     private static func systemPrompt(for context: EmailAssistantContext) -> String {
         """
         You are an email writing assistant inside an iOS app for Chinese-speaking users.
-        Help the user write concise, practical, natural English emails.
-        Prefer short paragraphs and direct wording.
-        Preserve facts, names, dates, numbers, commitments, and intent from the provided context.
-        If the user shared a received email, infer the safest reasonable reply and keep assumptions minimal.
-        When revising follow-up turns, update the latest draft based on the conversation history.
-        Unless the user explicitly asks for explanation, alternatives, or analysis, return only the final English email content that is ready to send.
-        Avoid markdown fences.
+        Your job is to write practical English emails with high usability.
+
+        Follow these rules strictly:
+        1. Preserve facts, names, dates, commitments, numbers, and tone intent from the provided context.
+        2. Write in English for the email itself.
+        3. Keep the email aligned with this scenario: \(context.scenario.promptDescription).
+        4. Use this tone: \(context.tone.promptDescription).
+        5. Apply this length preference: \(context.length.promptDescription).
+        6. If sender preferences are provided, naturally reflect them in the closing or signature.
+        7. Generate one primary email and exactly two alternatives with visibly different tones or strategies.
+        8. Do not use markdown code fences.
+        9. Output only in the exact plain-text block format below.
+
+        Required output format:
+        [PRIMARY_SUBJECT]
+        <english subject line>
+        [PRIMARY_BODY]
+        <english email body>
+        [EXPLANATION]
+        <1-2 short Chinese sentences explaining why this draft works>
+        [ALTERNATIVE_1_TITLE]
+        <short Chinese label such as 更正式 / 更直接 / 更友好>
+        [ALTERNATIVE_1_SUBJECT]
+        <english subject line>
+        [ALTERNATIVE_1_BODY]
+        <english email body>
+        [ALTERNATIVE_2_TITLE]
+        <short Chinese label>
+        [ALTERNATIVE_2_SUBJECT]
+        <english subject line>
+        [ALTERNATIVE_2_BODY]
+        <english email body>
 
         Current context:
         \(context.serializedSummary)
         """
     }
 
-    private static func serverError(from data: Data, statusCode: Int) -> EmailAssistantError {
-        if let envelope = try? JSONDecoder().decode(DeepSeekErrorEnvelope.self, from: data) {
-            if let message = envelope.error?.message?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !message.isEmpty {
-                return .serverError(message)
+    private func parseStructuredOutput(from rawText: String) throws -> EmailAssistantStructuredOutput {
+        let sections = parseSections(from: rawText)
+
+        let primarySubject = normalizedSection(sections["PRIMARY_SUBJECT"])
+        let primaryBody = normalizedSection(sections["PRIMARY_BODY"])
+        let explanation = normalizedSection(sections["EXPLANATION"])
+
+        if primarySubject.isEmpty && primaryBody.isEmpty {
+            let fallback = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !fallback.isEmpty else {
+                throw EmailAssistantError.emptyResponse
             }
 
-            if let message = envelope.message?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !message.isEmpty {
-                return .serverError(message)
-            }
+            return EmailAssistantStructuredOutput(
+                subject: inferredSubject(from: fallback),
+                body: fallback,
+                explanation: "模型没有完全按约定格式返回，这里保留了原始结果供你继续修改。",
+                alternatives: []
+            )
         }
 
-        if let message = String(data: data, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-           !message.isEmpty {
-            return .serverError("DeepSeek 请求失败（\(statusCode)）：\(message)")
+        let alternatives = [
+            makeAlternative(
+                title: normalizedSection(sections["ALTERNATIVE_1_TITLE"]),
+                subject: normalizedSection(sections["ALTERNATIVE_1_SUBJECT"]),
+                body: normalizedSection(sections["ALTERNATIVE_1_BODY"]),
+                fallbackTitle: "更正式"
+            ),
+            makeAlternative(
+                title: normalizedSection(sections["ALTERNATIVE_2_TITLE"]),
+                subject: normalizedSection(sections["ALTERNATIVE_2_SUBJECT"]),
+                body: normalizedSection(sections["ALTERNATIVE_2_BODY"]),
+                fallbackTitle: "更直接"
+            )
+        ]
+        .compactMap { $0 }
+
+        return EmailAssistantStructuredOutput(
+            subject: primarySubject.isEmpty ? inferredSubject(from: primaryBody) : primarySubject,
+            body: primaryBody,
+            explanation: explanation,
+            alternatives: alternatives
+        )
+    }
+
+    private func parseSections(from rawText: String) -> [String: String] {
+        let markers = [
+            "PRIMARY_SUBJECT",
+            "PRIMARY_BODY",
+            "EXPLANATION",
+            "ALTERNATIVE_1_TITLE",
+            "ALTERNATIVE_1_SUBJECT",
+            "ALTERNATIVE_1_BODY",
+            "ALTERNATIVE_2_TITLE",
+            "ALTERNATIVE_2_SUBJECT",
+            "ALTERNATIVE_2_BODY"
+        ]
+
+        var result: [String: String] = [:]
+        for (index, marker) in markers.enumerated() {
+            let startToken = "[\(marker)]"
+            guard let startRange = rawText.range(of: startToken) else { continue }
+
+            let contentStart = startRange.upperBound
+            let endIndex: String.Index = {
+                for nextMarker in markers.dropFirst(index + 1) {
+                    if let nextRange = rawText.range(of: "[\(nextMarker)]", range: contentStart..<rawText.endIndex) {
+                        return nextRange.lowerBound
+                    }
+                }
+                return rawText.endIndex
+            }()
+
+            let content = String(rawText[contentStart..<endIndex])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            result[marker] = content
         }
 
-        return .serverError("DeepSeek 请求失败，状态码 \(statusCode)。")
+        return result
+    }
+
+    private func normalizedSection(_ value: String?) -> String {
+        value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    private func inferredSubject(from text: String) -> String {
+        let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let firstLine = cleaned
+            .split(separator: "\n")
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty }
+        return firstLine ?? ""
+    }
+
+    private func makeAlternative(
+        title: String,
+        subject: String,
+        body: String,
+        fallbackTitle: String
+    ) -> EmailAssistantDraftVariant? {
+        guard !subject.isEmpty || !body.isEmpty else { return nil }
+        return EmailAssistantDraftVariant(
+            title: title.isEmpty ? fallbackTitle : title,
+            subject: subject.isEmpty ? inferredSubject(from: body) : subject,
+            body: body
+        )
+    }
+
+    private func mapDeepSeekError(_ error: DeepSeekClientError) -> EmailAssistantError {
+        switch error {
+        case .missingAPIKey:
+            return .missingAPIKey
+        case .invalidResponse:
+            return .invalidResponse
+        case .emptyResponse:
+            return .emptyResponse
+        case let .serverError(message):
+            return .serverError(message)
+        case let .networkError(message):
+            return .networkError(message)
+        }
     }
 }
 
 enum EmailAssistantOCRService {
-    static func extractText(from imageData: Data) async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
-            let request = VNRecognizeTextRequest { request, error in
-                if let error {
-                    continuation.resume(throwing: EmailAssistantError.ocrFailed(error.localizedDescription))
-                    return
+    static func extractText(from imageData: Data) async throws -> EmailAssistantOCRResult {
+        do {
+            let result = try await ImageOCRService.extractText(
+                from: imageData,
+                recognitionLanguages: ["en-US", "zh-Hans", "zh-Hant"]
+            )
+
+            return EmailAssistantOCRResult(
+                fullText: result.fullText,
+                segments: result.lines.map { line in
+                    EmailAssistantOCRSegment(text: line.text, isSelected: true)
                 }
-
-                let observations = request.results as? [VNRecognizedTextObservation] ?? []
-                let text = observations
-                    .compactMap { $0.topCandidates(1).first?.string }
-                    .joined(separator: "\n")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-
-                guard !text.isEmpty else {
-                    continuation.resume(throwing: EmailAssistantError.ocrFailed("没有识别到可用文字"))
-                    return
-                }
-
-                continuation.resume(returning: text)
+            )
+        } catch let error as ImageTranslateError {
+            switch error {
+            case .noTextRecognized:
+                throw EmailAssistantError.ocrFailed("没有识别到可用文字")
+            case let .ocrFailure(message):
+                throw EmailAssistantError.ocrFailed(message)
+            default:
+                throw EmailAssistantError.ocrFailed(error.localizedDescription)
             }
-
-            request.recognitionLevel = .accurate
-            request.usesLanguageCorrection = true
-            request.recognitionLanguages = ["en-US", "zh-Hans"]
-
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    let handler = VNImageRequestHandler(data: imageData, options: [:])
-                    try handler.perform([request])
-                } catch {
-                    continuation.resume(throwing: EmailAssistantError.ocrFailed(error.localizedDescription))
-                }
-            }
+        } catch {
+            throw EmailAssistantError.ocrFailed(error.localizedDescription)
         }
     }
 }

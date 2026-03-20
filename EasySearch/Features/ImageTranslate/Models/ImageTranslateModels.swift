@@ -1,6 +1,6 @@
 import Foundation
 
-enum ImageTranslateInputSource: String, Equatable {
+enum ImageTranslateInputSource: String, Equatable, Codable {
     case camera
     case photoLibrary
     case clipboard
@@ -79,7 +79,7 @@ enum ImageTranslateConversationRole: String, Codable {
     case assistant
 }
 
-struct ImageTranslateConversationMessage: Identifiable, Hashable {
+struct ImageTranslateConversationMessage: Identifiable, Hashable, Codable, Equatable {
     let id: UUID
     let role: ImageTranslateConversationRole
     let text: String
@@ -118,6 +118,13 @@ struct ImageTranslateConfiguration: Equatable {
     var resolvedModel: String {
         let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "deepseek-chat" : trimmed
+    }
+
+    var deepSeekConfiguration: DeepSeekClientConfiguration {
+        DeepSeekClientConfiguration(
+            apiKey: apiKey,
+            model: resolvedModel
+        )
     }
 }
 
