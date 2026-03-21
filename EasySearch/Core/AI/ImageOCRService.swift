@@ -20,6 +20,10 @@ struct OCRRecognitionResult: Hashable {
 }
 
 enum ImageOCRService {
+    static func normalizedDisplayImage(_ image: UIImage) -> UIImage {
+        uprightImage(from: image)
+    }
+
     static func extractText(
         from image: UIImage,
         recognitionLanguages: [String]
@@ -63,8 +67,7 @@ enum ImageOCRService {
     }
 
     static func cropImage(_ image: UIImage, normalizedRect: CGRect) -> UIImage? {
-        let normalizedImage = uprightImage(from: image)
-        guard let cgImage = normalizedImage.cgImage else { return nil }
+        let normalizedImage = normalizedDisplayImage(image)
 
         let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
         let boundedRect = normalizedRect.standardized.intersection(unitRect)
@@ -75,26 +78,34 @@ enum ImageOCRService {
             return nil
         }
 
-        let pixelWidth = CGFloat(cgImage.width)
-        let pixelHeight = CGFloat(cgImage.height)
-        let imageBounds = CGRect(x: 0, y: 0, width: pixelWidth, height: pixelHeight)
+        let imageBounds = CGRect(origin: .zero, size: normalizedImage.size)
         let cropRect = CGRect(
-            x: boundedRect.minX * pixelWidth,
-            y: boundedRect.minY * pixelHeight,
-            width: boundedRect.width * pixelWidth,
-            height: boundedRect.height * pixelHeight
+            x: boundedRect.minX * imageBounds.width,
+            y: boundedRect.minY * imageBounds.height,
+            width: boundedRect.width * imageBounds.width,
+            height: boundedRect.height * imageBounds.height
         )
         .integral
         .intersection(imageBounds)
 
         guard !cropRect.isNull,
               cropRect.width > 1,
-              cropRect.height > 1,
-              let croppedCGImage = cgImage.cropping(to: cropRect) else {
+              cropRect.height > 1 else {
             return nil
         }
 
-        return UIImage(cgImage: croppedCGImage, scale: normalizedImage.scale, orientation: .up)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = normalizedImage.scale
+        format.opaque = false
+
+        return UIGraphicsImageRenderer(size: cropRect.size, format: format).image { _ in
+            normalizedImage.draw(
+                in: CGRect(
+                    origin: CGPoint(x: -cropRect.minX, y: -cropRect.minY),
+                    size: imageBounds.size
+                )
+            )
+        }
     }
 
     static func storedImageData(from image: UIImage) -> Data? {
@@ -187,9 +198,37 @@ enum ImageOCRService {
     private static func uprightImage(from image: UIImage) -> UIImage {
         guard image.imageOrientation != .up else { return image }
 
-        let renderer = UIGraphicsImageRenderer(size: image.size)
+        let targetSize = orientedSize(for: image)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = image.scale
+        format.opaque = false
+
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
         return renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: image.size))
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+    }
+
+    private static func orientedSize(for image: UIImage) -> CGSize {
+        if let cgImage = image.cgImage {
+            let baseSize = CGSize(
+                width: CGFloat(cgImage.width) / image.scale,
+                height: CGFloat(cgImage.height) / image.scale
+            )
+
+            switch image.imageOrientation {
+            case .left, .leftMirrored, .right, .rightMirrored:
+                return CGSize(width: baseSize.height, height: baseSize.width)
+            default:
+                return baseSize
+            }
+        }
+
+        switch image.imageOrientation {
+        case .left, .leftMirrored, .right, .rightMirrored:
+            return CGSize(width: image.size.height, height: image.size.width)
+        default:
+            return image.size
         }
     }
 

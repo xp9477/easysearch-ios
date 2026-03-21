@@ -47,30 +47,33 @@ private struct QingLongCronWorkspace: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                QingLongSearchField(text: $viewModel.cronSearchText, placeholder: "搜索任务")
+            HStack(alignment: .center, spacing: 10) {
+                Text("任务列表")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.primary)
 
                 QingLongTag(
                     text: "\(viewModel.filteredCrons.count)/\(viewModel.crons.count)",
                     color: Color.secondary
                 )
 
+                Spacer(minLength: 0)
+
                 Button(action: openSharedEnvironmentsAction) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "shippingbox")
-                        Text(sharedButtonTitle)
-                    }
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.blue)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(Color.blue.opacity(0.12))
-                    )
+                    Label(sharedButtonTitle, systemImage: "shippingbox")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.blue)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.blue.opacity(0.12))
+                        )
                 }
                 .buttonStyle(.plain)
             }
+
+            QingLongSearchField(text: $viewModel.cronSearchText, placeholder: "搜索任务")
 
             QingLongFilterBar(
                 selection: $viewModel.cronFilter,
@@ -89,8 +92,8 @@ private struct QingLongCronWorkspace: View {
                     title: "无匹配结果"
                 )
             } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(viewModel.filteredCrons.enumerated()), id: \.element.id) { index, cron in
+                LazyVStack(spacing: 8) {
+                    ForEach(viewModel.filteredCrons) { cron in
                         QingLongCronRow(
                             cron: cron,
                             linkedEnvironment: viewModel.linkedEnvironment(for: cron),
@@ -110,17 +113,8 @@ private struct QingLongCronWorkspace: View {
                                 logAction(cron)
                             }
                         )
-
-                        if index < viewModel.filteredCrons.count - 1 {
-                            Divider()
-                                .padding(.leading, 12)
-                        }
                     }
                 }
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Color(.tertiarySystemFill))
-                )
             }
         }
     }
@@ -143,33 +137,53 @@ private struct QingLongCronRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 10) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(cron.primaryTitle)
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
+            HStack(alignment: .center, spacing: 8) {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 7, height: 7)
 
-                    if !cron.secondaryTitle.isEmpty {
-                        Text(cron.secondaryTitle)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
+                    Text(cron.statusText)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(statusColor)
                 }
 
-                Spacer(minLength: 12)
+                if cron.isPinned {
+                    QingLongTag(text: "Pinned", color: .teal)
+                }
+
+                Spacer(minLength: 0)
+
+                if let lastExecutedAt = cron.lastExecutedAt {
+                    Label(relativeDateText(lastExecutedAt), systemImage: "clock")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("未执行")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
 
                 if isPending {
                     ProgressView()
-                        .scaleEffect(0.85)
+                        .scaleEffect(0.8)
                 }
+            }
+
+            Text(cron.primaryTitle)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+
+            if !cron.secondaryTitle.isEmpty {
+                Text(cron.secondaryTitle)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    QingLongTag(text: cron.statusText, color: statusColor)
-
                     if !cron.schedule.isEmpty {
                         QingLongTag(text: cron.schedule, color: .blue)
                     }
@@ -182,17 +196,27 @@ private struct QingLongCronRow: View {
                         QingLongTag(text: label, color: .purple)
                     }
 
-                    if cron.isPinned {
-                        QingLongTag(text: "Pinned", color: .teal)
-                    }
                 }
             }
 
-            Text(cron.command.isEmpty ? "未返回命令内容" : cron.command)
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .lineLimit(1)
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "terminal")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+
+                Text(cron.command.isEmpty ? "未返回命令内容" : cron.command)
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.white.opacity(0.55))
+            )
 
             if let linkedEnvironment {
                 QingLongLinkedEnvironmentSummary(
@@ -202,24 +226,11 @@ private struct QingLongCronRow: View {
             }
 
             HStack(spacing: 10) {
-                if let lastExecutedAt = cron.lastExecutedAt {
-                    Label(relativeDateText(lastExecutedAt), systemImage: "clock")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("未执行")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 0)
-
                 Button(action: primaryAction) {
-                    Image(systemName: cron.isRunning ? "stop.fill" : "play.fill")
+                    Label(cron.isRunning ? "停止" : "运行", systemImage: cron.isRunning ? "stop.fill" : "play.fill")
                         .font(.system(size: 12, weight: .bold))
-                        .frame(width: 14, height: 14)
                         .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 7)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(cron.isRunning ? .orange : .green)
@@ -238,11 +249,13 @@ private struct QingLongCronRow: View {
                     }
                     .font(.system(size: 12, weight: .bold))
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 7)
                 }
                 .buttonStyle(.bordered)
                 .tint(.green)
                 .disabled(isPending || !cron.hasLog || isLogLoading)
+
+                Spacer(minLength: 0)
 
                 Menu {
                     Button(action: toggleEnabledAction) {
@@ -259,8 +272,15 @@ private struct QingLongCronRow: View {
                 .disabled(isPending)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 11)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(.tertiarySystemFill))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(statusColor.opacity(0.16), lineWidth: 1)
+        )
     }
 
     private var statusColor: Color {
@@ -285,39 +305,47 @@ private struct QingLongLinkedEnvironmentSummary: View {
     let editAction: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 6) {
-                    QingLongTag(text: linkedEnvironment.scriptKey, color: .blue)
-                    QingLongTag(text: statusText, color: statusColor)
+        HStack(alignment: .center, spacing: 8) {
+            Image(systemName: "shippingbox")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.blue)
 
-                    if let primaryEnvironment = linkedEnvironment.primaryEnvironment, !primaryEnvironment.isEnabled {
-                        QingLongTag(text: "已禁用", color: .orange)
-                    }
+            Text(linkedEnvironment.scriptKey)
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .foregroundStyle(.primary)
 
-                    if linkedEnvironment.auxiliaryCount > 0 {
-                        QingLongTag(text: "+\(linkedEnvironment.auxiliaryCount)", color: .purple)
-                    }
-                }
+            QingLongTag(text: statusText, color: statusColor)
 
-                Text(valuePreview)
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .lineLimit(1)
+            if let primaryEnvironment = linkedEnvironment.primaryEnvironment, !primaryEnvironment.isEnabled {
+                QingLongTag(text: "已禁用", color: .orange)
             }
 
-            Spacer(minLength: 12)
+            if linkedEnvironment.auxiliaryCount > 0 {
+                QingLongTag(text: "+\(linkedEnvironment.auxiliaryCount)", color: .purple)
+            }
+
+            Text(valuePreview)
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
 
             Button(action: editAction) {
-                Text(linkedEnvironment.primaryEnvironment == nil ? "新建变量" : "编辑变量")
-                    .font(.system(size: 11, weight: .bold))
-                    .padding(.horizontal, 10)
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 12, weight: .bold))
+                    .padding(.horizontal, 8)
                     .padding(.vertical, 6)
             }
             .buttonStyle(.bordered)
             .tint(.blue)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(0.58))
+        )
     }
 
     private var statusText: String {

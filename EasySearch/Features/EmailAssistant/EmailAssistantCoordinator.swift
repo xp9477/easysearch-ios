@@ -16,7 +16,7 @@ enum EmailAssistantError: LocalizedError {
         case .missingAPIKey:
             return "请先到设置页配置 DeepSeek API Key。"
         case .emptyContext:
-            return "请先输入草稿、来信或要求。"
+            return "请先输入草稿、来信，或在下方写要求。"
         case .emptyResponse:
             return "DeepSeek 没有返回可用内容，请稍后再试。"
         case .invalidResponse:
@@ -122,13 +122,14 @@ actor EmailAssistantService {
         Follow these rules strictly:
         1. Preserve facts, names, dates, commitments, numbers, and tone intent from the provided context.
         2. Write in English for the email itself.
-        3. Keep the email aligned with this scenario: \(context.scenario.promptDescription).
-        4. Use this tone: \(context.tone.promptDescription).
-        5. Apply this length preference: \(context.length.promptDescription).
-        6. Generate only one final email draft.
-        7. Do not add explanations, options, or alternative versions.
-        8. Do not use markdown code fences.
-        9. Output only in the exact plain-text block format below.
+        3. Follow this task rule exactly: \(context.modePromptInstruction)
+        4. Keep the email aligned with this scenario: \(context.scenario.promptDescription).
+        5. Use this tone: \(context.tone.promptDescription).
+        6. Apply this length preference: \(context.length.promptDescription).
+        7. Generate only one final email draft.
+        8. Do not add explanations, options, or alternative versions.
+        9. Do not use markdown code fences.
+        10. Output only in the exact plain-text block format below.
 
         Required output format:
         [SUBJECT]

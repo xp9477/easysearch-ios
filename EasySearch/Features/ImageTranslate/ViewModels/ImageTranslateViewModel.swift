@@ -85,6 +85,12 @@ final class ImageTranslateViewModel: ObservableObject {
             && !isTranslating
     }
 
+    var canRecognizeSelectedImage: Bool {
+        selectedImage != nil
+            && !isRecognizingText
+            && !isTranslating
+    }
+
     var canSendFollowUp: Bool {
         !composerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !latestTranslation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -132,14 +138,16 @@ final class ImageTranslateViewModel: ObservableObject {
     func prepare() async {
         guard !hasPrepared else {
             await reloadConfiguration(applyDefaultTargetLanguage: false)
-            history = store.loadHistory()
+            history = []
+            store.saveHistory([])
             return
         }
 
         hasPrepared = true
         await reloadConfiguration(applyDefaultTargetLanguage: true)
         restorePersistedStateIfNeeded()
-        history = store.loadHistory()
+        history = []
+        store.saveHistory([])
     }
 
     func updateTargetLanguage(_ targetLanguage: ImageTranslateTargetLanguage) async {
@@ -165,8 +173,7 @@ final class ImageTranslateViewModel: ObservableObject {
     func importImage(_ image: UIImage, from source: ImageTranslateInputSource) async {
         applySessionReset(newSessionID: true)
         await assignImage(image, source: source)
-        setNotice(tone: .neutral, message: "已载入\(source.title)图片，正在识别文字。")
-        await recognizeSelectedImage(autoTranslate: hasConfiguredAPIKey)
+        setNotice(tone: .neutral, message: "已载入\(source.title)图片，可先裁剪或直接识别。")
     }
 
     func importClipboardImage() async {
@@ -225,9 +232,8 @@ final class ImageTranslateViewModel: ObservableObject {
                 sourceText: sourceText,
                 targetLanguage: targetLanguage
             )
-            applyTranslationResult(result, resetConversation: true)
+            applyTranslationResult(result)
             lastTranslatedSourceText = sourceText
-            upsertHistorySnapshot()
             let message = result.detectedSourceLanguage.map { "已完成 \($0) -> \(targetLanguage.title) 翻译。" }
                 ?? "已完成 AI 翻译。"
             setNotice(tone: .success, message: message)
@@ -261,9 +267,8 @@ final class ImageTranslateViewModel: ObservableObject {
                 userPrompt: prompt,
                 targetLanguage: targetLanguage
             )
-            applyTranslationResult(result, resetConversation: false)
+            applyTranslationResult(result)
             lastTranslatedSourceText = extractedText.trimmingCharacters(in: .whitespacesAndNewlines)
-            upsertHistorySnapshot()
             setNotice(tone: .success, message: "已更新翻译和讨论结果。")
         } catch {
             if conversation.last?.id == userMessage.id {
@@ -351,18 +356,19 @@ final class ImageTranslateViewModel: ObservableObject {
         latestTranslation = state.latestTranslation
         translationNotes = state.translationNotes
         detectedSourceLanguage = state.detectedSourceLanguage
-        conversation = state.conversation
-        suggestedReplies = state.suggestedReplies
-        composerText = state.composerText
+        conversation = []
+        suggestedReplies = []
+        composerText = ""
         lastTranslatedSourceText = state.lastTranslatedSourceText
         isRestoringState = false
     }
 
     private func assignImage(_ image: UIImage, source: ImageTranslateInputSource?) async {
-        selectedImage = image
+        let normalizedImage = ImageOCRService.normalizedDisplayImage(image)
+        selectedImage = normalizedImage
         imageSource = source
-        currentImageData = await service.storedImageData(from: image)
-        currentPreviewImageData = await service.previewImageData(from: image)
+        currentImageData = await service.storedImageData(from: normalizedImage)
+        currentPreviewImageData = await service.previewImageData(from: normalizedImage)
         persistCurrentStateIfNeeded()
     }
 
@@ -393,43 +399,17 @@ final class ImageTranslateViewModel: ObservableObject {
         }
     }
 
-    private func applyTranslationResult(
-        _ result: ImageTranslateResult,
-        resetConversation: Bool
-    ) {
+    private func applyTranslationResult(_ result: ImageTranslateResult) {
         latestTranslation = result.translation
         translationNotes = result.notes
-        suggestedReplies = result.suggestedReplies
+        suggestedReplies = []
 
         if let detectedSourceLanguage = result.detectedSourceLanguage,
            !detectedSourceLanguage.isEmpty {
             self.detectedSourceLanguage = detectedSourceLanguage
         }
-
-        let assistantText = normalizedAssistantReply(from: result, resetConversation: resetConversation)
-        let assistantMessage = ImageTranslateConversationMessage(role: .assistant, text: assistantText)
-
-        if resetConversation {
-            conversation = [assistantMessage]
-        } else {
-            conversation.append(assistantMessage)
-        }
-    }
-
-    private func normalizedAssistantReply(
-        from result: ImageTranslateResult,
-        resetConversation: Bool
-    ) -> String {
-        let reply = result.reply.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !reply.isEmpty {
-            return reply
-        }
-
-        if resetConversation {
-            return "首版翻译已经生成，如需更口语、更正式、解释术语或保留原文表达，继续说即可。"
-        }
-
-        return "已按你的要求更新翻译。"
+        conversation = []
+        composerText = ""
     }
 
     private func applySessionReset(newSessionID: Bool) {
@@ -517,8 +497,6 @@ final class ImageTranslateViewModel: ObservableObject {
         selectedImage != nil
             || !extractedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || !latestTranslation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || !conversation.isEmpty
-            || !composerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private func makePersistedState() -> ImageTranslatePersistedState {
@@ -532,9 +510,9 @@ final class ImageTranslateViewModel: ObservableObject {
             latestTranslation: latestTranslation,
             translationNotes: translationNotes,
             detectedSourceLanguage: detectedSourceLanguage,
-            conversation: conversation,
-            suggestedReplies: suggestedReplies,
-            composerText: composerText,
+            conversation: [],
+            suggestedReplies: [],
+            composerText: "",
             lastTranslatedSourceText: lastTranslatedSourceText
         )
     }

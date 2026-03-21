@@ -29,7 +29,7 @@ enum EmailAssistantMode: String, CaseIterable, Identifiable, Codable {
         case .polish:
             return "请先给我一版可直接发送的简洁英文邮件。"
         case .reply:
-            return "请基于当前上下文生成一版英文回复邮件。"
+            return "请基于来信内容和我的回复要点，生成一版英文回复邮件。"
         }
     }
 }
@@ -210,28 +210,57 @@ struct EmailAssistantContext: Hashable {
     let originalDraft: String
     let receivedEmailText: String
 
+    private var trimmedDraft: String {
+        originalDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var trimmedReceivedEmail: String {
+        receivedEmailText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var hasUsableContent: Bool {
-        [
-            originalDraft,
-            receivedEmailText
-        ].contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        switch mode {
+        case .polish:
+            return !trimmedDraft.isEmpty
+        case .reply:
+            return !trimmedReceivedEmail.isEmpty || !trimmedDraft.isEmpty
+        }
+    }
+
+    var modePromptInstruction: String {
+        switch mode {
+        case .polish:
+            return "This is a new outgoing email. Treat the draft as the email the user wants to send."
+        case .reply:
+            return "This is a reply task. The received email is the incoming message that must be replied to. The draft is only the user's intended reply points or partial reply draft. Never treat the draft as the incoming email."
+        }
     }
 
     var serializedSummary: String {
-        [
+        let commonLines = [
             "当前任务模式：\(mode.title)",
             "邮件场景：\(scenario.title)",
             "语气偏好：\(tone.title)",
-            "长度偏好：\(length.title)",
-            contextLine(label: "原始草稿", value: originalDraft),
-            contextLine(label: "收到的邮件内容", value: receivedEmailText)
+            "长度偏好：\(length.title)"
         ]
-        .joined(separator: "\n\n")
+
+        let contentLines: [String] = switch mode {
+        case .polish:
+            [
+                contextLine(label: "你要发送的新邮件草稿或要点", value: trimmedDraft)
+            ]
+        case .reply:
+            [
+                contextLine(label: "收到的来信（这是需要被回复的邮件）", value: trimmedReceivedEmail),
+                contextLine(label: "你的回复草稿或回复要点（这是你想发出的内容，不是来信）", value: trimmedDraft)
+            ]
+        }
+
+        return (commonLines + contentLines).joined(separator: "\n\n")
     }
 
     private func contextLine(label: String, value: String) -> String {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return "\(label)：\n" + (trimmed.isEmpty ? "无" : trimmed)
+        "\(label)：\n" + (value.isEmpty ? "无" : value)
     }
 }
 

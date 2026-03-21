@@ -14,9 +14,6 @@ public struct EmailAssistantView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                if let notice = viewModel.notice {
-                    noticeBanner(notice, onDarkBackground: false)
-                }
                 contextCard
                 conversationCard
             }
@@ -49,32 +46,9 @@ public struct EmailAssistantView: View {
 
     private var contextCard: some View {
         VStack(alignment: .leading, spacing: 18) {
-            sectionTitle("输入")
-
-            VStack(spacing: 12) {
-                modeSelector
-
-                HStack(spacing: 12) {
-                    Picker("语气", selection: $viewModel.tone) {
-                        ForEach(EmailAssistantTone.allCases) { tone in
-                            Text(tone.title).tag(tone)
-                        }
-                    }
-
-                    Picker("长度", selection: $viewModel.length) {
-                        ForEach(EmailAssistantLength.allCases) { length in
-                            Text(length.title).tag(length)
-                        }
-                    }
-                }
-
-                Picker("场景", selection: $viewModel.scenario) {
-                    ForEach(EmailAssistantScenario.allCases) { scenario in
-                        Text(scenario.title).tag(scenario)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
+            sectionTitle("写邮件")
+            modeSelector
+            preferenceStrip
 
             VStack(spacing: 14) {
                 if viewModel.mode == .reply {
@@ -82,21 +56,20 @@ public struct EmailAssistantView: View {
                         title: "来信",
                         placeholder: "粘贴收到的邮件",
                         text: $viewModel.receivedEmailText,
-                        minHeight: 150
+                        minHeight: 156,
+                        accessory: AnyView(ocrInlineButton)
                     )
-
-                    ocrCard
                 }
 
                 TextEditorCard(
                     title: "草稿",
                     placeholder: viewModel.mode == .reply ? "写回复要点或现有草稿" : "写邮件目标、关键信息或现有草稿",
                     text: $viewModel.originalDraft,
-                    minHeight: 112
+                    minHeight: viewModel.mode == .reply ? 112 : 148
                 )
             }
         }
-        .padding(24)
+        .padding(20)
         .cardStyle()
     }
 
@@ -120,11 +93,11 @@ public struct EmailAssistantView: View {
                             .lineLimit(2)
                             .frame(maxWidth: .infinity)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 78)
-                    .padding(.horizontal, 10)
+                    .frame(maxWidth: .infinity, minHeight: 72)
+                    .padding(.horizontal, 12)
                     .background(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(viewModel.mode == mode ? accentColor.opacity(0.12) : Color(.tertiarySystemFill))
+                            .fill(viewModel.mode == mode ? accentColor.opacity(0.14) : Color(.tertiarySystemFill))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -136,35 +109,87 @@ public struct EmailAssistantView: View {
         }
     }
 
-    private var ocrCard: some View {
-        HStack(spacing: 10) {
-            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                Label("导入截图", systemImage: "photo.on.rectangle")
-                    .font(.system(size: 14, weight: .semibold))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(accentColor.opacity(0.12))
-                    )
+    private var preferenceStrip: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                toneMenu
+                lengthMenu
             }
-            .buttonStyle(.plain)
+            scenarioMenu
+        }
+    }
 
-            if viewModel.isRecognizingScreenshot {
-                HStack(spacing: 8) {
-                    ProgressView()
-                    Text("识别中")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.secondary)
+    private var toneMenu: some View {
+        Menu {
+            ForEach(EmailAssistantTone.allCases) { tone in
+                Button(tone.title) {
+                    viewModel.tone = tone
                 }
             }
+        } label: {
+            controlPill(title: "语气", value: viewModel.tone.title, systemImage: "quote.bubble")
         }
+        .buttonStyle(.plain)
+    }
+
+    private var lengthMenu: some View {
+        Menu {
+            ForEach(EmailAssistantLength.allCases) { length in
+                Button(length.title) {
+                    viewModel.length = length
+                }
+            }
+        } label: {
+            controlPill(title: "长度", value: viewModel.length.title, systemImage: "ruler")
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var scenarioMenu: some View {
+        Menu {
+            ForEach(EmailAssistantScenario.allCases) { scenario in
+                Button(scenario.title) {
+                    viewModel.scenario = scenario
+                }
+            }
+        } label: {
+            controlPill(title: "场景", value: viewModel.scenario.title, systemImage: "tag")
+        }
+        .buttonStyle(.plain)
+    }
+
+    @MainActor
+    private var ocrInlineButton: some View {
+        let isRecognizing = viewModel.isRecognizingScreenshot
+
+        return PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+            HStack(spacing: 6) {
+                if isRecognizing {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "photo.badge.plus")
+                }
+
+                Text(isRecognizing ? "识别中" : "截图")
+            }
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(accentColor)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(accentColor.opacity(0.12))
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.isRecognizingScreenshot)
     }
 
     private var conversationCard: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 12) {
-                sectionTitle("结果")
+                sectionTitle("对话")
 
                 Spacer(minLength: 12)
 
@@ -175,12 +200,15 @@ public struct EmailAssistantView: View {
                         Label("清空对话", systemImage: "trash")
                             .font(.system(size: 13, weight: .semibold))
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red.opacity(0.82))
                 }
             }
 
-            if !viewModel.completedConversation.isEmpty {
-                VStack(spacing: 14) {
+            if viewModel.completedConversation.isEmpty {
+                emptyConversationState
+            } else {
+                VStack(spacing: 12) {
                     ForEach(viewModel.completedConversation) { message in
                         messageRow(message)
                     }
@@ -198,6 +226,11 @@ public struct EmailAssistantView: View {
                     )
 
                 HStack(spacing: 12) {
+                    Button("重置全部") {
+                        viewModel.resetAll()
+                    }
+                    .buttonStyle(.bordered)
+
                     Button {
                         Task {
                             await viewModel.sendCurrentMessage()
@@ -217,63 +250,32 @@ public struct EmailAssistantView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(accentColor)
                     .disabled(!viewModel.canSend)
+                }
 
-                    Button("重置全部") {
-                        viewModel.resetAll()
-                    }
-                    .buttonStyle(.bordered)
+                if let message = cautionNoticeMessage {
+                    inlineErrorMessage(message)
                 }
             }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color(.tertiarySystemFill).opacity(0.72))
+            )
         }
-        .padding(24)
+        .padding(20)
         .cardStyle()
     }
 
     private func messageRow(_ message: EmailAssistantThreadMessage) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(message.role == .assistant ? "结果" : "要求")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Text(message.createdAt.formatted(.dateTime.hour().minute()))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-
-            if let output = message.structuredOutput {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(output.formattedText)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.primary)
-                        .textSelection(.enabled)
-
-                    HStack(spacing: 12) {
-                        Button("复制") {
-                            UIPasteboard.general.string = output.formattedText
-                            viewModel.presentNotice(tone: .success, message: "已复制。")
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                }
+        HStack {
+            if message.role == .assistant {
+                assistantBubble(message)
+                Spacer(minLength: 40)
             } else {
-                Text(message.content)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(.primary)
-                    .textSelection(.enabled)
+                Spacer(minLength: 40)
+                userBubble(message)
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-        )
     }
 
     private func loadPhotoItem(_ item: PhotosPickerItem) async {
@@ -284,8 +286,10 @@ public struct EmailAssistantView: View {
                 return
             }
 
+            let normalizedImage = ImageOCRService.normalizedDisplayImage(image)
+
             await MainActor.run {
-                cropSource = EmailAssistantCropSource(image: image)
+                cropSource = EmailAssistantCropSource(image: normalizedImage)
             }
         } catch {
             viewModel.presentNotice(tone: .caution, message: error.localizedDescription)
@@ -304,38 +308,148 @@ public struct EmailAssistantView: View {
 
     private func sectionTitle(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 22, weight: .bold))
+            .font(.system(size: 20, weight: .bold))
             .foregroundStyle(.primary)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func noticeBanner(_ notice: EmailAssistantNotice, onDarkBackground: Bool) -> some View {
-        let tint: Color = {
-            switch notice.tone {
-            case .neutral:
-                return onDarkBackground ? .white.opacity(0.82) : .secondary
-            case .success:
-                return .green
-            case .caution:
-                return .orange
+    private func controlPill(title: String, value: String, systemImage: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: systemImage)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(accentColor)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
             }
-        }()
 
-        return HStack(alignment: .top, spacing: 10) {
-            Image(systemName: notice.tone == .caution ? "exclamationmark.triangle.fill" : "info.circle.fill")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(tint)
+            Spacer(minLength: 8)
 
-            Text(notice.message)
+            Image(systemName: "chevron.down")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(.tertiarySystemFill))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.primary.opacity(0.05), lineWidth: 1)
+        )
+    }
+
+    private var emptyConversationState: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "bubble.left.and.text.bubble.right")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(accentColor)
+
+            Text("生成后会显示在这里")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(onDarkBackground ? .white : .primary)
-                .fixedSize(horizontal: false, vertical: true)
+                .foregroundStyle(.secondary)
         }
         .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(onDarkBackground ? Color.white.opacity(0.08) : Color(.tertiarySystemFill))
+                .fill(Color(.tertiarySystemFill))
         )
+    }
+
+    private var cautionNoticeMessage: String? {
+        guard let notice = viewModel.notice,
+              notice.tone == .caution else {
+            return nil
+        }
+        return notice.message
+    }
+
+    private func inlineErrorMessage(_ message: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(.orange)
+
+            Text(message)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 2)
+    }
+
+    private func assistantBubble(_ message: EmailAssistantThreadMessage) -> some View {
+        let text = message.structuredOutput?.formattedText ?? message.content
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 10) {
+                Label("邮件", systemImage: "sparkles")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(accentColor)
+
+                Spacer(minLength: 8)
+
+                Text(message.createdAt.formatted(.dateTime.hour().minute()))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+
+                Button("复制") {
+                    UIPasteboard.general.string = text
+                    viewModel.presentNotice(tone: .success, message: "已复制。")
+                }
+                .font(.system(size: 12, weight: .semibold))
+                .buttonStyle(.bordered)
+            }
+
+            Text(text)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(.primary)
+                .textSelection(.enabled)
+        }
+        .padding(16)
+        .frame(maxWidth: 460, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color(.tertiarySystemFill))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+        )
+    }
+
+    private func userBubble(_ message: EmailAssistantThreadMessage) -> some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            Text(message.createdAt.formatted(.dateTime.hour().minute()))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Text(message.content)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.primary)
+                .textSelection(.enabled)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(accentColor.opacity(0.14))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(accentColor.opacity(0.2), lineWidth: 1)
+                )
+        }
+        .frame(maxWidth: 320, alignment: .trailing)
     }
 
 }
@@ -350,16 +464,43 @@ private struct TextEditorCard: View {
     let placeholder: String
     @Binding var text: String
     let minHeight: CGFloat
+    let accessory: AnyView?
+
+    init(
+        title: String,
+        placeholder: String,
+        text: Binding<String>,
+        minHeight: CGFloat,
+        accessory: AnyView? = nil
+    ) {
+        self.title = title
+        self.placeholder = placeholder
+        _text = text
+        self.minHeight = minHeight
+        self.accessory = accessory
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.primary)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 10) {
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.primary)
+
+                Spacer(minLength: 8)
+
+                if let accessory {
+                    accessory
+                }
+            }
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(Color(.tertiarySystemFill))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.primary.opacity(0.05), lineWidth: 1)
+                    )
 
                 if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Text(placeholder)
