@@ -185,14 +185,14 @@ final class ImageTranslateViewModel: ObservableObject {
         await importImage(image, from: .clipboard)
     }
 
-    func cropCurrentImage(to normalizedRect: CGRect) async {
+    func cropCurrentImage(to selection: ImageCropSelection) async {
         guard let selectedImage else {
             setNotice(tone: .caution, message: "还没有图片可裁剪。")
             return
         }
 
         do {
-            let croppedImage = try await service.cropImage(selectedImage, normalizedRect: normalizedRect)
+            let croppedImage = try await service.cropImage(selectedImage, selection: selection)
             applySessionReset(newSessionID: false)
             await assignImage(croppedImage, source: imageSource)
             setNotice(tone: .neutral, message: "已按选区裁剪，正在重新识别文字。")

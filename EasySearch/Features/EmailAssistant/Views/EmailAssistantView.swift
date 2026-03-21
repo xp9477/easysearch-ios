@@ -6,6 +6,7 @@ public struct EmailAssistantView: View {
     @StateObject private var viewModel = EmailAssistantViewModel()
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var cropSource: EmailAssistantCropSource?
+    @State private var croppedPreviewImage: UIImage?
 
     private let accentColor = Color.blue
 
@@ -29,9 +30,9 @@ public struct EmailAssistantView: View {
             await viewModel.prepare()
         }
         .sheet(item: $cropSource) { source in
-            EmailAssistantCropImageEditor(image: source.image) { normalizedRect in
+            EmailAssistantCropImageEditor(image: source.image) { selection in
                 Task {
-                    await applyCrop(normalizedRect, to: source.image)
+                    await applyCrop(selection, to: source.image)
                 }
             }
         }
@@ -59,6 +60,10 @@ public struct EmailAssistantView: View {
                         minHeight: 156,
                         accessory: AnyView(ocrInlineButton)
                     )
+
+                    if let croppedPreviewImage {
+                        cropPreviewCard(croppedPreviewImage)
+                    }
                 }
 
                 TextEditorCard(
@@ -227,6 +232,7 @@ public struct EmailAssistantView: View {
 
                 HStack(spacing: 12) {
                     Button("重置全部") {
+                        croppedPreviewImage = nil
                         viewModel.resetAll()
                     }
                     .buttonStyle(.bordered)
@@ -296,13 +302,15 @@ public struct EmailAssistantView: View {
         }
     }
 
-    private func applyCrop(_ normalizedRect: CGRect, to image: UIImage) async {
-        guard let croppedImage = ImageOCRService.cropImage(image, normalizedRect: normalizedRect),
+    @MainActor
+    private func applyCrop(_ selection: ImageCropSelection, to image: UIImage) async {
+        guard let croppedImage = ImageOCRService.cropImage(image, selection: selection),
               let croppedData = ImageOCRService.storedImageData(from: croppedImage) else {
             viewModel.presentNotice(tone: .caution, message: EmailAssistantError.cropFailed.localizedDescription)
             return
         }
 
+        croppedPreviewImage = croppedImage
         await viewModel.importScreenshotText(from: croppedData)
     }
 
@@ -346,6 +354,25 @@ public struct EmailAssistantView: View {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .stroke(Color.primary.opacity(0.05), lineWidth: 1)
         )
+    }
+
+    private func cropPreviewCard(_ image: UIImage) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("OCR 预览")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxHeight: 170)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                )
+        }
     }
 
     private var emptyConversationState: some View {
@@ -525,46 +552,50 @@ private struct EmailAssistantCropImageEditor: View {
     @Environment(\.dismiss) private var dismiss
 
     let image: UIImage
-    let onConfirm: (CGRect) -> Void
+    let onConfirm: (ImageCropSelection) -> Void
 
     @State private var selectionRect: CGRect?
-    @State private var imageFrame: CGRect = .zero
-    private let cropCoordinateSpace = "EmailAssistantCropCanvas"
+    @State private var canvasSize: CGSize = .zero
 
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
-                let containerFrame = CGRect(origin: .zero, size: proxy.size)
-                let resolvedImageFrame = aspectFitRect(
+                let resolvedCanvasSize = aspectFitSize(
                     for: image.size,
-                    in: containerFrame.insetBy(dx: 20, dy: 20)
+                    in: CGSize(
+                        width: max(proxy.size.width - 40, 0),
+                        height: max(proxy.size.height - 40, 0)
+                    )
                 )
 
                 ZStack {
                     Color(.systemGroupedBackground)
                         .ignoresSafeArea()
 
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: resolvedImageFrame.width, height: resolvedImageFrame.height)
-                        .position(x: resolvedImageFrame.midX, y: resolvedImageFrame.midY)
-
-                    Rectangle()
-                        .fill(Color.clear)
-                        .contentShape(Rectangle())
-                        .frame(width: resolvedImageFrame.width, height: resolvedImageFrame.height)
-                        .position(x: resolvedImageFrame.midX, y: resolvedImageFrame.midY)
-                        .gesture(selectionGesture(in: resolvedImageFrame))
-
-                    if let selectionRect {
-                        Rectangle()
-                            .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
-                            .frame(width: selectionRect.width, height: selectionRect.height)
-                            .position(x: selectionRect.midX, y: selectionRect.midY)
-                    }
-
                     VStack {
+                        Spacer(minLength: 20)
+
+                        ZStack(alignment: .topLeading) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: resolvedCanvasSize.width, height: resolvedCanvasSize.height)
+
+                            Rectangle()
+                                .fill(Color.clear)
+                                .contentShape(Rectangle())
+                                .frame(width: resolvedCanvasSize.width, height: resolvedCanvasSize.height)
+                                .gesture(selectionGesture(in: resolvedCanvasSize))
+
+                            if let selectionRect {
+                                Rectangle()
+                                    .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                                    .frame(width: selectionRect.width, height: selectionRect.height)
+                                    .offset(x: selectionRect.minX, y: selectionRect.minY)
+                            }
+                        }
+                        .frame(width: resolvedCanvasSize.width, height: resolvedCanvasSize.height)
+
                         Spacer()
 
                         Text("拖动调整区域")
@@ -579,18 +610,11 @@ private struct EmailAssistantCropImageEditor: View {
                             .padding(.bottom, 20)
                     }
                 }
-                .coordinateSpace(name: cropCoordinateSpace)
                 .onAppear {
-                    imageFrame = resolvedImageFrame
-                    if selectionRect == nil {
-                        selectionRect = resolvedImageFrame.insetBy(dx: 6, dy: 6)
-                    }
+                    updateCanvasSize(resolvedCanvasSize)
                 }
                 .onChange(of: proxy.size) { _ in
-                    imageFrame = resolvedImageFrame
-                    if selectionRect == nil {
-                        selectionRect = resolvedImageFrame.insetBy(dx: 6, dy: 6)
-                    }
+                    updateCanvasSize(resolvedCanvasSize)
                 }
             }
             .navigationTitle("裁剪截图")
@@ -604,26 +628,33 @@ private struct EmailAssistantCropImageEditor: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("继续") {
-                        guard let normalizedRect = normalizedSelectionRect else { return }
-                        onConfirm(normalizedRect)
+                        guard let selection = cropSelection else { return }
+                        onConfirm(selection)
                         dismiss()
                     }
-                    .disabled(normalizedSelectionRect == nil)
+                    .disabled(cropSelection == nil)
                 }
             }
         }
     }
 
+    private var cropSelection: ImageCropSelection? {
+        guard let normalizedRect = normalizedSelectionRect else { return nil }
+        return ImageCropSelection(
+            normalizedRect: normalizedRect,
+            displaySize: canvasSize
+        )
+    }
+
     private var normalizedSelectionRect: CGRect? {
         guard let selectionRect else { return nil }
-        let frame = imageFrame
-        guard frame.width > 0, frame.height > 0 else { return nil }
+        guard canvasSize.width > 0, canvasSize.height > 0 else { return nil }
 
         let normalizedRect = CGRect(
-            x: (selectionRect.minX - frame.minX) / frame.width,
-            y: (selectionRect.minY - frame.minY) / frame.height,
-            width: selectionRect.width / frame.width,
-            height: selectionRect.height / frame.height
+            x: selectionRect.minX / canvasSize.width,
+            y: selectionRect.minY / canvasSize.height,
+            width: selectionRect.width / canvasSize.width,
+            height: selectionRect.height / canvasSize.height
         )
 
         guard normalizedRect.width > 0.02, normalizedRect.height > 0.02 else {
@@ -633,11 +664,11 @@ private struct EmailAssistantCropImageEditor: View {
         return normalizedRect
     }
 
-    private func selectionGesture(in imageFrame: CGRect) -> some Gesture {
-        DragGesture(minimumDistance: 0, coordinateSpace: .named(cropCoordinateSpace))
+    private func selectionGesture(in canvasSize: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 0)
             .onChanged { value in
-                let start = clamped(value.startLocation, to: imageFrame)
-                let current = clamped(value.location, to: imageFrame)
+                let start = clamped(value.startLocation, to: canvasSize)
+                let current = clamped(value.location, to: canvasSize)
                 selectionRect = CGRect(
                     x: min(start.x, current.x),
                     y: min(start.y, current.y),
@@ -647,25 +678,29 @@ private struct EmailAssistantCropImageEditor: View {
             }
     }
 
-    private func clamped(_ point: CGPoint, to frame: CGRect) -> CGPoint {
+    private func clamped(_ point: CGPoint, to canvasSize: CGSize) -> CGPoint {
         CGPoint(
-            x: min(max(point.x, frame.minX), frame.maxX),
-            y: min(max(point.y, frame.minY), frame.maxY)
+            x: min(max(point.x, 0), canvasSize.width),
+            y: min(max(point.y, 0), canvasSize.height)
         )
     }
 
-    private func aspectFitRect(for imageSize: CGSize, in containerRect: CGRect) -> CGRect {
-        guard imageSize.width > 0, imageSize.height > 0 else { return containerRect }
+    private func aspectFitSize(for imageSize: CGSize, in containerSize: CGSize) -> CGSize {
+        guard imageSize.width > 0,
+              imageSize.height > 0,
+              containerSize.width > 0,
+              containerSize.height > 0 else {
+            return containerSize
+        }
 
-        let scale = min(containerRect.width / imageSize.width, containerRect.height / imageSize.height)
-        let fittedSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+        let scale = min(containerSize.width / imageSize.width, containerSize.height / imageSize.height)
+        return CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+    }
 
-        return CGRect(
-            x: containerRect.midX - fittedSize.width / 2,
-            y: containerRect.midY - fittedSize.height / 2,
-            width: fittedSize.width,
-            height: fittedSize.height
-        )
+    private func updateCanvasSize(_ newSize: CGSize) {
+        guard newSize.width > 0, newSize.height > 0 else { return }
+        canvasSize = newSize
+        selectionRect = CGRect(origin: .zero, size: newSize).insetBy(dx: 6, dy: 6)
     }
 }
 

@@ -206,8 +206,6 @@ public struct DashboardView: View {
             HiddenJavDBFavoriteMoviesView(viewModel: hiddenJavDBViewModel, presentationState: hiddenPresentationState)
         case let .javDBMovie(movie):
             HiddenJavDBMovieDetailView(movie: movie, viewModel: hiddenJavDBViewModel, presentationState: hiddenPresentationState)
-        case .missAV:
-            HiddenMissAVFeatureView(presentationState: hiddenPresentationState)
         }
     }
 
@@ -245,11 +243,9 @@ private enum HiddenSpaceRoute: Hashable {
     case javDB
     case javDBFavorites
     case javDBMovie(HiddenJavDBMovie)
-    case missAV
 }
 
 private enum HiddenSpacePresentedModal: Hashable {
-    case missAVWebPage(HiddenInAppWebPageItem)
     case favoriteAlbumsPreview(PreviewImage)
     case albumDetailPreview(albumID: String, preview: PreviewImage)
     case javDBFavoritesPlayer(HiddenInAppPlayerItem)
@@ -274,11 +270,6 @@ struct HiddenSpaceView: View {
 
                 NavigationLink(value: HiddenSpaceRoute.javDB) {
                     javDBFeatureCard
-                }
-                .buttonStyle(.plain)
-
-                NavigationLink(value: HiddenSpaceRoute.missAV) {
-                    missAVFeatureCard
                 }
                 .buttonStyle(.plain)
             }
@@ -346,39 +337,6 @@ struct HiddenSpaceView: View {
                     .font(.headline)
                     .foregroundStyle(.primary)
                 Text("随机影片、喜欢影片、详情信息（默认折叠）")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.tertiary)
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
-    }
-
-    private var missAVFeatureCard: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(.tertiarySystemFill))
-                    .frame(width: 54, height: 54)
-                Image(systemName: "play.square.stack.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.primary)
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("MISSAV")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                Text("首页直达、番号直达")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -676,148 +634,6 @@ private struct Hidden4KHDFeatureView: View {
         Task {
             await viewModel.searchAlbums(query: query)
         }
-    }
-}
-
-private struct HiddenMissAVFeatureView: View {
-    @ObservedObject var presentationState: HiddenSpacePresentationState
-    @State private var codeQuery = ""
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                openHomeCard
-                directCodeCard
-                tipsCard
-            }
-            .padding(16)
-            .padding(.bottom, 18)
-        }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .navigationTitle("MISSAV")
-        .navigationBarTitleDisplayMode(.inline)
-        .fullScreenCover(item: webPageItemBinding) { item in
-            HiddenInAppWebPageView(item: item)
-        }
-    }
-
-    private var openHomeCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("站点入口")
-                .font(.headline)
-
-            Text("直接进入 MISSAV 首页，后续在站内继续搜索、筛选和播放。")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Button {
-                webPageItem = HiddenInAppWebPageItem(
-                    title: "MISSAV",
-                    url: HiddenMissAVModule.homeURL
-                )
-            } label: {
-                Label("进入 MISSAV", systemImage: "safari")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
-    }
-
-    private var directCodeCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("番号直达")
-                .font(.headline)
-
-            HStack(spacing: 10) {
-                TextField("输入番号，例如 ipzz-508", text: $codeQuery)
-                    .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
-                    .submitLabel(.go)
-                    .onSubmit {
-                        openCodePageIfPossible()
-                    }
-
-                if !codeQuery.isEmpty {
-                    Button {
-                        codeQuery = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.tertiary)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Button("打开") {
-                    openCodePageIfPossible()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(normalizedCodeQuery.isEmpty)
-            }
-
-            Text("适合知道完整番号时直接跳转；如果只记得标题，先进入首页再用站内搜索。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
-    }
-
-    private var tipsCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("这里是隐藏空间里的一个子模块，不走 javdb 详情页。", systemImage: "eye.slash")
-            Label("APP 未退出前，会记住你上次停留的页面和弹层。", systemImage: "lock")
-        }
-        .font(.subheadline)
-        .foregroundStyle(.secondary)
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
-    }
-
-    private var normalizedCodeQuery: String {
-        codeQuery
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "_", with: "-")
-    }
-
-    private var webPageItem: HiddenInAppWebPageItem? {
-        get {
-            guard case let .missAVWebPage(item) = presentationState.modal else { return nil }
-            return item
-        }
-        nonmutating set {
-            presentationState.modal = newValue.map(HiddenSpacePresentedModal.missAVWebPage)
-        }
-    }
-
-    private var webPageItemBinding: Binding<HiddenInAppWebPageItem?> {
-        Binding(
-            get: { webPageItem },
-            set: { webPageItem = $0 }
-        )
-    }
-
-    private func openCodePageIfPossible() {
-        let query = normalizedCodeQuery
-        guard let url = HiddenMissAVModule.pageURL(for: query) else { return }
-
-        webPageItem = HiddenInAppWebPageItem(
-            title: "MISSAV · \(query.uppercased())",
-            url: url
-        )
     }
 }
 
@@ -4146,6 +3962,8 @@ private actor HiddenPlaybackThumbnailPipeline {
 
     private let cache = NSCache<NSString, UIImage>()
     private var inFlightTasks: [String: Task<UIImage, Error>] = [:]
+    private var seekThumbnailConfigCache: [String: HiddenJavDBSeekThumbnailConfiguration] = [:]
+    private var inFlightSeekThumbnailConfigs: [String: Task<HiddenJavDBSeekThumbnailConfiguration?, Never>] = [:]
 
     init() {
         cache.countLimit = 36
@@ -4165,7 +3983,11 @@ private actor HiddenPlaybackThumbnailPipeline {
         }
 
         let task = Task(priority: .utility) {
-            try await Self.generateThumbnail(for: playback)
+            let seekThumbnailConfiguration = await self.seekThumbnailConfiguration(for: playback)
+            return try await Self.generateThumbnail(
+                for: playback,
+                seekThumbnailConfiguration: seekThumbnailConfiguration
+            )
         }
         inFlightTasks[key] = task
         defer { inFlightTasks[key] = nil }
@@ -4174,6 +3996,31 @@ private actor HiddenPlaybackThumbnailPipeline {
         let cost = Self.imageCost(for: image)
         cache.setObject(image, forKey: nsKey, cost: cost)
         return image
+    }
+
+    private func seekThumbnailConfiguration(
+        for playback: HiddenJavDBFavoritePlayback
+    ) async -> HiddenJavDBSeekThumbnailConfiguration? {
+        let key = "\(playback.movie.id)|\(playback.sourceName)"
+        if let cachedConfiguration = seekThumbnailConfigCache[key] {
+            return cachedConfiguration
+        }
+
+        if let existingTask = inFlightSeekThumbnailConfigs[key] {
+            return await existingTask.value
+        }
+
+        let task = Task(priority: .utility) {
+            await HiddenJavDBAPI.resolveSeekThumbnailConfig(for: playback)
+        }
+        inFlightSeekThumbnailConfigs[key] = task
+        defer { inFlightSeekThumbnailConfigs[key] = nil }
+
+        let configuration = await task.value
+        if let configuration {
+            seekThumbnailConfigCache[key] = configuration
+        }
+        return configuration
     }
 
     private func cacheKey(for playback: HiddenJavDBFavoritePlayback) -> String {
@@ -4186,10 +4033,25 @@ private actor HiddenPlaybackThumbnailPipeline {
         let refererURL: URL
     }
 
-    private static func generateThumbnail(for playback: HiddenJavDBFavoritePlayback) async throws -> UIImage {
+    private static func generateThumbnail(
+        for playback: HiddenJavDBFavoritePlayback,
+        seekThumbnailConfiguration: HiddenJavDBSeekThumbnailConfiguration?
+    ) async throws -> UIImage {
         try await Task.detached(priority: .utility) {
-            let sources = await resolvedSources(for: playback)
             var lastError: Error?
+
+            if let seekThumbnailConfiguration {
+                do {
+                    return try await generateThumbnailFromSeekSprite(
+                        for: playback,
+                        configuration: seekThumbnailConfiguration
+                    )
+                } catch {
+                    lastError = error
+                }
+            }
+
+            let sources = await resolvedSources(for: playback)
 
             for source in sources {
                 do {
@@ -4205,6 +4067,78 @@ private actor HiddenPlaybackThumbnailPipeline {
                 userInfo: [NSLocalizedDescriptionKey: "未取到可用视频帧"]
             )
         }.value
+    }
+
+    private static func generateThumbnailFromSeekSprite(
+        for playback: HiddenJavDBFavoritePlayback,
+        configuration: HiddenJavDBSeekThumbnailConfiguration
+    ) async throws -> UIImage {
+        guard configuration.durationSeconds.isFinite,
+              configuration.durationSeconds > 0,
+              configuration.picNum > 0,
+              configuration.width > 0,
+              configuration.height > 0,
+              configuration.col > 0,
+              configuration.row > 0,
+              !configuration.urls.isEmpty else {
+            throw NSError(
+                domain: "HiddenPlaybackThumbnailPipeline",
+                code: -5,
+                userInfo: [NSLocalizedDescriptionKey: "seek 缩略图配置无效"]
+            )
+        }
+
+        let frameCapacityPerSprite = configuration.col * configuration.row
+        let totalFrames = max(1, min(configuration.picNum, configuration.urls.count * frameCapacityPerSprite))
+        let clampedPosition = min(max(0, playback.positionSeconds), configuration.durationSeconds)
+        let progress = configuration.durationSeconds > 0 ? clampedPosition / configuration.durationSeconds : 0
+        let frameIndex = min(
+            max(Int((progress * Double(totalFrames - 1)).rounded(.down)), 0),
+            totalFrames - 1
+        )
+
+        let spriteIndex = min(frameIndex / frameCapacityPerSprite, configuration.urls.count - 1)
+        let cellIndex = frameIndex % frameCapacityPerSprite
+        let rowIndex = cellIndex / configuration.col
+        let columnIndex = cellIndex % configuration.col
+
+        let imageData = try await HiddenJavDBAPI.fetchBinaryData(
+            from: configuration.urls[spriteIndex],
+            refererURL: configuration.pageURL
+        )
+        guard let image = UIImage(data: imageData),
+              let cgImage = image.cgImage else {
+            throw NSError(
+                domain: "HiddenPlaybackThumbnailPipeline",
+                code: -6,
+                userInfo: [NSLocalizedDescriptionKey: "seek 缩略图解码失败"]
+            )
+        }
+
+        let x = configuration.offsetX + columnIndex * (configuration.width + configuration.offsetX)
+        let y = configuration.offsetY + rowIndex * (configuration.height + configuration.offsetY)
+        let cropRect = CGRect(
+            x: x,
+            y: y,
+            width: configuration.width,
+            height: configuration.height
+        ).intersection(CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height))
+
+        guard cropRect.width >= 1,
+              cropRect.height >= 1,
+              let croppedImage = cgImage.cropping(to: cropRect.integral) else {
+            throw NSError(
+                domain: "HiddenPlaybackThumbnailPipeline",
+                code: -7,
+                userInfo: [NSLocalizedDescriptionKey: "seek 缩略图裁切失败"]
+            )
+        }
+
+        return UIImage(
+            cgImage: croppedImage,
+            scale: image.scale,
+            orientation: image.imageOrientation
+        )
     }
 
     private static func thumbnailCandidateTimes(for positionSeconds: Double, duration: CMTime?) -> [Double] {
@@ -4621,14 +4555,6 @@ private struct HiddenInAppWebPageItem: Identifiable, Hashable {
     let title: String
     let url: URL
     let id = UUID()
-}
-
-private enum HiddenMissAVModule {
-    static let homeURL = URL(string: "https://missav.ws")!
-
-    static func pageURL(for rawCode: String) -> URL? {
-        HiddenJavDBWatchSite.missAV.url(for: rawCode)
-    }
 }
 
 private struct HiddenInAppVideoPlayerView: View {
@@ -6227,6 +6153,19 @@ private struct HiddenJavDBPreviewImage: Identifiable, Hashable {
     }
 }
 
+private struct HiddenJavDBSeekThumbnailConfiguration: Sendable {
+    let pageURL: URL
+    let durationSeconds: Double
+    let picNum: Int
+    let width: Int
+    let height: Int
+    let col: Int
+    let row: Int
+    let offsetX: Int
+    let offsetY: Int
+    let urls: [URL]
+}
+
 private enum HiddenJavDBWatchPlaybackTarget {
     case stream(URL, URL)
     case webPage(URL)
@@ -6358,6 +6297,21 @@ private enum HiddenJavDBAPI {
         return parseMovies(from: html)
     }
 
+    static func resolveSeekThumbnailConfig(
+        for playback: HiddenJavDBFavoritePlayback
+    ) async -> HiddenJavDBSeekThumbnailConfiguration? {
+        for site in preferredPlayableSites(for: playback) {
+            guard site.name == HiddenJavDBWatchSite.missAV.name,
+                  let pageURL = site.url(for: playback.movie.code),
+                  let configuration = try? await fetchMissAVSeekThumbnailConfiguration(pageURL: pageURL) else {
+                continue
+            }
+            return configuration
+        }
+
+        return nil
+    }
+
     static func resolvePlayableStream(for playback: HiddenJavDBFavoritePlayback) async throws -> (streamURL: URL, refererURL: URL) {
         for site in preferredPlayableSites(for: playback) {
             guard let pageURL = site.url(for: playback.movie.code) else { continue }
@@ -6375,6 +6329,46 @@ private enum HiddenJavDBAPI {
         return (playback.streamURL, playback.refererURL)
     }
 
+    static func fetchBinaryData(from url: URL, refererURL: URL? = nil) async throws -> Data {
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
+        request.httpShouldHandleCookies = true
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("zh-CN,zh;q=0.9,en;q=0.7", forHTTPHeaderField: "Accept-Language")
+        request.setValue("image/avif,image/webp,image/apng,image/*,*/*;q=0.8", forHTTPHeaderField: "Accept")
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+
+        if let refererURL {
+            request.setValue(refererURL.absoluteString, forHTTPHeaderField: "Referer")
+            if let scheme = refererURL.scheme, let host = refererURL.host {
+                request.setValue("\(scheme)://\(host)", forHTTPHeaderField: "Origin")
+            }
+        }
+
+        if let cookieField = cookieHeader(for: [url, refererURL].compactMap { $0 }) {
+            request.setValue(cookieField, forHTTPHeaderField: "Cookie")
+        }
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NSError(
+                domain: "HiddenJavDBAPI",
+                code: -33,
+                userInfo: [NSLocalizedDescriptionKey: "二进制资源返回异常"]
+            )
+        }
+
+        guard (200...299).contains(httpResponse.statusCode), !data.isEmpty else {
+            throw NSError(
+                domain: "HiddenJavDBAPI",
+                code: -34,
+                userInfo: [NSLocalizedDescriptionKey: "资源请求失败（\(httpResponse.statusCode)）"]
+            )
+        }
+
+        return data
+    }
+
     static func fetchMissAVPrimaryStreamURL(pageURL: URL) async throws -> URL {
         let html = try await fetchHTML(from: pageURL)
         guard let streamURL = extractMissAVStreamURL(from: html) else {
@@ -6385,6 +6379,13 @@ private enum HiddenJavDBAPI {
             )
         }
         return streamURL
+    }
+
+    private static func fetchMissAVSeekThumbnailConfiguration(
+        pageURL: URL
+    ) async throws -> HiddenJavDBSeekThumbnailConfiguration? {
+        let html = try await fetchHTML(from: pageURL)
+        return extractMissAVSeekThumbnailConfiguration(from: html, pageURL: pageURL)
     }
 
     static func resolveWatchPlaybackTarget(for site: HiddenJavDBWatchSite, pageURL: URL) async throws -> HiddenJavDBWatchPlaybackTarget {
@@ -6485,11 +6486,8 @@ private enum HiddenJavDBAPI {
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
         request.setValue("no-cache", forHTTPHeaderField: "Pragma")
 
-        if let cookies = HTTPCookieStorage.shared.cookies(for: url), !cookies.isEmpty {
-            let header = HTTPCookie.requestHeaderFields(with: cookies)
-            if let cookieField = header["Cookie"] {
-                request.setValue(cookieField, forHTTPHeaderField: "Cookie")
-            }
+        if let cookieField = cookieHeader(for: [url]) {
+            request.setValue(cookieField, forHTTPHeaderField: "Cookie")
         }
 
         let (data, response) = try await session.data(for: request)
@@ -6958,6 +6956,81 @@ private enum HiddenJavDBAPI {
         return deduped
     }
 
+    private static func extractMissAVSeekThumbnailConfiguration(
+        from html: String,
+        pageURL: URL
+    ) -> HiddenJavDBSeekThumbnailConfiguration? {
+        guard let block = regexFirstCapture(
+            pattern: #"thumbnail:\s*\{(.*?)\}\s*,\s*keyboard:"#,
+            in: html,
+            dotMatchesLine: true
+        ) else {
+            return nil
+        }
+
+        if let enabled = regexFirstCapture(
+            pattern: #"\benabled:\s*(true|false)"#,
+            in: block,
+            dotMatchesLine: false
+        )?.lowercased(), enabled == "false" {
+            return nil
+        }
+
+        guard let picNum = Int(regexFirstCapture(pattern: #"\bpic_num:\s*(\d+)"#, in: block, dotMatchesLine: false) ?? ""),
+              let width = Int(regexFirstCapture(pattern: #"\bwidth:\s*(\d+)"#, in: block, dotMatchesLine: false) ?? ""),
+              let height = Int(regexFirstCapture(pattern: #"\bheight:\s*(\d+)"#, in: block, dotMatchesLine: false) ?? ""),
+              let col = Int(regexFirstCapture(pattern: #"\bcol:\s*(\d+)"#, in: block, dotMatchesLine: false) ?? ""),
+              let row = Int(regexFirstCapture(pattern: #"\brow:\s*(\d+)"#, in: block, dotMatchesLine: false) ?? ""),
+              let durationSeconds = Double(
+                regexFirstCapture(
+                    pattern: #"<meta\s+property=["']og:video:duration["']\s+content=["'](\d+(?:\.\d+)?)["']"#,
+                    in: html,
+                    dotMatchesLine: true
+                ) ?? ""
+              ) else {
+            return nil
+        }
+
+        let offsetX = Int(regexFirstCapture(pattern: #"\boffsetX:\s*(\d+)"#, in: block, dotMatchesLine: false) ?? "") ?? 0
+        let offsetY = Int(regexFirstCapture(pattern: #"\boffsetY:\s*(\d+)"#, in: block, dotMatchesLine: false) ?? "") ?? 0
+        let rawURLs = regexCaptureAll(
+            pattern: #""(https?:\\?/\\?/[^"]+)""#,
+            in: block,
+            dotMatchesLine: true
+        )
+
+        let urls = rawURLs
+            .map {
+                $0
+                    .replacingOccurrences(of: #"\/"#, with: "/")
+                    .replacingOccurrences(of: #"\\u0026"#, with: "&")
+            }
+            .compactMap { normalizedExternalURL(from: $0, relativeTo: pageURL) }
+
+        guard picNum > 0,
+              width > 0,
+              height > 0,
+              col > 0,
+              row > 0,
+              durationSeconds > 0,
+              !urls.isEmpty else {
+            return nil
+        }
+
+        return HiddenJavDBSeekThumbnailConfiguration(
+            pageURL: pageURL,
+            durationSeconds: durationSeconds,
+            picNum: picNum,
+            width: width,
+            height: height,
+            col: col,
+            row: row,
+            offsetX: offsetX,
+            offsetY: offsetY,
+            urls: urls
+        )
+    }
+
     private static func extractMissAVStreamURL(from html: String) -> URL? {
         var candidates: [String] = []
 
@@ -7111,6 +7184,22 @@ private enum HiddenJavDBAPI {
         }
 
         return playlistFirst.isEmpty ? unique : playlistFirst
+    }
+
+    private static func cookieHeader(for urls: [URL]) -> String? {
+        var cookies: [HTTPCookie] = []
+        var seen = Set<String>()
+
+        for url in urls {
+            for cookie in HTTPCookieStorage.shared.cookies(for: url) ?? [] {
+                let key = "\(cookie.domain)|\(cookie.path)|\(cookie.name)|\(cookie.value)"
+                guard seen.insert(key).inserted else { continue }
+                cookies.append(cookie)
+            }
+        }
+
+        guard !cookies.isEmpty else { return nil }
+        return HTTPCookie.requestHeaderFields(with: cookies)["Cookie"]
     }
 
     private static func extractMetadataValue(labelKeywords: [String], in html: String) -> String? {

@@ -89,7 +89,7 @@ struct QingLongEnvironmentEditorContext: Identifiable, Hashable {
 }
 
 struct QingLongCronLog: Identifiable, Hashable {
-    let id = UUID()
+    let id: Int
     let title: String
     let content: String
 }
@@ -415,7 +415,7 @@ final class QingLongViewModel: ObservableObject {
 
     func loadCronLog(_ cron: QingLongCron) async {
         loadingCronLogID = cron.id
-        selectedCronLog = QingLongCronLog(title: cron.primaryTitle, content: "日志加载中...")
+        selectedCronLog = QingLongCronLog(id: cron.id, title: cron.primaryTitle, content: "日志加载中...")
         defer {
             if loadingCronLogID == cron.id {
                 loadingCronLogID = nil
@@ -425,11 +425,12 @@ final class QingLongViewModel: ObservableObject {
         do {
             let logText = try await QingLongService.shared.fetchCronLog(id: cron.id)
             selectedCronLog = QingLongCronLog(
+                id: cron.id,
                 title: cron.primaryTitle,
                 content: logText.isEmpty ? "当前没有可显示的日志内容。" : logText
             )
         } catch {
-            selectedCronLog = QingLongCronLog(title: cron.primaryTitle, content: error.localizedDescription)
+            selectedCronLog = QingLongCronLog(id: cron.id, title: cron.primaryTitle, content: error.localizedDescription)
         }
     }
 

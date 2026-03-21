@@ -19,6 +19,11 @@ struct OCRRecognitionResult: Hashable {
     let lines: [OCRTextLine]
 }
 
+struct ImageCropSelection {
+    let normalizedRect: CGRect
+    let displaySize: CGSize
+}
+
 enum ImageOCRService {
     static func normalizedDisplayImage(_ image: UIImage) -> UIImage {
         uprightImage(from: image)
@@ -103,6 +108,53 @@ enum ImageOCRService {
                 in: CGRect(
                     origin: CGPoint(x: -cropRect.minX, y: -cropRect.minY),
                     size: imageBounds.size
+                )
+            )
+        }
+    }
+
+    static func cropImage(_ image: UIImage, selection: ImageCropSelection) -> UIImage? {
+        let normalizedImage = normalizedDisplayImage(image)
+        let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let boundedRect = selection.normalizedRect.standardized.intersection(unitRect)
+
+        guard selection.displaySize.width > 1,
+              selection.displaySize.height > 1,
+              !boundedRect.isNull,
+              boundedRect.width > 0.02,
+              boundedRect.height > 0.02 else {
+            return nil
+        }
+
+        let displayBounds = CGRect(origin: .zero, size: selection.displaySize)
+        let cropRect = CGRect(
+            x: boundedRect.minX * displayBounds.width,
+            y: boundedRect.minY * displayBounds.height,
+            width: boundedRect.width * displayBounds.width,
+            height: boundedRect.height * displayBounds.height
+        )
+        .integral
+        .intersection(displayBounds)
+
+        guard !cropRect.isNull,
+              cropRect.width > 1,
+              cropRect.height > 1 else {
+            return nil
+        }
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = max(normalizedImage.scale, UIScreen.main.scale)
+        format.opaque = false
+
+        let previewImage = UIGraphicsImageRenderer(size: selection.displaySize, format: format).image { _ in
+            normalizedImage.draw(in: displayBounds)
+        }
+
+        return UIGraphicsImageRenderer(size: cropRect.size, format: format).image { _ in
+            previewImage.draw(
+                in: CGRect(
+                    origin: CGPoint(x: -cropRect.minX, y: -cropRect.minY),
+                    size: displayBounds.size
                 )
             )
         }

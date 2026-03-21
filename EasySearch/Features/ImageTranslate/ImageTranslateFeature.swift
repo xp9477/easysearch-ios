@@ -2,9 +2,9 @@ import SwiftUI
 
 public struct ImageTranslateFeature: AppFeature {
     public var id: String = "image-translate"
-    public var title: String = "截图翻译"
-    public var summary: String = "支持拍照、选图或粘贴截图，先 OCR 再用 DeepSeek 翻译，并可继续追问优化。"
-    public var iconName: String = "text.viewfinder"
+    public var title: String = "翻译"
+    public var summary: String = "支持文本翻译和图片翻译，可拍照、选图、粘贴截图或直接输入文本，再用 DeepSeek 生成结果。"
+    public var iconName: String = "globe"
     public var color: Color = .cyan
     public var placement: AppFeaturePlacement = .moduleList
 

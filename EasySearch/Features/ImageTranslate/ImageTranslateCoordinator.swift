@@ -219,9 +219,9 @@ actor ImageTranslateService {
 
     func cropImage(
         _ image: UIImage,
-        normalizedRect: CGRect
+        selection: ImageCropSelection
     ) throws -> UIImage {
-        guard let croppedImage = ImageOCRService.cropImage(image, normalizedRect: normalizedRect) else {
+        guard let croppedImage = ImageOCRService.cropImage(image, selection: selection) else {
             throw ImageTranslateError.invalidCropArea
         }
 

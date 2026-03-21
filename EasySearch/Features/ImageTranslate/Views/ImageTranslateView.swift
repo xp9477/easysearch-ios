@@ -59,7 +59,7 @@ public struct ImageTranslateView: View {
             .padding(.bottom, 120)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .navigationTitle("截图翻译")
+        .navigationTitle("翻译")
         .navigationBarTitleDisplayMode(.inline)
         .scrollDismissesKeyboard(.interactively)
         .overlay(alignment: .top) {
@@ -102,9 +102,9 @@ public struct ImageTranslateView: View {
         }
         .sheet(isPresented: $isCropSheetPresented) {
             if let selectedImage = viewModel.selectedImage {
-                CropImageEditor(image: selectedImage) { rect in
+                CropImageEditor(image: selectedImage) { selection in
                     Task {
-                        await viewModel.cropCurrentImage(to: rect)
+                        await viewModel.cropCurrentImage(to: selection)
                     }
                 }
             }
@@ -125,7 +125,7 @@ public struct ImageTranslateView: View {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(alignment: .top, spacing: 12) {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("截图翻译")
+                        Text("翻译")
                             .font(.system(size: 30, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
 
@@ -199,6 +199,11 @@ public struct ImageTranslateView: View {
                     if hasActiveSession {
                         quickStatusStrip
                     }
+                }
+
+                HStack(spacing: 10) {
+                    quickDirectionButton(title: "中译英", targetLanguage: .english)
+                    quickDirectionButton(title: "英译中", targetLanguage: .simplifiedChinese)
                 }
             }
             .padding(22)
@@ -367,11 +372,11 @@ public struct ImageTranslateView: View {
                 )
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("导入图片或直接粘贴文本")
+                Text("直接输入文本，或导入图片")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.primary)
 
-                Text("可先裁剪，再识别翻译")
+                Text("支持文本翻译和图片翻译")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)
             }
@@ -388,7 +393,7 @@ public struct ImageTranslateView: View {
     private var textWorkbench: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 10) {
-                Text("识别文本")
+                Text("待翻译文本")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.primary)
 
@@ -416,7 +421,7 @@ public struct ImageTranslateView: View {
                     .fill(Color(.tertiarySystemFill))
 
                 if viewModel.extractedText.isEmpty {
-                    Text("可直接粘贴文本")
+                    Text("可直接输入或粘贴文本")
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 18)
@@ -708,6 +713,39 @@ public struct ImageTranslateView: View {
         )
     }
 
+    private func quickDirectionButton(
+        title: String,
+        targetLanguage: ImageTranslateTargetLanguage
+    ) -> some View {
+        let isActive = viewModel.targetLanguage == targetLanguage
+
+        return Button {
+            viewModel.targetLanguage = targetLanguage
+
+            guard hasRecognizedText,
+                  viewModel.hasConfiguredAPIKey,
+                  !viewModel.isRecognizingText,
+                  !viewModel.isTranslating else {
+                return
+            }
+
+            Task {
+                await viewModel.translateCurrentText()
+            }
+        } label: {
+            Text(title)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(isActive ? accentDeepColor : .white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(isActive ? Color.white : Color.white.opacity(0.12))
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
     private func metaToken(title: String, tint: Color) -> some View {
         Text(title)
             .font(.system(size: 12, weight: .semibold))
@@ -756,46 +794,50 @@ private struct CropImageEditor: View {
     @Environment(\.dismiss) private var dismiss
 
     let image: UIImage
-    let onConfirm: (CGRect) -> Void
+    let onConfirm: (ImageCropSelection) -> Void
 
     @State private var selectionRect: CGRect?
-    @State private var imageFrame: CGRect = .zero
-    private let cropCoordinateSpace = "ImageTranslateCropCanvas"
+    @State private var canvasSize: CGSize = .zero
 
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
-                let containerFrame = CGRect(origin: .zero, size: proxy.size)
-                let resolvedImageFrame = aspectFitRect(
+                let resolvedCanvasSize = aspectFitSize(
                     for: image.size,
-                    in: containerFrame.insetBy(dx: 20, dy: 20)
+                    in: CGSize(
+                        width: max(proxy.size.width - 40, 0),
+                        height: max(proxy.size.height - 40, 0)
+                    )
                 )
 
                 ZStack {
                     Color(.systemGroupedBackground)
                         .ignoresSafeArea()
 
-                    Image(uiImage: image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: resolvedImageFrame.width, height: resolvedImageFrame.height)
-                        .position(x: resolvedImageFrame.midX, y: resolvedImageFrame.midY)
-
-                    Rectangle()
-                        .fill(Color.clear)
-                        .contentShape(Rectangle())
-                        .frame(width: resolvedImageFrame.width, height: resolvedImageFrame.height)
-                        .position(x: resolvedImageFrame.midX, y: resolvedImageFrame.midY)
-                        .gesture(selectionGesture(in: resolvedImageFrame))
-
-                    if let selectionRect {
-                        Rectangle()
-                            .stroke(Color.cyan, style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
-                            .frame(width: selectionRect.width, height: selectionRect.height)
-                            .position(x: selectionRect.midX, y: selectionRect.midY)
-                    }
-
                     VStack {
+                        Spacer(minLength: 20)
+
+                        ZStack(alignment: .topLeading) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: resolvedCanvasSize.width, height: resolvedCanvasSize.height)
+
+                            Rectangle()
+                                .fill(Color.clear)
+                                .contentShape(Rectangle())
+                                .frame(width: resolvedCanvasSize.width, height: resolvedCanvasSize.height)
+                                .gesture(selectionGesture(in: resolvedCanvasSize))
+
+                            if let selectionRect {
+                                Rectangle()
+                                    .stroke(Color.cyan, style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                                    .frame(width: selectionRect.width, height: selectionRect.height)
+                                    .offset(x: selectionRect.minX, y: selectionRect.minY)
+                            }
+                        }
+                        .frame(width: resolvedCanvasSize.width, height: resolvedCanvasSize.height)
+
                         Spacer()
 
                         VStack(alignment: .leading, spacing: 8) {
@@ -815,12 +857,11 @@ private struct CropImageEditor: View {
                         .padding(.bottom, 20)
                     }
                 }
-                .coordinateSpace(name: cropCoordinateSpace)
                 .onAppear {
-                    imageFrame = resolvedImageFrame
+                    updateCanvasSize(resolvedCanvasSize)
                 }
                 .onChange(of: proxy.size) { _ in
-                    imageFrame = resolvedImageFrame
+                    updateCanvasSize(resolvedCanvasSize)
                 }
             }
             .navigationTitle("裁剪区域")
@@ -834,26 +875,33 @@ private struct CropImageEditor: View {
 
                 ToolbarItem(placement: .confirmationAction) {
                     Button("使用选区") {
-                        guard let normalizedRect = normalizedSelectionRect else { return }
-                        onConfirm(normalizedRect)
+                        guard let selection = cropSelection else { return }
+                        onConfirm(selection)
                         dismiss()
                     }
-                    .disabled(normalizedSelectionRect == nil)
+                    .disabled(cropSelection == nil)
                 }
             }
         }
     }
 
+    private var cropSelection: ImageCropSelection? {
+        guard let normalizedRect = normalizedSelectionRect else { return nil }
+        return ImageCropSelection(
+            normalizedRect: normalizedRect,
+            displaySize: canvasSize
+        )
+    }
+
     private var normalizedSelectionRect: CGRect? {
         guard let selectionRect else { return nil }
-        let frame = imageFrame
-        guard frame.width > 0, frame.height > 0 else { return nil }
+        guard canvasSize.width > 0, canvasSize.height > 0 else { return nil }
 
         let normalizedRect = CGRect(
-            x: (selectionRect.minX - frame.minX) / frame.width,
-            y: (selectionRect.minY - frame.minY) / frame.height,
-            width: selectionRect.width / frame.width,
-            height: selectionRect.height / frame.height
+            x: selectionRect.minX / canvasSize.width,
+            y: selectionRect.minY / canvasSize.height,
+            width: selectionRect.width / canvasSize.width,
+            height: selectionRect.height / canvasSize.height
         )
 
         guard normalizedRect.width > 0.02, normalizedRect.height > 0.02 else {
@@ -863,11 +911,11 @@ private struct CropImageEditor: View {
         return normalizedRect
     }
 
-    private func selectionGesture(in imageFrame: CGRect) -> some Gesture {
-        DragGesture(minimumDistance: 0, coordinateSpace: .named(cropCoordinateSpace))
+    private func selectionGesture(in canvasSize: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 0)
             .onChanged { value in
-                let start = clamped(value.startLocation, to: imageFrame)
-                let current = clamped(value.location, to: imageFrame)
+                let start = clamped(value.startLocation, to: canvasSize)
+                let current = clamped(value.location, to: canvasSize)
                 selectionRect = CGRect(
                     x: min(start.x, current.x),
                     y: min(start.y, current.y),
@@ -877,25 +925,29 @@ private struct CropImageEditor: View {
             }
     }
 
-    private func clamped(_ point: CGPoint, to frame: CGRect) -> CGPoint {
+    private func clamped(_ point: CGPoint, to canvasSize: CGSize) -> CGPoint {
         CGPoint(
-            x: min(max(point.x, frame.minX), frame.maxX),
-            y: min(max(point.y, frame.minY), frame.maxY)
+            x: min(max(point.x, 0), canvasSize.width),
+            y: min(max(point.y, 0), canvasSize.height)
         )
     }
 
-    private func aspectFitRect(for imageSize: CGSize, in containerRect: CGRect) -> CGRect {
-        guard imageSize.width > 0, imageSize.height > 0 else { return containerRect }
+    private func aspectFitSize(for imageSize: CGSize, in containerSize: CGSize) -> CGSize {
+        guard imageSize.width > 0,
+              imageSize.height > 0,
+              containerSize.width > 0,
+              containerSize.height > 0 else {
+            return containerSize
+        }
 
-        let scale = min(containerRect.width / imageSize.width, containerRect.height / imageSize.height)
-        let fittedSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+        let scale = min(containerSize.width / imageSize.width, containerSize.height / imageSize.height)
+        return CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+    }
 
-        return CGRect(
-            x: containerRect.midX - fittedSize.width / 2,
-            y: containerRect.midY - fittedSize.height / 2,
-            width: fittedSize.width,
-            height: fittedSize.height
-        )
+    private func updateCanvasSize(_ newSize: CGSize) {
+        guard newSize.width > 0, newSize.height > 0 else { return }
+        canvasSize = newSize
+        selectionRect = CGRect(origin: .zero, size: newSize).insetBy(dx: 6, dy: 6)
     }
 }
 

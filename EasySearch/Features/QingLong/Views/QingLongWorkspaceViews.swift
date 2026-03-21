@@ -94,20 +94,20 @@ private struct QingLongCronWorkspace: View {
             } else {
                 LazyVStack(spacing: 8) {
                     ForEach(viewModel.filteredCrons) { cron in
-                        QingLongCronRow(
+                        QingLongCronListRow(
                             cron: cron,
-                            linkedEnvironment: viewModel.linkedEnvironment(for: cron),
                             relativeDateText: relativeDateText,
-                            isPending: viewModel.isCronPending(cron.id),
                             isLogLoading: viewModel.isLoadingLog(for: cron.id),
-                            editScriptEnvironmentAction: {
-                                editScriptEnvironmentAction(cron)
-                            },
-                            primaryAction: {
-                                primaryCronAction(cron)
-                            },
-                            toggleEnabledAction: {
-                                toggleCronEnabledAction(cron)
+                            destination: {
+                                QingLongCronDetailView(
+                                    viewModel: viewModel,
+                                    cronID: cron.id,
+                                    relativeDateText: relativeDateText,
+                                    editScriptEnvironmentAction: editScriptEnvironmentAction,
+                                    primaryCronAction: primaryCronAction,
+                                    toggleCronEnabledAction: toggleCronEnabledAction,
+                                    logAction: logAction
+                                )
                             },
                             logAction: {
                                 logAction(cron)
@@ -124,179 +124,63 @@ private struct QingLongCronWorkspace: View {
     }
 }
 
-private struct QingLongCronRow: View {
+private struct QingLongCronListRow<Destination: View>: View {
     let cron: QingLongCron
-    let linkedEnvironment: QingLongLinkedEnvironment?
     let relativeDateText: (Date) -> String
-    let isPending: Bool
     let isLogLoading: Bool
-    let editScriptEnvironmentAction: () -> Void
-    let primaryAction: () -> Void
-    let toggleEnabledAction: () -> Void
+    @ViewBuilder let destination: () -> Destination
     let logAction: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 8) {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(statusColor)
-                        .frame(width: 7, height: 7)
+        HStack(spacing: 10) {
+            NavigationLink(destination: destination()) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(cron.primaryTitle)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
 
-                    Text(cron.statusText)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(statusColor)
+                    if let lastExecutedAt = cron.lastExecutedAt {
+                        Text(relativeDateText(lastExecutedAt))
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("未执行")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
                 }
-
-                if cron.isPinned {
-                    QingLongTag(text: "Pinned", color: .teal)
-                }
-
-                Spacer(minLength: 0)
-
-                if let lastExecutedAt = cron.lastExecutedAt {
-                    Label(relativeDateText(lastExecutedAt), systemImage: "clock")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("未执行")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-
-                if isPending {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .buttonStyle(.plain)
 
-            Text(cron.primaryTitle)
-                .font(.system(size: 15, weight: .bold))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-
-            if !cron.secondaryTitle.isEmpty {
-                Text(cron.secondaryTitle)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    if !cron.schedule.isEmpty {
-                        QingLongTag(text: cron.schedule, color: .blue)
+            Button(action: logAction) {
+                HStack(spacing: 4) {
+                    if isLogLoading {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                            .frame(width: 12, height: 12)
+                    } else {
+                        Image(systemName: "doc.text")
+                            .frame(width: 12, height: 12)
                     }
 
-                    ForEach(cron.extraSchedules, id: \.schedule) { item in
-                        QingLongTag(text: item.schedule, color: .blue)
-                    }
-
-                    ForEach(cron.labels, id: \.self) { label in
-                        QingLongTag(text: label, color: .purple)
-                    }
-
+                    Text("日志")
                 }
+                .font(.system(size: 11, weight: .semibold))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
             }
-
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "terminal")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 2)
-
-                Text(cron.command.isEmpty ? "未返回命令内容" : cron.command)
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .lineLimit(1)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 7)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.white.opacity(0.55))
-            )
-
-            if let linkedEnvironment {
-                QingLongLinkedEnvironmentSummary(
-                    linkedEnvironment: linkedEnvironment,
-                    editAction: editScriptEnvironmentAction
-                )
-            }
-
-            HStack(spacing: 10) {
-                Button(action: primaryAction) {
-                    Label(cron.isRunning ? "停止" : "运行", systemImage: cron.isRunning ? "stop.fill" : "play.fill")
-                        .font(.system(size: 12, weight: .bold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 7)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(cron.isRunning ? .orange : .green)
-                .disabled(isPending)
-
-                Button(action: logAction) {
-                    Group {
-                        if isLogLoading {
-                            ProgressView()
-                                .scaleEffect(0.85)
-                                .frame(width: 14, height: 14)
-                        } else {
-                            Image(systemName: "doc.text")
-                                .frame(width: 14, height: 14)
-                        }
-                    }
-                    .font(.system(size: 12, weight: .bold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                }
-                .buttonStyle(.bordered)
-                .tint(.green)
-                .disabled(isPending || !cron.hasLog || isLogLoading)
-
-                Spacer(minLength: 0)
-
-                Menu {
-                    Button(action: toggleEnabledAction) {
-                        Label(cron.isEnabled ? "禁用任务" : "启用任务", systemImage: cron.isEnabled ? "pause.circle" : "checkmark.circle")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .font(.system(size: 15, weight: .bold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 8)
-                }
-                .buttonStyle(.bordered)
-                .tint(.secondary)
-                .disabled(isPending)
-            }
+            .buttonStyle(.bordered)
+            .tint(.green)
+            .disabled(!cron.hasLog || isLogLoading)
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color(.tertiarySystemFill))
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(statusColor.opacity(0.16), lineWidth: 1)
-        )
-    }
-
-    private var statusColor: Color {
-        if !cron.isEnabled {
-            return .orange
-        }
-
-        if cron.isRunning {
-            return .green
-        }
-
-        if cron.isQueued {
-            return .blue
-        }
-
-        return .gray
     }
 }
 
@@ -521,6 +405,200 @@ struct QingLongEnvironmentEditorSheet: View {
                 }
             }
         }
+    }
+}
+
+private struct QingLongCronDetailView: View {
+    @ObservedObject var viewModel: QingLongViewModel
+    let cronID: Int
+    let relativeDateText: (Date) -> String
+    let editScriptEnvironmentAction: (QingLongCron) -> Void
+    let primaryCronAction: (QingLongCron) -> Void
+    let toggleCronEnabledAction: (QingLongCron) -> Void
+    let logAction: (QingLongCron) -> Void
+
+    var body: some View {
+        Group {
+            if let cron = currentCron {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(alignment: .top, spacing: 10) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(spacing: 8) {
+                                    HStack(spacing: 6) {
+                                        Circle()
+                                            .fill(statusColor(for: cron))
+                                            .frame(width: 7, height: 7)
+
+                                        Text(cron.statusText)
+                                            .font(.system(size: 10, weight: .semibold))
+                                            .foregroundStyle(statusColor(for: cron))
+                                    }
+
+                                    if cron.isPinned {
+                                        QingLongTag(text: "Pinned", color: .teal)
+                                    }
+                                }
+
+                                Text(cron.primaryTitle)
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(2)
+
+                                if !cron.secondaryTitle.isEmpty {
+                                    Text(cron.secondaryTitle)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            Spacer(minLength: 12)
+
+                            VStack(alignment: .trailing, spacing: 8) {
+                                if let lastExecutedAt = cron.lastExecutedAt {
+                                    Label(relativeDateText(lastExecutedAt), systemImage: "clock")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                } else {
+                                    Text("未执行")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                if viewModel.isCronPending(cron.id) {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                }
+                            }
+                        }
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                if !cron.schedule.isEmpty {
+                                    QingLongTag(text: cron.schedule, color: .blue)
+                                }
+
+                                ForEach(cron.extraSchedules, id: \.schedule) { item in
+                                    QingLongTag(text: item.schedule, color: .blue)
+                                }
+
+                                ForEach(cron.labels, id: \.self) { label in
+                                    QingLongTag(text: label, color: .purple)
+                                }
+                            }
+                        }
+
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "terminal")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 2)
+
+                            Text(cron.command.isEmpty ? "未返回命令内容" : cron.command)
+                                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(.primary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Color.white.opacity(0.55))
+                        )
+
+                        if let linkedEnvironment = viewModel.linkedEnvironment(for: cron) {
+                            QingLongLinkedEnvironmentSummary(
+                                linkedEnvironment: linkedEnvironment,
+                                editAction: {
+                                    editScriptEnvironmentAction(cron)
+                                }
+                            )
+                        }
+
+                        HStack(spacing: 10) {
+                            Button(action: {
+                                primaryCronAction(cron)
+                            }) {
+                                Label(cron.isRunning ? "停止" : "运行", systemImage: cron.isRunning ? "stop.fill" : "play.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 7)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(cron.isRunning ? .orange : .green)
+                            .disabled(viewModel.isCronPending(cron.id))
+
+                            Button(action: {
+                                logAction(cron)
+                            }) {
+                                HStack(spacing: 6) {
+                                    if viewModel.isLoadingLog(for: cron.id) {
+                                        ProgressView()
+                                            .scaleEffect(0.85)
+                                            .frame(width: 14, height: 14)
+                                    } else {
+                                        Image(systemName: "doc.text")
+                                            .frame(width: 14, height: 14)
+                                    }
+                                    Text("日志")
+                                }
+                                .font(.system(size: 12, weight: .bold))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 7)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.green)
+                            .disabled(viewModel.isCronPending(cron.id) || !cron.hasLog || viewModel.isLoadingLog(for: cron.id))
+
+                            Spacer(minLength: 0)
+
+                            Menu {
+                                Button(action: {
+                                    toggleCronEnabledAction(cron)
+                                }) {
+                                    Label(cron.isEnabled ? "禁用任务" : "启用任务", systemImage: cron.isEnabled ? "pause.circle" : "checkmark.circle")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis.circle")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 8)
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.secondary)
+                            .disabled(viewModel.isCronPending(cron.id))
+                        }
+                    }
+                    .padding(16)
+                }
+                .background(Color(.systemGroupedBackground).ignoresSafeArea())
+                .navigationTitle(cron.primaryTitle)
+                .navigationBarTitleDisplayMode(.inline)
+            } else {
+                QingLongEmptyState(icon: "clock.arrow.circlepath", title: "任务不存在")
+                    .padding(16)
+                    .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            }
+        }
+    }
+
+    private var currentCron: QingLongCron? {
+        viewModel.crons.first { $0.id == cronID }
+    }
+
+    private func statusColor(for cron: QingLongCron) -> Color {
+        if !cron.isEnabled {
+            return .orange
+        }
+
+        if cron.isRunning {
+            return .green
+        }
+
+        if cron.isQueued {
+            return .blue
+        }
+
+        return .gray
     }
 }
 

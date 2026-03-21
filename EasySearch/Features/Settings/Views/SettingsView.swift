@@ -482,7 +482,7 @@ private enum DeepSeekSettingsEntry {
     var title: String {
         switch self {
         case .imageTranslate:
-            return "截图翻译"
+            return "翻译"
         case .emailAssistant:
             return "邮件助手"
         }
@@ -566,7 +566,7 @@ private struct DeepSeekSettingsDetailView: View {
             loadConfiguration()
             statusMessage = apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? "已清除本地 DeepSeek API Key。"
-                : "DeepSeek 配置已保存，截图翻译和邮件助手都会同步使用。"
+                : "DeepSeek 配置已保存，翻译和邮件助手都会同步使用。"
         } catch {
             statusMessage = error.localizedDescription
         }
