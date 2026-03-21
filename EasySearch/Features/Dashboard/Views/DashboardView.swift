@@ -26,25 +26,25 @@ public struct DashboardView: View {
     public var body: some View {
         NavigationStack(path: $path) {
             List {
-                if availableFeatures.isEmpty {
+                if moduleFeatures.isEmpty && hiddenFeatures.isEmpty {
                     Section {
                         Label("暂无模块", systemImage: "square.grid.2x2")
                             .foregroundStyle(.secondary)
                     }
                 } else {
-                    Section {
-                        ForEach(availableFeatures, id: \.id) { feature in
-                            if shouldRestoreHiddenSpacePath(for: feature) {
-                                Button {
-                                    openFeature(feature)
-                                } label: {
-                                    FeatureRow(feature: feature, showsDisclosureIndicator: true)
-                                }
-                                .buttonStyle(.plain)
-                            } else {
-                                NavigationLink(value: feature.id) {
-                                    FeatureRow(feature: feature)
-                                }
+                    if !moduleFeatures.isEmpty {
+                        Section {
+                            ForEach(moduleFeatures, id: \.id) { feature in
+                                featureRow(for: feature)
+                            }
+                            .onMove(perform: moveModuleFeatures)
+                        }
+                    }
+
+                    if !hiddenFeatures.isEmpty {
+                        Section("隐藏空间") {
+                            ForEach(hiddenFeatures, id: \.id) { feature in
+                                featureRow(for: feature)
                             }
                         }
                     }
@@ -111,11 +111,12 @@ public struct DashboardView: View {
         hiddenModulesUnlocked = true
     }
 
-    private var availableFeatures: [any AppFeature] {
-        if hiddenModulesUnlocked {
-            return registry.moduleListFeatures + registry.hiddenFeatures
-        }
-        return registry.moduleListFeatures
+    private var moduleFeatures: [any AppFeature] {
+        registry.moduleListFeatures
+    }
+
+    private var hiddenFeatures: [any AppFeature] {
+        hiddenModulesUnlocked ? registry.hiddenFeatures : []
     }
 
     private var hiddenFeatureIDs: Set<String> {
@@ -191,6 +192,8 @@ public struct DashboardView: View {
     @ViewBuilder
     private func hiddenSpaceDestination(for route: HiddenSpaceRoute) -> some View {
         switch route {
+        case .settings:
+            HiddenSpaceSettingsDetailView()
         case .fourKHD:
             Hidden4KHDFeatureView(viewModel: hidden4KHDViewModel)
         case .fourKHDFavorites:
@@ -212,9 +215,30 @@ public struct DashboardView: View {
         path = NavigationPath()
         navigationStackIdentity = UUID()
     }
+
+    @ViewBuilder
+    private func featureRow(for feature: any AppFeature) -> some View {
+        if shouldRestoreHiddenSpacePath(for: feature) {
+            Button {
+                openFeature(feature)
+            } label: {
+                FeatureRow(feature: feature, showsDisclosureIndicator: true)
+            }
+            .buttonStyle(.plain)
+        } else {
+            NavigationLink(value: feature.id) {
+                FeatureRow(feature: feature)
+            }
+        }
+    }
+
+    private func moveModuleFeatures(fromOffsets: IndexSet, toOffset: Int) {
+        registry.moveModuleFeatures(fromOffsets: fromOffsets, toOffset: toOffset)
+    }
 }
 
 private enum HiddenSpaceRoute: Hashable {
+    case settings
     case fourKHD
     case fourKHDFavorites
     case fourKHDAlbum(HiddenAlbum)
@@ -264,6 +288,13 @@ struct HiddenSpaceView: View {
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("隐藏空间")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: HiddenSpaceRoute.settings) {
+                    Image(systemName: "gearshape")
+                }
+            }
+        }
     }
 
     private var fourKHDFeatureCard: some View {
@@ -368,7 +399,7 @@ struct HiddenSpaceView: View {
 
 private struct Hidden4KHDFeatureView: View {
     @ObservedObject var viewModel: HiddenSpaceViewModel
-    @State private var randomMode: HiddenRandomMode = .single
+    @State private var randomMode: HiddenRandomMode
     @State private var searchQuery = ""
 
     private let randomNineColumns = [
@@ -376,6 +407,11 @@ private struct Hidden4KHDFeatureView: View {
         GridItem(.flexible(), spacing: 8),
         GridItem(.flexible(), spacing: 8)
     ]
+
+    init(viewModel: HiddenSpaceViewModel) {
+        self.viewModel = viewModel
+        _randomMode = State(initialValue: HiddenSpaceSettingsStore.shared.load().fourKHDRandomMode)
+    }
 
     var body: some View {
         ScrollView {
@@ -423,6 +459,9 @@ private struct Hidden4KHDFeatureView: View {
             if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 viewModel.resetSearchAlbums()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hiddenSpaceSettingsDidChange)) { _ in
+            randomMode = HiddenSpaceSettingsStore.shared.load().fourKHDRandomMode
         }
     }
 
@@ -992,7 +1031,7 @@ private struct HiddenFavoriteAlbumsView: View {
     }
 }
 
-private enum HiddenRandomMode: String, CaseIterable, Identifiable {
+enum HiddenRandomMode: String, CaseIterable, Identifiable {
     case single
     case nine
 
@@ -2890,14 +2929,21 @@ private enum HiddenSpaceAPI {
 
 private struct HiddenJavDBFeatureView: View {
     @ObservedObject var viewModel: HiddenJavDBViewModel
-    @State private var randomMode: HiddenJavDBRandomMode = .single
-    @State private var showRandomDetails = false
+    @State private var randomMode: HiddenJavDBRandomMode
+    @State private var showRandomDetails: Bool
     @State private var searchQuery = ""
 
     private let searchColumns = [
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10)
     ]
+
+    init(viewModel: HiddenJavDBViewModel) {
+        self.viewModel = viewModel
+        let settings = HiddenSpaceSettingsStore.shared.load()
+        _randomMode = State(initialValue: settings.javDBRandomMode)
+        _showRandomDetails = State(initialValue: settings.showJavDBDetailsByDefault)
+    }
 
     var body: some View {
         ScrollView {
@@ -2937,7 +2983,7 @@ private struct HiddenJavDBFeatureView: View {
             await viewModel.loadRandomMovieIfNeeded(mode: randomMode)
         }
         .onChange(of: randomMode) { mode in
-            showRandomDetails = false
+            showRandomDetails = HiddenSpaceSettingsStore.shared.load().showJavDBDetailsByDefault
             Task {
                 await viewModel.loadRandomMovies(mode: mode)
             }
@@ -2946,6 +2992,11 @@ private struct HiddenJavDBFeatureView: View {
             if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 viewModel.resetSearchMovies()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hiddenSpaceSettingsDidChange)) { _ in
+            let settings = HiddenSpaceSettingsStore.shared.load()
+            randomMode = settings.javDBRandomMode
+            showRandomDetails = settings.showJavDBDetailsByDefault
         }
     }
 
@@ -3221,7 +3272,7 @@ private struct HiddenJavDBFeatureView: View {
 private struct HiddenJavDBFavoriteMoviesView: View {
     @ObservedObject var viewModel: HiddenJavDBViewModel
     @ObservedObject var presentationState: HiddenSpacePresentationState
-    @State private var showDetails = false
+    @State private var showDetails: Bool
     @State private var isResolvingRandomPlayback = false
     @State private var randomPlaybackErrorMessage: String?
 
@@ -3229,6 +3280,12 @@ private struct HiddenJavDBFavoriteMoviesView: View {
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10)
     ]
+
+    init(viewModel: HiddenJavDBViewModel, presentationState: HiddenSpacePresentationState) {
+        self.viewModel = viewModel
+        self.presentationState = presentationState
+        _showDetails = State(initialValue: HiddenSpaceSettingsStore.shared.load().showJavDBDetailsByDefault)
+    }
 
     var body: some View {
         ScrollView {
@@ -3314,6 +3371,9 @@ private struct HiddenJavDBFavoriteMoviesView: View {
                     viewModel.undoFavoritePlaybackSave(context)
                 }
             )
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .hiddenSpaceSettingsDidChange)) { _ in
+            showDetails = HiddenSpaceSettingsStore.shared.load().showJavDBDetailsByDefault
         }
     }
 
@@ -3415,7 +3475,7 @@ private struct HiddenJavDBMovieDetailView: View {
     @State private var imageURLs: [URL] = []
     @State private var isLoadingImages = false
     @State private var imageErrorMessage: String?
-    @State private var showDetails = false
+    @State private var showDetails: Bool
     @State private var isResolvingWatchPlayback = false
     @State private var resolvingWatchSiteName: String?
     @State private var watchPlaybackErrorMessage: String?
@@ -3425,8 +3485,8 @@ private struct HiddenJavDBMovieDetailView: View {
         GridItem(.flexible(), spacing: 8),
         GridItem(.flexible(), spacing: 8)
     ]
-    private let watchButtonColumns = [
-        GridItem(.adaptive(minimum: 110), spacing: 8)
+    private let relatedMovieColumns = [
+        GridItem(.adaptive(minimum: 146), spacing: 10)
     ]
     private var favoritePlaybackEntries: [HiddenJavDBFavoritePlayback] {
         viewModel.favoritePlaybacks(for: movie)
@@ -3440,6 +3500,13 @@ private struct HiddenJavDBMovieDetailView: View {
     }
     private var isLoadingRelatedMovieSections: Bool {
         movieDetail == nil && relatedMovieDetailErrorMessage == nil
+    }
+
+    init(movie: HiddenJavDBMovie, viewModel: HiddenJavDBViewModel, presentationState: HiddenSpacePresentationState) {
+        self.movie = movie
+        self.viewModel = viewModel
+        self.presentationState = presentationState
+        _showDetails = State(initialValue: HiddenSpaceSettingsStore.shared.load().showJavDBDetailsByDefault)
     }
 
     var body: some View {
@@ -3510,56 +3577,64 @@ private struct HiddenJavDBMovieDetailView: View {
         .fullScreenCover(item: inAppWebPageItemBinding) { item in
             HiddenInAppWebPageView(item: item)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .hiddenSpaceSettingsDidChange)) { _ in
+            showDetails = HiddenSpaceSettingsStore.shared.load().showJavDBDetailsByDefault
+        }
     }
 
     private var watchSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("在线观看")
+        VStack(alignment: .leading, spacing: 12) {
+            Text("播放")
                 .font(.headline)
 
-            LazyVGrid(columns: watchButtonColumns, spacing: 8) {
-                ForEach(HiddenJavDBWatchSite.defaultSites) { site in
-                    if let url = site.url(for: movie.code) {
-                        if site.launchMode != .external {
-                            Button {
-                                Task {
-                                    await openWatchSite(site: site, pageURL: url)
-                                }
-                            } label: {
-                                HStack(spacing: 6) {
-                                    if isResolvingWatchPlayback && resolvingWatchSiteName == site.name {
-                                        ProgressView()
-                                            .scaleEffect(0.8)
-                                    }
-                                    Text(isResolvingWatchPlayback && resolvingWatchSiteName == site.name ? "载入中..." : site.name)
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(.primary)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                        .fill(Color(.tertiarySystemFill))
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(isResolvingWatchPlayback)
-                        } else {
-                            Link(destination: url) {
-                                Text(site.name)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.primary)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .fill(Color(.tertiarySystemFill))
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                        }
+            Text("仅保留 miss.av 入口，直接拉起当前影片播放。")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if let url = HiddenJavDBWatchSite.missAV.url(for: movie.code) {
+                Button {
+                    Task {
+                        await openWatchSite(site: .missAV, pageURL: url)
                     }
+                } label: {
+                    HStack(spacing: 12) {
+                        Group {
+                            if isResolvingWatchPlayback && resolvingWatchSiteName == HiddenJavDBWatchSite.missAV.name {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 15, weight: .semibold))
+                            }
+                        }
+                        .frame(width: 18, height: 18)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(isResolvingWatchPlayback && resolvingWatchSiteName == HiddenJavDBWatchSite.missAV.name ? "载入中..." : "播放")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text("miss.av")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer(minLength: 0)
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color(.tertiarySystemFill))
+                    )
                 }
+                .buttonStyle(.plain)
+                .disabled(isResolvingWatchPlayback)
             }
 
             if let watchPlaybackErrorMessage {
@@ -3731,21 +3806,12 @@ private struct HiddenJavDBMovieDetailView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(alignment: .top, spacing: 10) {
-                        ForEach(movies) { relatedMovie in
-                            NavigationLink(value: HiddenSpaceRoute.javDBMovie(relatedMovie)) {
-                                HiddenJavDBFavoriteMovieTile(
-                                    movie: relatedMovie,
-                                    detail: nil,
-                                    errorMessage: nil,
-                                    isLoadingDetail: false,
-                                    showDetails: false
-                                )
-                                .frame(width: 152, alignment: .top)
-                            }
-                            .buttonStyle(.plain)
+                LazyVGrid(columns: relatedMovieColumns, alignment: .leading, spacing: 10) {
+                    ForEach(movies) { relatedMovie in
+                        NavigationLink(value: HiddenSpaceRoute.javDBMovie(relatedMovie)) {
+                            HiddenJavDBRelatedMovieTile(movie: relatedMovie)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -4401,6 +4467,47 @@ private struct HiddenJavDBFavoriteMovieTile: View {
     }
 }
 
+private struct HiddenJavDBRelatedMovieTile: View {
+    let movie: HiddenJavDBMovie
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack(alignment: .topLeading) {
+                AsyncCoverImage(url: movie.coverURL, fitToContainer: true)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 172)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                Text(movie.code)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.black.opacity(0.56), in: Capsule())
+                    .padding(8)
+            }
+
+            Text(movie.displayTitle)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+
+            if !movie.actresses.isEmpty {
+                Text(movie.actressesText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(.tertiarySystemFill))
+        )
+    }
+}
+
 private struct HiddenJavDBRandomListMovieTile: View {
     let movie: HiddenJavDBMovie
     let isFavorite: Bool
@@ -4447,14 +4554,14 @@ private struct HiddenJavDBWatchSite: Identifiable, Hashable {
     let urlTemplate: String
     var id: String { name }
 
+    static let missAV = HiddenJavDBWatchSite(name: "MISSAV", urlTemplate: "https://missav.ws/{{code}}/")
     static let defaultSites: [HiddenJavDBWatchSite] = [
-        HiddenJavDBWatchSite(name: "MISSAV", urlTemplate: "https://missav.ws/{{code}}/"),
-        HiddenJavDBWatchSite(name: "Jable", urlTemplate: "https://jable.tv/search/{{code}}/")
+        .missAV
     ]
 
     var launchMode: LaunchMode {
         switch name {
-        case "MISSAV", "Jable":
+        case "MISSAV":
             return .nativeStream
         case "Jav.Guru":
             return .embeddedWeb
@@ -4520,9 +4627,7 @@ private enum HiddenMissAVModule {
     static let homeURL = URL(string: "https://missav.ws")!
 
     static func pageURL(for rawCode: String) -> URL? {
-        HiddenJavDBWatchSite.defaultSites
-            .first(where: { $0.name == "MISSAV" })?
-            .url(for: rawCode)
+        HiddenJavDBWatchSite.missAV.url(for: rawCode)
     }
 }
 
@@ -5513,7 +5618,7 @@ private struct HiddenJavDBImagePreviewView: View {
     }
 }
 
-private enum HiddenJavDBRandomMode: String, CaseIterable, Identifiable {
+enum HiddenJavDBRandomMode: String, CaseIterable, Identifiable {
     case single
     case nine
 
@@ -5544,6 +5649,52 @@ private enum HiddenJavDBRandomMode: String, CaseIterable, Identifiable {
         case .nine:
             return "正在抓取随机 9 部..."
         }
+    }
+}
+
+struct HiddenSpaceSettings: Equatable {
+    var fourKHDRandomMode: HiddenRandomMode
+    var javDBRandomMode: HiddenJavDBRandomMode
+    var showJavDBDetailsByDefault: Bool
+}
+
+extension Notification.Name {
+    static let hiddenSpaceSettingsDidChange = Notification.Name("hiddenSpaceSettingsDidChange")
+}
+
+final class HiddenSpaceSettingsStore {
+    static let shared = HiddenSpaceSettingsStore()
+
+    private let userDefaults: UserDefaults
+    private let notificationCenter: NotificationCenter
+    private let fourKHDRandomModeKey = "hiddenSpace.4khd.randomMode"
+    private let javDBRandomModeKey = "hiddenSpace.javdb.randomMode"
+    private let showJavDBDetailsByDefaultKey = "hiddenSpace.javdb.showDetailsByDefault"
+
+    init(
+        userDefaults: UserDefaults = .standard,
+        notificationCenter: NotificationCenter = .default
+    ) {
+        self.userDefaults = userDefaults
+        self.notificationCenter = notificationCenter
+    }
+
+    func load() -> HiddenSpaceSettings {
+        let fourKHDRawValue = userDefaults.string(forKey: fourKHDRandomModeKey)
+        let javDBRawValue = userDefaults.string(forKey: javDBRandomModeKey)
+
+        return HiddenSpaceSettings(
+            fourKHDRandomMode: fourKHDRawValue.flatMap(HiddenRandomMode.init(rawValue:)) ?? .single,
+            javDBRandomMode: javDBRawValue.flatMap(HiddenJavDBRandomMode.init(rawValue:)) ?? .single,
+            showJavDBDetailsByDefault: userDefaults.object(forKey: showJavDBDetailsByDefaultKey) as? Bool ?? false
+        )
+    }
+
+    func save(_ settings: HiddenSpaceSettings) {
+        userDefaults.set(settings.fourKHDRandomMode.rawValue, forKey: fourKHDRandomModeKey)
+        userDefaults.set(settings.javDBRandomMode.rawValue, forKey: javDBRandomModeKey)
+        userDefaults.set(settings.showJavDBDetailsByDefault, forKey: showJavDBDetailsByDefaultKey)
+        notificationCenter.post(name: .hiddenSpaceSettingsDidChange, object: nil)
     }
 }
 
@@ -6242,18 +6393,6 @@ private enum HiddenJavDBAPI {
             switch site.name {
             case "MISSAV":
                 return .stream(try await fetchMissAVPrimaryStreamURL(pageURL: pageURL), pageURL)
-            case "Jable":
-                do {
-                    let videoPageURL = try await resolveJableVideoPageURL(from: pageURL)
-                    do {
-                        let streamURL = try await fetchJablePrimaryStreamURL(pageURL: videoPageURL)
-                        return .stream(streamURL, videoPageURL)
-                    } catch {
-                        return .webPage(videoPageURL)
-                    }
-                } catch {
-                    return .webPage(pageURL)
-                }
             default:
                 throw NSError(
                     domain: "HiddenJavDBAPI",
@@ -6296,76 +6435,6 @@ private enum HiddenJavDBAPI {
         }
 
         return 400
-    }
-
-    private static func fetchJablePrimaryStreamURL(pageURL: URL) async throws -> URL {
-        let html = try await fetchHTML(from: pageURL)
-
-        let directMatches = regexCaptureAll(
-            pattern: #"var\s+hlsUrl\s*=\s*'([^']+)'"#,
-            in: html,
-            dotMatchesLine: true
-        ) + regexCaptureAll(
-            pattern: #"video\.src\s*=\s*'([^']+)'"#,
-            in: html,
-            dotMatchesLine: true
-        ) + regexCaptureAll(
-            pattern: #"(https?://[^"'\s]+\.m3u8(?:\?[^"'\s]*)?)"#,
-            in: html,
-            dotMatchesLine: true
-        )
-
-        if let streamURL = directMatches.compactMap(normalizedURL(from:)).first {
-            return streamURL
-        }
-
-        throw NSError(
-            domain: "HiddenJavDBAPI",
-            code: -33,
-            userInfo: [NSLocalizedDescriptionKey: "未解析到 Jable 视频流"]
-        )
-    }
-
-    private static func resolveJableVideoPageURL(from pageURL: URL) async throws -> URL {
-        if pageURL.path.contains("/videos/") {
-            return pageURL
-        }
-
-        let searchHTML = try await fetchHTML(from: pageURL)
-        if let videoURL = extractJableVideoPageURL(from: searchHTML, preferredCode: pageURL.lastPathComponent) {
-            return videoURL
-        }
-
-        throw NSError(
-            domain: "HiddenJavDBAPI",
-            code: -34,
-            userInfo: [NSLocalizedDescriptionKey: "未找到 Jable 影片页"]
-        )
-    }
-
-    private static func extractJableVideoPageURL(from html: String, preferredCode: String) -> URL? {
-        let rawMatches = regexCaptureAll(
-            pattern: #"href=["'](https?://jable\.tv/videos/[^"']+|/videos/[^"']+)["']"#,
-            in: html,
-            dotMatchesLine: true
-        )
-
-        var seen = Set<String>()
-        let candidates = rawMatches.compactMap { raw in
-            normalizedExternalURL(from: raw, relativeTo: URL(string: "https://jable.tv")!)
-        }.filter { url in
-            seen.insert(url.absoluteString).inserted
-        }
-
-        let exactCode = preferredCode
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-        if !exactCode.isEmpty,
-           let exactMatch = candidates.first(where: { $0.path.lowercased().contains("/videos/\(exactCode)/") }) {
-            return exactMatch
-        }
-
-        return candidates.first
     }
 
     private static func fetchJavGuruPreferredWebURL(searchPageURL: URL) async throws -> URL {
@@ -6508,16 +6577,9 @@ private enum HiddenJavDBAPI {
                 continue
             }
 
-            let code = firstNonEmpty([
-                regexFirstCapture(pattern: #"<strong[^>]*>(.*?)</strong>"#, in: block, dotMatchesLine: true),
-                regexFirstCapture(pattern: #"<div[^>]*class=["'][^"']*uid[^"']*["'][^>]*>(.*?)</div>"#, in: block, dotMatchesLine: true)
-            ]).map(cleanTitle)?.nonEmpty ?? movieURL.lastPathComponent.uppercased()
+            let code = extractMovieCode(from: block) ?? movieURL.lastPathComponent.uppercased()
 
-            let title = firstNonEmpty([
-                regexFirstCapture(pattern: #"<div[^>]*class=["'][^"']*video-title[^"']*["'][^>]*>(.*?)</div>"#, in: block, dotMatchesLine: true),
-                regexFirstCapture(pattern: #"<div[^>]*class=["'][^"']*title[^"']*["'][^>]*>(.*?)</div>"#, in: block, dotMatchesLine: true),
-                regexFirstCapture(pattern: #"title=["']([^"']+)["']"#, in: block, dotMatchesLine: true)
-            ]).map(cleanTitle)?.nonEmpty ?? code
+            let title = extractMovieTitle(from: block, code: code) ?? code
 
             let actresses = parseActorNames(from: block)
 
@@ -6533,6 +6595,110 @@ private enum HiddenJavDBAPI {
         }
 
         return movies
+    }
+
+    private static func extractMovieCode(from block: String) -> String? {
+        let explicitCandidates = [
+            regexFirstCapture(pattern: #"<div[^>]*class=["'][^"']*uid[^"']*["'][^>]*>(.*?)</div>"#, in: block, dotMatchesLine: true),
+            regexFirstCapture(pattern: #"<span[^>]*class=["'][^"']*(?:uid|video-id)[^"']*["'][^>]*>(.*?)</span>"#, in: block, dotMatchesLine: true),
+            regexFirstCapture(pattern: #"<strong[^>]*>(.*?)</strong>"#, in: block, dotMatchesLine: true),
+            regexFirstCapture(pattern: #"<div[^>]*class=["'][^"']*video-title[^"']*["'][^>]*>(.*?)</div>"#, in: block, dotMatchesLine: true),
+            regexFirstCapture(pattern: #"title=["']([^"']+)["']"#, in: block, dotMatchesLine: true)
+        ]
+
+        for candidate in explicitCandidates {
+            if let code = extractLikelyMovieCode(from: candidate) {
+                return code
+            }
+        }
+
+        return extractLikelyMovieCode(from: cleanTitle(block))
+    }
+
+    private static func extractMovieTitle(from block: String, code: String) -> String? {
+        let candidates = [
+            regexFirstCapture(pattern: #"<div[^>]*class=["'][^"']*video-title[^"']*["'][^>]*>(.*?)</div>"#, in: block, dotMatchesLine: true),
+            regexFirstCapture(pattern: #"<div[^>]*class=["'][^"']*title[^"']*["'][^>]*>(.*?)</div>"#, in: block, dotMatchesLine: true),
+            regexFirstCapture(pattern: #"title=["']([^"']+)["']"#, in: block, dotMatchesLine: true),
+            regexFirstCapture(pattern: #"<strong[^>]*>(.*?)</strong>"#, in: block, dotMatchesLine: true)
+        ]
+
+        for candidate in candidates {
+            guard let candidate else { continue }
+
+            let cleanedTitle = strippingLeadingMovieCode(cleanTitle(candidate), code: code)
+            if let normalizedTitle = cleanedTitle.nonEmpty, normalizedTitle.uppercased() != code.uppercased() {
+                return normalizedTitle
+            }
+        }
+
+        return nil
+    }
+
+    private static func extractLikelyMovieCode(from raw: String?) -> String? {
+        guard let raw else { return nil }
+
+        let cleaned = cleanTitle(raw)
+            .replacingOccurrences(of: "_", with: "-")
+            .replacingOccurrences(of: "—", with: "-")
+            .replacingOccurrences(of: "–", with: "-")
+
+        let patterns = [
+            #"\b(FC2[-\s]*PPV[-\s]*\d{5,8})\b"#,
+            #"\b((?:\d{2,4})?[A-Z]{2,10}[-\s]?\d{2,6}[A-Z]?)\b"#
+        ]
+
+        for pattern in patterns {
+            if let match = regexFirstCapture(pattern: pattern, in: cleaned.uppercased(), dotMatchesLine: false) {
+                return canonicalMovieCode(match)
+            }
+        }
+
+        return nil
+    }
+
+    private static func canonicalMovieCode(_ rawCode: String) -> String {
+        let compact = rawCode
+            .uppercased()
+            .replacingOccurrences(of: #"[‐‑–—_]+"#, with: "-", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"-+"#, with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+
+        if let digits = regexFirstCapture(pattern: #"^FC2-?PPV-?(\d{5,8})$"#, in: compact, dotMatchesLine: false) {
+            return "FC2-PPV-\(digits)"
+        }
+
+        if let groups = regexFirstGroups(
+            pattern: #"^((?:\d{2,4})?[A-Z]{2,10})-?(\d{2,6}[A-Z]?)$"#,
+            in: compact,
+            dotMatchesLine: false
+        ), groups.count == 2 {
+            return "\(groups[0])-\(groups[1])"
+        }
+
+        return compact
+    }
+
+    private static func strippingLeadingMovieCode(_ title: String, code: String) -> String {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let variants = [
+            code.uppercased(),
+            code.uppercased().replacingOccurrences(of: "-", with: ""),
+            code.uppercased().replacingOccurrences(of: "-", with: " ")
+        ].sorted { $0.count > $1.count }
+
+        let uppercaseTitle = trimmedTitle.uppercased()
+        for variant in variants where uppercaseTitle.hasPrefix(variant) {
+            let index = trimmedTitle.index(trimmedTitle.startIndex, offsetBy: variant.count)
+            let remainder = trimmedTitle[index...]
+                .trimmingCharacters(in: CharacterSet(charactersIn: " -:|/·").union(.whitespacesAndNewlines))
+            if !remainder.isEmpty {
+                return String(remainder)
+            }
+        }
+
+        return trimmedTitle
     }
 
     private static func parseRelatedMovies(
@@ -7236,6 +7402,30 @@ private enum HiddenJavDBAPI {
                 return nil
             }
             return String(text[fullRange])
+        }
+    }
+
+    private static func regexFirstGroups(pattern: String, in text: String, dotMatchesLine: Bool) -> [String]? {
+        var options: NSRegularExpression.Options = [.caseInsensitive]
+        if dotMatchesLine {
+            options.insert(.dotMatchesLineSeparators)
+        }
+
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: options) else {
+            return nil
+        }
+
+        let range = NSRange(text.startIndex..<text.endIndex, in: text)
+        guard let match = regex.firstMatch(in: text, options: [], range: range),
+              match.numberOfRanges > 1 else {
+            return nil
+        }
+
+        return (1..<match.numberOfRanges).compactMap { index in
+            guard let captureRange = Range(match.range(at: index), in: text) else {
+                return nil
+            }
+            return String(text[captureRange])
         }
     }
 

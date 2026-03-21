@@ -283,7 +283,7 @@ actor QingLongService {
         )
 
         try keychainStore.saveCredentials(credentials)
-        store.saveProfile(profile)
+        store.saveProfile(profile, postsNotification: true)
         cachedSession = session
         return snapshot
     }
@@ -384,7 +384,7 @@ actor QingLongService {
             fetchedAt: fetchedAt
         )
 
-        store.saveProfile(updatedProfile)
+        store.saveProfile(updatedProfile, postsNotification: false)
         return snapshot
     }
 

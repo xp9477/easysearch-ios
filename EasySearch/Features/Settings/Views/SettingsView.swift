@@ -1,13 +1,20 @@
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
+    @EnvironmentObject private var navigationState: AppNavigationState
+    @EnvironmentObject private var registry: FeatureRegistry
     @StateObject private var cloudViewModel = HiddenCloudSyncViewModel.shared
-    @State private var cloudEmail = ""
-    @State private var cloudPassword = ""
-    @State private var deepSeekAPIKey = ""
-    @State private var deepSeekModel = ""
-    @State private var deepSeekTargetLanguage: ImageTranslateTargetLanguage = .simplifiedChinese
-    @State private var deepSeekStatusMessage: String?
+    @StateObject private var utNotificationManager = UTNotificationManager.shared
+    @StateObject private var gitHubNotificationManager = GitHubUpdatesNotificationManager.shared
+    @State private var path = NavigationPath()
+    @State private var deepSeekConfiguration = ImageTranslateConfiguration(
+        apiKey: "",
+        model: "deepseek-chat",
+        targetLanguage: .simplifiedChinese
+    )
+    @State private var qingLongProfile: QingLongPanelProfile?
+    @State private var gitHubRepositoryCount = 0
 
     private var appVersionText: String {
         let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
@@ -25,37 +32,255 @@ struct SettingsView: View {
         }
     }
 
+    private var deepSeekStatusText: String {
+        deepSeekConfiguration.hasAPIKey ? "已配置" : "未配置"
+    }
+
+    private var qingLongStatusText: String {
+        qingLongProfile == nil ? "未连接" : "已连接"
+    }
+
+    private var cloudSyncStatusText: String {
+        if !cloudViewModel.isCloudConfigured {
+            return "仅本地"
+        }
+        if cloudViewModel.isCloudAuthenticated {
+            let email = cloudViewModel.cloudUserEmail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return email.isEmpty ? "云端已登录" : email
+        }
+        return "云端未登录"
+    }
+
+    private var orderedModuleSettingsItems: [ModuleSettingsItem] {
+        registry.moduleListFeatures.compactMap(moduleSettingsItem(for:))
+    }
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            List {
+                Section {
+                    NavigationLink(value: SettingsRoute.cloudSync) {
+                        ModuleSettingsRow(
+                            title: "云端同步",
+                            status: cloudSyncStatusText,
+                            systemImage: "icloud"
+                        )
+                    }
+                }
+
+                if !orderedModuleSettingsItems.isEmpty {
+                    Section("模块设置") {
+                        ForEach(orderedModuleSettingsItems) { item in
+                            NavigationLink(value: item.route) {
+                                ModuleSettingsRow(
+                                    title: item.title,
+                                    status: item.status,
+                                    systemImage: item.systemImage
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Section("关于") {
+                    HStack {
+                        Text("版本号")
+                        Spacer()
+                        Text(appVersionText)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .navigationTitle("设置")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(for: SettingsRoute.self) { route in
+                settingsDestination(for: route)
+            }
+            .task {
+                await cloudViewModel.prepareIfNeeded()
+                await utNotificationManager.configure()
+                await gitHubNotificationManager.configure()
+                refreshSummaryState()
+                handlePendingRouteIfNeeded()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .imageTranslateConfigurationDidChange)) { _ in
+                refreshSummaryState()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .qingLongPanelDidChange)) { _ in
+                refreshSummaryState()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .gitHubWatchedRepositoriesDidChange)) { _ in
+                refreshSummaryState()
+            }
+            .onChange(of: navigationState.pendingSettingsRoute) { _ in
+                handlePendingRouteIfNeeded()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func settingsDestination(for route: SettingsRoute) -> some View {
+        switch route {
+        case .cloudSync:
+            CloudSyncSettingsDetailView()
+        case .utTracker:
+            UTTrackerSettingsDetailView()
+        case .gitHubUpdates:
+            GitHubUpdatesSettingsDetailView()
+        case .imageTranslate:
+            DeepSeekSettingsDetailView(entry: .imageTranslate)
+        case .emailAssistant:
+            DeepSeekSettingsDetailView(entry: .emailAssistant)
+        case .qingLong:
+            QingLongSettingsDetailView()
+        }
+    }
+
+    private func refreshSummaryState() {
+        deepSeekConfiguration = ImageTranslateConfigurationStore.shared.loadConfiguration()
+        qingLongProfile = QingLongPanelLocalStore().loadProfile()
+        gitHubRepositoryCount = GitHubWatchedRepositoryLocalStore().loadRepositories().count
+    }
+
+    private func handlePendingRouteIfNeeded() {
+        guard let route = navigationState.pendingSettingsRoute else { return }
+        path = NavigationPath()
+        path.append(route)
+        navigationState.pendingSettingsRoute = nil
+    }
+
+    private func moduleSettingsItem(for feature: any AppFeature) -> ModuleSettingsItem? {
+        switch feature.id {
+        case "uttracker":
+            return ModuleSettingsItem(
+                id: feature.id,
+                title: feature.title,
+                status: utNotificationManager.statusText,
+                systemImage: feature.iconName,
+                route: .utTracker
+            )
+        case "github-updates":
+            let repositoryText = gitHubRepositoryCount > 0 ? " · \(gitHubRepositoryCount) 个仓库" : ""
+            return ModuleSettingsItem(
+                id: feature.id,
+                title: feature.title,
+                status: gitHubNotificationManager.statusText + repositoryText,
+                systemImage: feature.iconName,
+                route: .gitHubUpdates
+            )
+        case "qinglong-management":
+            return ModuleSettingsItem(
+                id: feature.id,
+                title: feature.title,
+                status: qingLongProfile?.hostLabel ?? qingLongStatusText,
+                systemImage: feature.iconName,
+                route: .qingLong
+            )
+        case "image-translate":
+            return ModuleSettingsItem(
+                id: feature.id,
+                title: feature.title,
+                status: "\(deepSeekStatusText) · \(deepSeekConfiguration.resolvedModel)",
+                systemImage: feature.iconName,
+                route: .imageTranslate
+            )
+        case "email-assistant":
+            return ModuleSettingsItem(
+                id: feature.id,
+                title: feature.title,
+                status: deepSeekStatusText,
+                systemImage: feature.iconName,
+                route: .emailAssistant
+            )
+        default:
+            return nil
+        }
+    }
+}
+
+private struct ModuleSettingsItem: Identifiable {
+    let id: String
+    let title: String
+    let status: String
+    let systemImage: String
+    let route: SettingsRoute
+}
+
+private struct ModuleSettingsRow: View {
+    let title: String
+    let status: String
+    let systemImage: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.tint)
+                .frame(width: 20)
+
+            Text(title)
+                .foregroundStyle(.primary)
+
+            Spacer(minLength: 12)
+
+            Text(status)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+private struct CloudSyncSettingsDetailView: View {
+    @StateObject private var cloudViewModel = HiddenCloudSyncViewModel.shared
+    @State private var cloudEmail = ""
+    @State private var cloudPassword = ""
+
     private var cloudInlineMessage: String? {
         guard let message = cloudViewModel.cloudStatusMessage?.trimmingCharacters(in: .whitespacesAndNewlines),
               !message.isEmpty else {
             return nil
         }
 
-        if message.contains("失败") || message.contains("请先") || message.contains("确认") || message.contains("未配置") {
-            return message
-        }
-        return nil
-    }
-
-    private var deepSeekConfigurationStatusText: String {
-        deepSeekAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "未配置" : "已配置"
+        return message
     }
 
     var body: some View {
-        NavigationStack {
-            List {
+        List {
+            Section {
+                HStack {
+                    Label("状态", systemImage: cloudViewModel.isCloudAuthenticated ? "icloud.fill" : "icloud")
+                    Spacer()
+                    Text(statusText)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.trailing)
+                }
+
                 if cloudViewModel.isCloudConfigured {
-                    Section {
-                        if cloudViewModel.isCloudAuthenticated {
+                    if cloudViewModel.isCloudAuthenticated {
                         HStack {
-                            Label("当前账号", systemImage: "person.crop.circle")
+                            Label("账号", systemImage: "person.crop.circle")
                             Spacer()
-                            Text({
-                                let email = cloudViewModel.cloudUserEmail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                                return email.isEmpty ? "已登录" : email
-                            }())
+                            Text(currentAccountText)
                                 .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.trailing)
                         }
+
+                        Button {
+                            Task {
+                                await cloudViewModel.syncNow()
+                            }
+                        } label: {
+                            HStack {
+                                Label("同步", systemImage: "arrow.clockwise")
+                                Spacer()
+                                if cloudViewModel.isCloudBusy {
+                                    ProgressView()
+                                }
+                            }
+                        }
+                        .disabled(cloudViewModel.isCloudBusy)
 
                         Button(role: .destructive) {
                             Task {
@@ -65,8 +290,8 @@ struct SettingsView: View {
                             Label("退出云端登录", systemImage: "rectangle.portrait.and.arrow.right")
                         }
                         .disabled(cloudViewModel.isCloudBusy)
-                        } else {
-                            TextField("邮箱", text: $cloudEmail)
+                    } else {
+                        TextField("邮箱", text: $cloudEmail)
                             .textInputAutocapitalization(.never)
                             .keyboardType(.emailAddress)
                             .autocorrectionDisabled()
@@ -91,7 +316,11 @@ struct SettingsView: View {
                                 }
                             }
                         }
-                        .disabled(cloudViewModel.isCloudBusy || cloudEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || cloudPassword.isEmpty)
+                        .disabled(
+                            cloudViewModel.isCloudBusy ||
+                            cloudEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                            cloudPassword.isEmpty
+                        )
 
                         Button {
                             Task {
@@ -103,103 +332,565 @@ struct SettingsView: View {
                         } label: {
                             Label("注册", systemImage: "person.crop.circle.badge.plus")
                         }
-                        .disabled(cloudViewModel.isCloudBusy || cloudEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || cloudPassword.isEmpty)
-                        }
-
-                        if let cloudInlineMessage {
-                            Text(cloudInlineMessage)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                    } header: {
-                        Text("账号")
-                    } footer: {
-                        Text("登录后会自动同步本地数据；网络恢复后会在后续操作中继续尝试同步。")
+                        .disabled(
+                            cloudViewModel.isCloudBusy ||
+                            cloudEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                            cloudPassword.isEmpty
+                        )
                     }
                 }
 
-                Section {
-                    HStack {
-                        Label("当前状态", systemImage: "sparkles")
-                        Spacer()
-                        Text(deepSeekConfigurationStatusText)
-                            .foregroundStyle(.secondary)
+                if let cloudInlineMessage {
+                    Text(cloudInlineMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("云端同步")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await cloudViewModel.prepareIfNeeded()
+        }
+    }
+
+    private var statusText: String {
+        if !cloudViewModel.isCloudConfigured {
+            return "仅本地"
+        }
+        return cloudViewModel.isCloudAuthenticated ? "已登录" : "未登录"
+    }
+
+    private var currentAccountText: String {
+        let email = cloudViewModel.cloudUserEmail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return email.isEmpty ? "已登录" : email
+    }
+}
+
+private struct UTTrackerSettingsDetailView: View {
+    @StateObject private var notificationManager = UTNotificationManager.shared
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        List {
+            Section {
+                SettingsValueRow(title: "状态", value: notificationManager.statusText)
+
+                switch notificationManager.authorizationStatus {
+                case .notDetermined:
+                    Button {
+                        Task {
+                            await notificationManager.requestAuthorization()
+                        }
+                    } label: {
+                        Label("开启通知", systemImage: "bell.badge")
                     }
 
-                    SecureField("DeepSeek API Key", text: $deepSeekAPIKey)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                case .denied:
+                    Button {
+                        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+                        openURL(settingsURL)
+                    } label: {
+                        Label("前往系统设置", systemImage: "gearshape")
+                    }
 
-                    TextField("模型（默认 deepseek-chat）", text: $deepSeekModel)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                case .authorized, .provisional, .ephemeral:
+                    Button {
+                        Task {
+                            await notificationManager.refreshStateAndSchedules()
+                        }
+                    } label: {
+                        Label("刷新提醒", systemImage: "arrow.clockwise")
+                    }
 
-                    Picker("默认目标语言", selection: $deepSeekTargetLanguage) {
+                @unknown default:
+                    EmptyView()
+                }
+            }
+        }
+        .navigationTitle("UT 记录")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await notificationManager.configure()
+        }
+    }
+}
+
+private struct GitHubUpdatesSettingsDetailView: View {
+    @StateObject private var notificationManager = GitHubUpdatesNotificationManager.shared
+    @Environment(\.openURL) private var openURL
+    @State private var repositoryCount = 0
+
+    var body: some View {
+        List {
+            Section {
+                SettingsValueRow(title: "状态", value: notificationManager.statusText)
+                SettingsValueRow(title: "仓库", value: "\(repositoryCount) 个")
+
+                switch notificationManager.authorizationStatus {
+                case .notDetermined:
+                    Button {
+                        Task {
+                            await notificationManager.requestAuthorization()
+                        }
+                    } label: {
+                        Label("开启通知", systemImage: "bell.badge")
+                    }
+
+                case .denied:
+                    Button {
+                        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+                        openURL(settingsURL)
+                    } label: {
+                        Label("前往系统设置", systemImage: "gearshape")
+                    }
+
+                case .authorized, .provisional, .ephemeral:
+                    Button {
+                        Task {
+                            await notificationManager.refreshAuthorizationStatus()
+                        }
+                    } label: {
+                        Label("刷新状态", systemImage: "arrow.clockwise")
+                    }
+
+                @unknown default:
+                    EmptyView()
+                }
+            }
+        }
+        .navigationTitle("GitHub 更新")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await notificationManager.configure()
+            reloadRepositoryCount()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .gitHubWatchedRepositoriesDidChange)) { _ in
+            reloadRepositoryCount()
+        }
+    }
+
+    private func reloadRepositoryCount() {
+        repositoryCount = GitHubWatchedRepositoryLocalStore().loadRepositories().count
+    }
+}
+
+private enum DeepSeekSettingsEntry {
+    case imageTranslate
+    case emailAssistant
+
+    var title: String {
+        switch self {
+        case .imageTranslate:
+            return "截图翻译"
+        case .emailAssistant:
+            return "邮件助手"
+        }
+    }
+
+    var showsTargetLanguage: Bool {
+        self == .imageTranslate
+    }
+}
+
+private struct DeepSeekSettingsDetailView: View {
+    let entry: DeepSeekSettingsEntry
+
+    @State private var apiKey = ""
+    @State private var model = ""
+    @State private var targetLanguage: ImageTranslateTargetLanguage = .simplifiedChinese
+    @State private var statusMessage: String?
+
+    private var configurationStatusText: String {
+        apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "未配置" : "已配置"
+    }
+
+    var body: some View {
+        List {
+            Section {
+                SettingsValueRow(title: "状态", value: configurationStatusText)
+
+                SecureField("DeepSeek API Key", text: $apiKey)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+
+                TextField("模型", text: $model)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+
+                Button {
+                    saveConfiguration()
+                } label: {
+                    Label("保存", systemImage: "tray.and.arrow.down")
+                }
+
+                if let statusMessage,
+                   !statusMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(statusMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if entry.showsTargetLanguage {
+                Section {
+                    Picker("默认目标语言", selection: $targetLanguage) {
                         ForEach(ImageTranslateTargetLanguage.allCases) { language in
                             Text(language.title).tag(language)
                         }
                     }
-
-                    Button {
-                        saveDeepSeekConfiguration()
-                    } label: {
-                        Label("保存 DeepSeek 配置", systemImage: "tray.and.arrow.down")
-                    }
-
-                    if let deepSeekStatusMessage,
-                       !deepSeekStatusMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text(deepSeekStatusMessage)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                } header: {
-                    Text("DeepSeek")
-                } footer: {
-                    Text("截图翻译和邮件助手共用这份 DeepSeek 配置。API Key 为空时保存，会清除本地已存配置；模型默认使用 deepseek-chat。")
-                }
-
-                Section("关于") {
-                    HStack {
-                        Text("版本号")
-                        Spacer()
-                        Text(appVersionText)
-                            .foregroundStyle(.secondary)
-                    }
                 }
             }
-            .navigationTitle("设置")
-            .navigationBarTitleDisplayMode(.inline)
-            .task {
-                await cloudViewModel.prepareIfNeeded()
-                loadDeepSeekConfiguration()
-            }
+        }
+        .navigationTitle(entry.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            loadConfiguration()
         }
     }
 
-    private func loadDeepSeekConfiguration() {
+    private func loadConfiguration() {
         let configuration = ImageTranslateConfigurationStore.shared.loadConfiguration()
-        deepSeekAPIKey = configuration.apiKey
-        deepSeekModel = configuration.model
-        deepSeekTargetLanguage = configuration.targetLanguage
+        apiKey = configuration.apiKey
+        model = configuration.model
+        targetLanguage = configuration.targetLanguage
     }
 
-    private func saveDeepSeekConfiguration() {
+    private func saveConfiguration() {
         do {
             try ImageTranslateConfigurationStore.shared.saveConfiguration(
-                apiKey: deepSeekAPIKey,
-                model: deepSeekModel,
-                targetLanguage: deepSeekTargetLanguage
+                apiKey: apiKey,
+                model: model,
+                targetLanguage: targetLanguage
             )
-            loadDeepSeekConfiguration()
-            deepSeekStatusMessage = deepSeekAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? "已清除本地 DeepSeek API Key，OCR 仍可单独使用。"
-                : "DeepSeek 配置已保存，截图翻译和邮件助手都可以直接使用。"
+            loadConfiguration()
+            statusMessage = apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                ? "已清除本地 DeepSeek API Key。"
+                : "DeepSeek 配置已保存，截图翻译和邮件助手都会同步使用。"
         } catch {
-            deepSeekStatusMessage = error.localizedDescription
+            statusMessage = error.localizedDescription
         }
+    }
+}
+
+private struct QingLongSettingsDetailView: View {
+    @StateObject private var viewModel = QingLongViewModel()
+    @State private var isEditingConnection = false
+
+    var body: some View {
+        List {
+            if let statusState = viewModel.statusState {
+                Section {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: iconName(for: statusState.tone))
+                            .foregroundStyle(color(for: statusState.tone))
+                        Text(statusState.message)
+                            .foregroundStyle(.primary)
+                    }
+                }
+            }
+
+            if let profile = viewModel.profile {
+                Section("当前连接") {
+                    SettingsValueRow(title: "面板地址", value: profile.baseURL.absoluteString)
+                    SettingsValueRow(title: "主机标识", value: profile.hostLabel)
+                    SettingsValueRow(title: "最近连接", value: profile.lastConnectedAt.map(absoluteDateText) ?? "暂无记录")
+
+                    Button(isEditingConnection ? "收起编辑" : "编辑连接") {
+                        isEditingConnection.toggle()
+                    }
+
+                    Button {
+                        Task {
+                            await viewModel.runDiagnostics()
+                        }
+                    } label: {
+                        HStack {
+                            Label("连接诊断", systemImage: "stethoscope")
+                            Spacer()
+                            if viewModel.isRunningDiagnostics {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(viewModel.isRunningDiagnostics || viewModel.isConnecting)
+
+                    Button(role: .destructive) {
+                        Task {
+                            await viewModel.disconnect()
+                            isEditingConnection = true
+                        }
+                    } label: {
+                        Label("断开连接", systemImage: "trash")
+                    }
+                }
+            }
+
+            if viewModel.profile == nil || isEditingConnection {
+                Section {
+                    TextField("面板地址，例如 https://ql.example.com:5700", text: $viewModel.draftBaseURL)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled()
+
+                    TextField("Open API client_id", text: $viewModel.draftClientID)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.asciiCapable)
+                        .autocorrectionDisabled()
+
+                    SecureField("Open API client_secret", text: $viewModel.draftClientSecret)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.asciiCapable)
+                        .autocorrectionDisabled()
+
+                    Button {
+                        Task {
+                            await viewModel.connect()
+                            if viewModel.profile != nil {
+                                isEditingConnection = false
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Label(viewModel.profile == nil ? "保存并连接" : "更新并重连", systemImage: "link.badge.plus")
+                            Spacer()
+                            if viewModel.isConnecting {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(viewModel.isConnecting || viewModel.isRunningDiagnostics)
+
+                    Button {
+                        Task {
+                            await viewModel.runDiagnostics()
+                        }
+                    } label: {
+                        HStack {
+                            Label("连接诊断", systemImage: "stethoscope")
+                            Spacer()
+                            if viewModel.isRunningDiagnostics {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(viewModel.isConnecting || viewModel.isRunningDiagnostics)
+
+                    if viewModel.profile != nil {
+                        Button("取消编辑") {
+                            viewModel.discardDraftChanges()
+                            isEditingConnection = false
+                        }
+                        .disabled(viewModel.isConnecting)
+                    }
+                } header: {
+                    Text(viewModel.profile == nil ? "连接配置" : "编辑连接")
+                }
+            }
+        }
+        .navigationTitle("青龙管理")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await viewModel.prepare()
+            isEditingConnection = viewModel.profile == nil
+        }
+        .sheet(item: $viewModel.diagnosticReport) { report in
+            QingLongDiagnosticReportView(report: report)
+        }
+    }
+
+    private func absoluteDateText(_ date: Date) -> String {
+        date.formatted(
+            .dateTime
+                .year()
+                .month()
+                .day()
+                .hour()
+                .minute()
+        )
+    }
+
+    private func iconName(for tone: QingLongStatusTone) -> String {
+        switch tone {
+        case .success:
+            return "checkmark.circle.fill"
+        case .info:
+            return "info.circle.fill"
+        case .error:
+            return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private func color(for tone: QingLongStatusTone) -> Color {
+        switch tone {
+        case .success:
+            return .green
+        case .info:
+            return .blue
+        case .error:
+            return .orange
+        }
+    }
+}
+
+private struct SettingsValueRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .top) {
+            Text(title)
+            Spacer(minLength: 12)
+            Text(value)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+}
+
+private struct QingLongDiagnosticReportView: View {
+    let report: QingLongDiagnosticReport
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(report.baseURL)
+                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+
+                        Text("生成时间 \(absoluteDateText(report.generatedAt))")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    ForEach(report.steps) { step in
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text(step.title)
+                                    .font(.system(size: 17, weight: .bold))
+
+                                Spacer()
+
+                                QingLongTag(
+                                    text: step.isSuccess ? "成功" : "失败",
+                                    color: step.isSuccess ? .green : .orange
+                                )
+                            }
+
+                            Text(step.url)
+                                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                .foregroundStyle(.secondary)
+
+                            Text(step.summary)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.primary)
+
+                            if !step.preview.isEmpty {
+                                Text(step.preview)
+                                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                            .fill(Color(.tertiarySystemFill))
+                                    )
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                .fill(Color(.secondarySystemGroupedBackground))
+                        )
+                    }
+                }
+                .padding(20)
+            }
+            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .navigationTitle("连接诊断")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private func absoluteDateText(_ date: Date) -> String {
+        date.formatted(
+            .dateTime
+                .year()
+                .month()
+                .day()
+                .hour()
+                .minute()
+        )
+    }
+}
+
+struct HiddenSpaceSettingsDetailView: View {
+    @State private var fourKHDRandomMode = HiddenSpaceSettingsStore.shared.load().fourKHDRandomMode
+    @State private var javDBRandomMode = HiddenSpaceSettingsStore.shared.load().javDBRandomMode
+    @State private var showJavDBDetailsByDefault = HiddenSpaceSettingsStore.shared.load().showJavDBDetailsByDefault
+
+    var body: some View {
+        List {
+            Section {
+                Picker("默认随机模式", selection: $fourKHDRandomMode) {
+                    ForEach(HiddenRandomMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+            } header: {
+                Text("4khd")
+            }
+
+            Section {
+                Picker("默认随机模式", selection: $javDBRandomMode) {
+                    ForEach(HiddenJavDBRandomMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+
+                Toggle("默认展开详细信息", isOn: $showJavDBDetailsByDefault)
+            } header: {
+                Text("javdb")
+            }
+        }
+        .navigationTitle("隐藏空间设置")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            loadSettings()
+        }
+        .onChange(of: fourKHDRandomMode) { _ in
+            persistSettings()
+        }
+        .onChange(of: javDBRandomMode) { _ in
+            persistSettings()
+        }
+        .onChange(of: showJavDBDetailsByDefault) { _ in
+            persistSettings()
+        }
+    }
+
+    private func loadSettings() {
+        let settings = HiddenSpaceSettingsStore.shared.load()
+        fourKHDRandomMode = settings.fourKHDRandomMode
+        javDBRandomMode = settings.javDBRandomMode
+        showJavDBDetailsByDefault = settings.showJavDBDetailsByDefault
+    }
+
+    private func persistSettings() {
+        HiddenSpaceSettingsStore.shared.save(
+            HiddenSpaceSettings(
+                fourKHDRandomMode: fourKHDRandomMode,
+                javDBRandomMode: javDBRandomMode,
+                showJavDBDetailsByDefault: showJavDBDetailsByDefault
+            )
+        )
     }
 }
 
 #Preview {
     SettingsView()
+        .environmentObject(AppNavigationState())
 }

@@ -1,9 +1,7 @@
 import SwiftUI
-import UIKit
 
 public struct GitHubUpdatesView: View {
     @StateObject private var viewModel = GitHubUpdatesViewModel()
-    @StateObject private var notificationManager = GitHubUpdatesNotificationManager.shared
     @Environment(\.openURL) private var openURL
 
     public init() {}
@@ -12,7 +10,6 @@ public struct GitHubUpdatesView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 summaryCard
-                addRepositoryCard
                 repositoriesCard
             }
             .padding(.horizontal, 20)
@@ -45,10 +42,6 @@ public struct GitHubUpdatesView: View {
                 noticeBanner(notice)
             }
 
-            if !notificationManager.notificationsEnabled {
-                notificationPrompt
-            }
-
             Button {
                 Task {
                     await viewModel.refreshAll()
@@ -73,102 +66,6 @@ public struct GitHubUpdatesView: View {
         .cardStyle()
     }
 
-    @ViewBuilder
-    private var notificationPrompt: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("通知未开启，后台发现新 push 时不会提醒你。")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.secondary)
-
-            switch notificationManager.authorizationStatus {
-            case .notDetermined:
-                Button {
-                    Task {
-                        await notificationManager.requestAuthorization()
-                    }
-                } label: {
-                    Label("开启通知", systemImage: "bell.badge")
-                        .font(.system(size: 15, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.indigo)
-
-            case .denied:
-                Button {
-                    guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
-                    openURL(settingsURL)
-                } label: {
-                    Label("前往系统设置", systemImage: "gearshape")
-                        .font(.system(size: 15, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
-                .buttonStyle(.bordered)
-                .tint(.secondary)
-
-            case .authorized, .provisional, .ephemeral:
-                EmptyView()
-
-            @unknown default:
-                EmptyView()
-            }
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.orange.opacity(0.08))
-        )
-    }
-
-    private var addRepositoryCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("添加仓库")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.primary)
-
-            TextField("输入 GitHub 仓库地址", text: $viewModel.draftRepositoryAddress)
-                .textInputAutocapitalization(.never)
-                .keyboardType(.URL)
-                .autocorrectionDisabled()
-                .submitLabel(.done)
-                .onSubmit {
-                    Task {
-                        await viewModel.addRepository()
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(.tertiarySystemFill))
-                )
-
-            Button {
-                Task {
-                    await viewModel.addRepository()
-                }
-            } label: {
-                HStack {
-                    Label("加入提醒", systemImage: "plus.circle.fill")
-                    Spacer()
-                    if viewModel.isAddingRepository {
-                        ProgressView()
-                    }
-                }
-                .font(.system(size: 16, weight: .semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.indigo)
-            .disabled(!viewModel.canAddRepository)
-        }
-        .padding(24)
-        .cardStyle()
-    }
-
     private var repositoriesCard: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("提醒列表")
@@ -179,7 +76,7 @@ public struct GitHubUpdatesView: View {
                 emptyState(
                     icon: "shippingbox.circle",
                     title: "暂无关注仓库",
-                    description: "支持 `https://github.com/owner/repo`、`git@github.com:owner/repo.git` 或 `owner/repo`。"
+                    description: "在设置里添加仓库后，会显示在这里。"
                 )
             } else {
                 LazyVStack(spacing: 12) {
@@ -196,8 +93,7 @@ public struct GitHubUpdatesView: View {
                                     await viewModel.deleteRepository(repository)
                                 }
                             },
-                            relativeDateText: relativeDateText(_:),
-                            absoluteDateText: absoluteDateText(_:)
+                            relativeDateText: relativeDateText(_:)
                         )
                     }
                 }
@@ -273,16 +169,6 @@ public struct GitHubUpdatesView: View {
         return formatter.localizedString(for: date, relativeTo: Date())
     }
 
-    private func absoluteDateText(_ date: Date) -> String {
-        date.formatted(
-            .dateTime
-                .year()
-                .month()
-                .day()
-                .hour()
-                .minute()
-        )
-    }
 }
 
 private struct GitHubWatchedRepositoryRow: View {
@@ -292,88 +178,76 @@ private struct GitHubWatchedRepositoryRow: View {
     let openAction: () -> Void
     let deleteAction: () -> Void
     let relativeDateText: (Date) -> String
-    let absoluteDateText: (Date) -> String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(repository.fullName)
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(repository.fullName)
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                    if !repository.repositoryDescription.isEmpty {
-                        Text(repository.repositoryDescription)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
+                if !repository.repositoryDescription.isEmpty {
+                    Text(repository.repositoryDescription)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
 
-                Spacer(minLength: 8)
-
-                statusTag
+                Text(pushText)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
             }
 
-            detailRow(
-                label: "最近 push",
-                value: repository.lastKnownPushedAt.map(relativeDateText) ?? "尚未拿到最近 push 时间"
-            )
+            Spacer(minLength: 8)
 
-            detailRow(
-                label: "上次检查",
-                value: repository.lastCheckedAt.map(absoluteDateText) ?? "等待首次检查"
-            )
-
-            HStack(spacing: 10) {
-                Button(action: openAction) {
-                    Label("打开仓库", systemImage: "arrow.up.right.square")
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                }
-                .buttonStyle(.bordered)
-                .tint(.indigo)
-
-                Button(role: .destructive, action: deleteAction) {
-                    HStack(spacing: 8) {
-                        if isDeleting {
-                            ProgressView()
-                        } else {
-                            Image(systemName: "trash")
-                        }
-
-                        Text("移除")
-                    }
-                    .font(.system(size: 14, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                }
-                .buttonStyle(.bordered)
-                .disabled(!canDelete)
-            }
+            accessory
         }
-        .padding(16)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(Color(.systemBackground))
         )
+        .contentShape(Rectangle())
+        .contextMenu {
+            Button(action: openAction) {
+                Label("打开仓库", systemImage: "arrow.up.right.square")
+            }
+
+            Button(role: .destructive, action: deleteAction) {
+                Label("移除", systemImage: "trash")
+            }
+            .disabled(!canDelete)
+        }
     }
 
-    private var statusTag: some View {
-        Text(statusText)
-            .font(.system(size: 11, weight: .bold))
-            .foregroundStyle(statusColor)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(statusColor.opacity(0.12))
-            )
+    @ViewBuilder
+    private var accessory: some View {
+        if isDeleting {
+            ProgressView()
+        } else if let statusText {
+            Text(statusText)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(statusColor)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(statusColor.opacity(0.12))
+                )
+        }
     }
 
-    private var statusText: String {
+    private var pushText: String {
+        if let pushedAt = repository.lastKnownPushedAt {
+            return "最近 push \(relativeDateText(pushedAt))"
+        }
+
+        return "尚未拿到最近 push 时间"
+    }
+
+    private var statusText: String? {
         if repository.isArchived || repository.isDisabled {
             return "已归档"
         }
@@ -383,7 +257,7 @@ private struct GitHubWatchedRepositoryRow: View {
             return "最近有更新"
         }
 
-        return "监控中"
+        return nil
     }
 
     private var statusColor: Color {
@@ -394,22 +268,6 @@ private struct GitHubWatchedRepositoryRow: View {
             return .secondary
         default:
             return .indigo
-        }
-    }
-
-    private func detailRow(label: String, value: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Text(label)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .frame(width: 60, alignment: .leading)
-
-            Text(value)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Spacer(minLength: 0)
         }
     }
 }

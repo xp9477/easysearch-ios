@@ -3,26 +3,21 @@ import SwiftUI
 struct QingLongWorkspaceCard: View {
     @ObservedObject var viewModel: QingLongViewModel
     let relativeDateText: (Date) -> String
+    let openConfigurationAction: () -> Void
     let toggleEnvironmentAction: (QingLongEnvironment) -> Void
     let primaryCronAction: (QingLongCron) -> Void
     let toggleCronEnabledAction: (QingLongCron) -> Void
     let logAction: (QingLongCron) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            QingLongSectionHeader(
-                eyebrow: "Workspace",
-                title: "管理工作区",
-                description: viewModel.profile == nil
-                    ? "连接成功后，这里会切换成环境变量和定时任务两个管理工作区。"
-                    : "把高频运维动作收敛成两个工作区，再用搜索和筛选快速定位目标。"
-            )
-
+        VStack(alignment: .leading, spacing: 12) {
             if viewModel.profile == nil {
                 QingLongEmptyState(
-                    icon: "rectangle.split.2x1",
-                    title: "还没有进入管理态",
-                    description: "先完成连接，再使用环境变量和定时任务工作区。"
+                    icon: "server.rack",
+                    title: "未连接",
+                    description: nil,
+                    actionTitle: "去设置",
+                    action: openConfigurationAction
                 )
             } else {
                 Picker("管理工作区", selection: $viewModel.selectedSection) {
@@ -48,7 +43,7 @@ struct QingLongWorkspaceCard: View {
                 }
             }
         }
-        .padding(24)
+        .padding(14)
         .cardStyle()
     }
 }
@@ -58,8 +53,15 @@ private struct QingLongEnvironmentWorkspace: View {
     let toggleEnvironmentAction: (QingLongEnvironment) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            QingLongSearchField(text: $viewModel.environmentSearchText, placeholder: "搜索变量名或备注")
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                QingLongSearchField(text: $viewModel.environmentSearchText, placeholder: "搜索变量")
+
+                QingLongTag(
+                    text: "\(viewModel.filteredEnvironments.count)/\(viewModel.environments.count)",
+                    color: Color.secondary
+                )
+            }
 
             QingLongFilterBar(
                 selection: $viewModel.environmentFilter,
@@ -67,25 +69,21 @@ private struct QingLongEnvironmentWorkspace: View {
                 title: \.title
             )
 
-            Text("显示 \(viewModel.filteredEnvironments.count) / \(viewModel.environments.count) 个变量，默认优先展示 Pinned 和启用项。")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.secondary)
-
             if viewModel.environments.isEmpty {
                 QingLongEmptyState(
                     icon: "shippingbox",
-                    title: "暂无环境变量",
-                    description: "当前面板没有返回变量，或者应用权限里没有 envs 访问能力。"
+                    title: "没有变量",
+                    description: nil
                 )
             } else if viewModel.filteredEnvironments.isEmpty {
                 QingLongEmptyState(
                     icon: "magnifyingglass",
-                    title: "没有匹配的变量",
-                    description: "调整关键词或筛选条件后再试。"
+                    title: "无匹配结果",
+                    description: nil
                 )
             } else {
-                LazyVStack(spacing: 12) {
-                    ForEach(viewModel.filteredEnvironments) { environment in
+                VStack(spacing: 0) {
+                    ForEach(Array(viewModel.filteredEnvironments.enumerated()), id: \.element.id) { index, environment in
                         QingLongEnvironmentRow(
                             environment: environment,
                             isPending: viewModel.isEnvironmentPending(environment.id),
@@ -93,8 +91,17 @@ private struct QingLongEnvironmentWorkspace: View {
                                 toggleEnvironmentAction(environment)
                             }
                         )
+
+                        if index < viewModel.filteredEnvironments.count - 1 {
+                            Divider()
+                                .padding(.leading, 12)
+                        }
                     }
                 }
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color(.tertiarySystemFill))
+                )
             }
         }
     }
@@ -108,8 +115,15 @@ private struct QingLongCronWorkspace: View {
     let logAction: (QingLongCron) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            QingLongSearchField(text: $viewModel.cronSearchText, placeholder: "搜索任务名、命令或标签")
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                QingLongSearchField(text: $viewModel.cronSearchText, placeholder: "搜索任务")
+
+                QingLongTag(
+                    text: "\(viewModel.filteredCrons.count)/\(viewModel.crons.count)",
+                    color: Color.secondary
+                )
+            }
 
             QingLongFilterBar(
                 selection: $viewModel.cronFilter,
@@ -117,25 +131,21 @@ private struct QingLongCronWorkspace: View {
                 title: \.title
             )
 
-            Text("显示 \(viewModel.filteredCrons.count) / \(viewModel.crons.count) 个任务，优先把运行中任务和最近执行过的任务排在前面。")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.secondary)
-
             if viewModel.crons.isEmpty {
                 QingLongEmptyState(
                     icon: "clock.arrow.circlepath",
-                    title: "暂无定时任务",
-                    description: "当前面板没有返回 cron 数据，或者应用权限里没有 crons 访问能力。"
+                    title: "没有任务",
+                    description: nil
                 )
             } else if viewModel.filteredCrons.isEmpty {
                 QingLongEmptyState(
                     icon: "magnifyingglass",
-                    title: "没有匹配的任务",
-                    description: "调整关键词或筛选条件后再试。"
+                    title: "无匹配结果",
+                    description: nil
                 )
             } else {
-                LazyVStack(spacing: 12) {
-                    ForEach(viewModel.filteredCrons) { cron in
+                VStack(spacing: 0) {
+                    ForEach(Array(viewModel.filteredCrons.enumerated()), id: \.element.id) { index, cron in
                         QingLongCronRow(
                             cron: cron,
                             relativeDateText: relativeDateText,
@@ -151,8 +161,17 @@ private struct QingLongCronWorkspace: View {
                                 logAction(cron)
                             }
                         )
+
+                        if index < viewModel.filteredCrons.count - 1 {
+                            Divider()
+                                .padding(.leading, 12)
+                        }
                     }
                 }
+                .background(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color(.tertiarySystemFill))
+                )
             }
         }
     }
@@ -166,90 +185,73 @@ private struct QingLongEnvironmentRow: View {
     @State private var revealsValue = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(environment.titleText)
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.primary)
+                        .lineLimit(1)
 
                     if !environment.remarks.isEmpty {
                         Text(environment.remarks)
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(1)
                     }
                 }
 
                 Spacer(minLength: 12)
 
-                if isPending {
-                    ProgressView()
-                        .scaleEffect(0.9)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("变量值")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
-
-                    Spacer()
-
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            revealsValue.toggle()
-                        }
-                    } label: {
-                        Label(revealsValue ? "隐藏" : "查看", systemImage: revealsValue ? "eye.slash" : "eye")
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.green)
-                }
-
-                Text(revealsValue ? visibleValue : environment.maskedValue)
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color(.secondarySystemGroupedBackground))
-            )
-
-            ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    QingLongTag(text: environment.isEnabled ? "已启用" : "已禁用", color: environment.isEnabled ? .green : .orange)
-
                     if environment.isPinned {
                         QingLongTag(text: "Pinned", color: .blue)
                     }
 
-                    if let position = environment.position {
-                        QingLongTag(text: "位置 \(position)", color: .teal)
+                    QingLongTag(
+                        text: environment.isEnabled ? "启用" : "停用",
+                        color: environment.isEnabled ? .green : .orange
+                    )
+
+                    if isPending {
+                        ProgressView()
+                            .scaleEffect(0.85)
                     }
+
+                    Button(action: toggleEnabledAction) {
+                        Text(environment.isEnabled ? "禁用" : "启用")
+                            .font(.system(size: 11, weight: .bold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(environment.isEnabled ? .orange : .green)
+                    .disabled(isPending)
                 }
             }
 
-            Button(action: toggleEnabledAction) {
-                Label(environment.isEnabled ? "禁用变量" : "启用变量", systemImage: environment.isEnabled ? "pause.circle" : "checkmark.circle")
-                    .font(.system(size: 14, weight: .bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+            HStack(alignment: .top, spacing: 10) {
+                Text(revealsValue ? visibleValue : environment.maskedValue)
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .lineLimit(1)
+                
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        revealsValue.toggle()
+                    }
+                } label: {
+                    Image(systemName: revealsValue ? "eye.slash" : "eye")
+                        .font(.system(size: 12, weight: .semibold))
+                        .frame(width: 18, height: 18)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.green)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(environment.isEnabled ? .orange : .green)
-            .disabled(isPending)
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
-        )
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
     }
 
     private var visibleValue: String {
@@ -267,18 +269,19 @@ private struct QingLongCronRow: View {
     let logAction: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(cron.primaryTitle)
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.primary)
+                        .lineLimit(1)
 
                     if !cron.secondaryTitle.isEmpty {
                         Text(cron.secondaryTitle)
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(1)
                     }
                 }
 
@@ -286,7 +289,7 @@ private struct QingLongCronRow: View {
 
                 if isPending {
                     ProgressView()
-                        .scaleEffect(0.9)
+                        .scaleEffect(0.85)
                 }
             }
 
@@ -312,59 +315,50 @@ private struct QingLongCronRow: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text("执行命令")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
-
-                Text(cron.command.isEmpty ? "未返回命令内容" : cron.command)
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color(.secondarySystemGroupedBackground))
-            )
+            Text(cron.command.isEmpty ? "未返回命令内容" : cron.command)
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(1)
 
             HStack(spacing: 10) {
                 if let lastRunningAt = cron.lastRunningAt {
-                    Label("上次运行 \(relativeDateText(lastRunningAt))", systemImage: "clock")
-                        .font(.system(size: 12, weight: .semibold))
+                    Label(relativeDateText(lastRunningAt), systemImage: "clock")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("未运行")
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.secondary)
                 }
 
-                if cron.hasLog {
-                    Label("可查看日志", systemImage: "doc.text")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-            }
+                Spacer(minLength: 0)
 
-            HStack(spacing: 10) {
                 Button(action: primaryAction) {
-                    Label(cron.isRunning ? "停止" : "运行", systemImage: cron.isRunning ? "stop.fill" : "play.fill")
-                        .font(.system(size: 14, weight: .bold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                    Image(systemName: cron.isRunning ? "stop.fill" : "play.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .frame(width: 14, height: 14)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(cron.isRunning ? .orange : .green)
                 .disabled(isPending)
 
                 Button(action: logAction) {
-                    HStack {
-                        Label("日志", systemImage: "doc.text")
+                    Group {
                         if isLogLoading {
                             ProgressView()
                                 .scaleEffect(0.85)
+                                .frame(width: 14, height: 14)
+                        } else {
+                            Image(systemName: "doc.text")
+                                .frame(width: 14, height: 14)
                         }
                     }
-                    .font(.system(size: 14, weight: .bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .font(.system(size: 12, weight: .bold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
                 }
                 .buttonStyle(.bordered)
                 .tint(.green)
@@ -375,21 +369,18 @@ private struct QingLongCronRow: View {
                         Label(cron.isEnabled ? "禁用任务" : "启用任务", systemImage: cron.isEnabled ? "pause.circle" : "checkmark.circle")
                     }
                 } label: {
-                    Label("更多", systemImage: "ellipsis.circle")
-                        .font(.system(size: 14, weight: .bold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 15, weight: .bold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 8)
                 }
                 .buttonStyle(.bordered)
                 .tint(.secondary)
                 .disabled(isPending)
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
-        )
+        .padding(.horizontal, 12)
+        .padding(.vertical, 11)
     }
 
     private var statusColor: Color {

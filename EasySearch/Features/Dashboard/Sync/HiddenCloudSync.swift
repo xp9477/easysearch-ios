@@ -281,7 +281,7 @@ enum HiddenJavDBLocalStore {
                     coverURL: HiddenJavDBURLNormalizer.normalizeImageURL(playback.movie.coverURL),
                     actresses: playback.movie.actresses
                 ),
-                sourceName: playback.sourceName,
+                sourceName: HiddenJavDBPlaybackSourceNormalizer.normalize(playback.sourceName),
                 streamURL: playback.streamURL,
                 refererURL: playback.refererURL,
                 positionSeconds: max(0, playback.positionSeconds),
@@ -293,6 +293,17 @@ enum HiddenJavDBLocalStore {
     static func saveFavoritePlaybacks(_ playbacks: [HiddenJavDBFavoritePlayback]) {
         guard let data = try? JSONEncoder().encode(playbacks) else { return }
         UserDefaults.standard.set(data, forKey: favoritePlaybacksKey)
+    }
+}
+
+private enum HiddenJavDBPlaybackSourceNormalizer {
+    static func normalize(_ rawSourceName: String) -> String {
+        switch rawSourceName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "jable", "miss.av", "missav":
+            return "MISSAV"
+        default:
+            return rawSourceName
+        }
     }
 }
 
@@ -422,7 +433,7 @@ private struct HiddenSupabasePlaybackRow: Decodable {
                 coverURL: HiddenJavDBURLNormalizer.normalizeImageURL(coverURL),
                 actresses: actresses
             ),
-            sourceName: source_name,
+            sourceName: HiddenJavDBPlaybackSourceNormalizer.normalize(source_name),
             streamURL: streamURL,
             refererURL: refererURL,
             positionSeconds: max(0, position_seconds),

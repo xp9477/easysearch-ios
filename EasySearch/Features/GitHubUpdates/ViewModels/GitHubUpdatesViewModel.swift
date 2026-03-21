@@ -50,7 +50,6 @@ final class GitHubUpdatesViewModel: ObservableObject {
 
     func prepare() async {
         reloadFromStore()
-        await GitHubUpdatesNotificationManager.shared.configure()
         await GitHubUpdatesBackgroundRefreshManager.scheduleNextRefresh()
 
         if repositories.isEmpty, notice == nil {

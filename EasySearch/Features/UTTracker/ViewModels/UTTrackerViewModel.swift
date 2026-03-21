@@ -40,6 +40,14 @@ final class UTTrackerViewModel: ObservableObject {
         entries(in: weekInterval(for: Date()))
     }
 
+    func summary(for date: Date) -> UTWeekSummary {
+        weekSummary(for: date)
+    }
+
+    func isInCurrentWeek(_ date: Date) -> Bool {
+        weekInterval(for: date).start == weekInterval(for: Date()).start
+    }
+
     func recentWeekSummaries(limit: Int = 6) -> [UTWeekSummary] {
         let currentWeekStart = weekInterval(for: Date()).start
 

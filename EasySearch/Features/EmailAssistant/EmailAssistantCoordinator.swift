@@ -1,15 +1,5 @@
 import Foundation
 
-struct EmailAssistantConfigurationState: Equatable {
-    let hasAPIKey: Bool
-    let keySummary: String?
-}
-
-struct EmailAssistantOCRResult {
-    let fullText: String
-    let segments: [EmailAssistantOCRSegment]
-}
-
 enum EmailAssistantError: LocalizedError {
     case missingAPIKey
     case emptyContext
@@ -18,14 +8,15 @@ enum EmailAssistantError: LocalizedError {
     case serverError(String)
     case networkError(String)
     case imageLoadFailed
+    case cropFailed
     case ocrFailed(String)
 
     var errorDescription: String? {
         switch self {
         case .missingAPIKey:
-            return "请先到设置页或当前模块里配置 DeepSeek API Key。"
+            return "请先到设置页配置 DeepSeek API Key。"
         case .emptyContext:
-            return "请先输入草稿、来信内容、截图文字或补充要求。"
+            return "请先输入草稿、来信或要求。"
         case .emptyResponse:
             return "DeepSeek 没有返回可用内容，请稍后再试。"
         case .invalidResponse:
@@ -36,6 +27,8 @@ enum EmailAssistantError: LocalizedError {
             return message
         case .imageLoadFailed:
             return "截图读取失败，请重新选择图片。"
+        case .cropFailed:
+            return "裁剪失败，请重试。"
         case let .ocrFailed(message):
             return "截图识别失败：\(message)"
         }
@@ -56,44 +49,10 @@ actor EmailAssistantService {
         self.client = client
     }
 
-    func loadConfigurationState() -> EmailAssistantConfigurationState {
-        let configuration = configurationStore.loadConfiguration()
-        let trimmed = configuration.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return EmailAssistantConfigurationState(hasAPIKey: false, keySummary: nil)
-        }
-
-        let suffix = String(trimmed.suffix(min(4, trimmed.count)))
-        return EmailAssistantConfigurationState(
-            hasAPIKey: true,
-            keySummary: "已保存 API Key，尾号 \(suffix)，模型 \(configuration.resolvedModel)"
-        )
-    }
-
-    func saveAPIKey(_ rawValue: String) throws {
-        let configuration = configurationStore.loadConfiguration()
-        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        try configurationStore.saveConfiguration(
-            apiKey: trimmed,
-            model: configuration.resolvedModel,
-            targetLanguage: configuration.targetLanguage
-        )
-    }
-
-    func clearAPIKey() throws {
-        let configuration = configurationStore.loadConfiguration()
-        try configurationStore.saveConfiguration(
-            apiKey: "",
-            model: configuration.resolvedModel,
-            targetLanguage: configuration.targetLanguage
-        )
-    }
-
-    func generateReplyStream(
+    func generateReply(
         context: EmailAssistantContext,
         conversationHistory: [EmailAssistantThreadMessage],
-        latestUserMessage: String,
-        onDelta: @escaping @Sendable (String) -> Void
+        latestUserMessage: String
     ) async throws -> EmailAssistantStructuredOutput {
         guard context.hasUsableContent || !conversationHistory.isEmpty else {
             throw EmailAssistantError.emptyContext
@@ -111,12 +70,12 @@ actor EmailAssistantService {
         )
 
         do {
-            let content = try await client.streamText(
+            let content = try await client.completeText(
                 configuration: configuration.deepSeekConfiguration,
                 messages: messages,
+                responseFormat: nil,
                 temperature: 0.35,
-                maxTokens: 2200,
-                onDelta: onDelta
+                maxTokens: 2200
             )
             return try parseStructuredOutput(from: content)
         } catch is CancellationError {
@@ -164,10 +123,9 @@ actor EmailAssistantService {
         3. Keep the email aligned with this scenario: \(context.scenario.promptDescription).
         4. Use this tone: \(context.tone.promptDescription).
         5. Apply this length preference: \(context.length.promptDescription).
-        6. If sender preferences are provided, naturally reflect them in the closing or signature.
-        7. Generate one primary email and exactly two alternatives with visibly different tones or strategies.
-        8. Do not use markdown code fences.
-        9. Output only in the exact plain-text block format below.
+        6. Generate one primary email and exactly two alternatives with visibly different tones or strategies.
+        7. Do not use markdown code fences.
+        8. Output only in the exact plain-text block format below.
 
         Required output format:
         [PRIMARY_SUBJECT]
@@ -319,19 +277,13 @@ actor EmailAssistantService {
 }
 
 enum EmailAssistantOCRService {
-    static func extractText(from imageData: Data) async throws -> EmailAssistantOCRResult {
+    static func extractText(from imageData: Data) async throws -> String {
         do {
             let result = try await ImageOCRService.extractText(
                 from: imageData,
                 recognitionLanguages: ["en-US", "zh-Hans", "zh-Hant"]
             )
-
-            return EmailAssistantOCRResult(
-                fullText: result.fullText,
-                segments: result.lines.map { line in
-                    EmailAssistantOCRSegment(text: line.text, isSelected: true)
-                }
-            )
+            return result.fullText
         } catch let error as ImageTranslateError {
             switch error {
             case .noTextRecognized:

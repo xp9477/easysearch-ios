@@ -5,6 +5,7 @@ import UIKit
 public struct EmailAssistantView: View {
     @StateObject private var viewModel = EmailAssistantViewModel()
     @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var cropSource: EmailAssistantCropSource?
 
     private let accentColor = Color.blue
 
@@ -13,17 +14,14 @@ public struct EmailAssistantView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                heroCard
-
-                if !viewModel.configurationState.hasAPIKey {
-                    configurationCard
+                if let notice = viewModel.notice {
+                    noticeBanner(notice, onDarkBackground: false)
                 }
-
                 contextCard
                 conversationCard
             }
             .padding(.horizontal, 20)
-            .padding(.top, 20)
+            .padding(.top, 16)
             .padding(.bottom, 32)
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
@@ -33,9 +31,11 @@ public struct EmailAssistantView: View {
         .task {
             await viewModel.prepare()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .imageTranslateConfigurationDidChange)) { _ in
-            Task {
-                await viewModel.refreshConfiguration()
+        .sheet(item: $cropSource) { source in
+            EmailAssistantCropImageEditor(image: source.image) { normalizedRect in
+                Task {
+                    await applyCrop(normalizedRect, to: source.image)
+                }
             }
         }
         .onChange(of: selectedPhotoItem) { newValue in
@@ -47,128 +47,12 @@ public struct EmailAssistantView: View {
         }
     }
 
-    private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("DeepSeek Mail")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.white.opacity(0.74))
-
-                    Text("英文邮件生成与讨论")
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundStyle(.white)
-
-                    Text("贴草稿、贴来信或上传截图后，先出一版可直接发送的英文邮件，再继续对话细修。")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(0.82))
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 12)
-
-                statusChip(
-                    title: viewModel.configurationState.hasAPIKey ? "DeepSeek 已连接" : "等待配置 API Key",
-                    color: viewModel.configurationState.hasAPIKey ? accentColor : .orange,
-                    prominent: true
-                )
-            }
-
-            LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: 10),
-                    GridItem(.flexible(), spacing: 10)
-                ],
-                spacing: 10
-            ) {
-                heroMetric(title: "模式", value: viewModel.mode.title)
-                heroMetric(title: "语气", value: viewModel.tone.title)
-                heroMetric(title: "长度", value: viewModel.length.title)
-                heroMetric(title: "对话轮次", value: "\(viewModel.completedConversation.filter { $0.role == .assistant }.count)")
-            }
-
-            if let notice = viewModel.notice {
-                noticeBanner(notice, onDarkBackground: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.10, green: 0.18, blue: 0.33),
-                            Color(red: 0.04, green: 0.09, blue: 0.17)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        )
-    }
-
-    private var configurationCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(
-                eyebrow: "Configuration",
-                title: "先配好 DeepSeek",
-                description: "API Key 只保存在本机 Keychain。配置一次后，邮件助手和截图翻译都会共用。"
-            )
-
-            SecureField("输入 DeepSeek API Key", text: $viewModel.apiKeyDraft)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(.systemBackground))
-                )
-
-            Button {
-                Task {
-                    await viewModel.saveAPIKey()
-                }
-            } label: {
-                HStack {
-                    Label("保存 API Key", systemImage: "key.fill")
-                    Spacer()
-                    if viewModel.isSavingAPIKey {
-                        ProgressView()
-                    }
-                }
-                .font(.system(size: 15, weight: .semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(accentColor)
-            .disabled(viewModel.apiKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isSavingAPIKey)
-        }
-        .padding(24)
-        .cardStyle()
-    }
-
     private var contextCard: some View {
         VStack(alignment: .leading, spacing: 18) {
-            sectionHeader(
-                eyebrow: "Context",
-                title: "上下文输入",
-                description: "这些信息会一起带入多轮生成，所以第一次尽量把背景交代清楚。"
-            )
+            sectionTitle("输入")
 
             VStack(spacing: 12) {
-                Picker("模式", selection: $viewModel.mode) {
-                    ForEach(EmailAssistantMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
+                modeSelector
 
                 HStack(spacing: 12) {
                     Picker("语气", selection: $viewModel.tone) {
@@ -192,179 +76,100 @@ public struct EmailAssistantView: View {
                 .pickerStyle(.menu)
             }
 
-            infoStrip(
-                icon: "wand.and.stars",
-                text: "\(viewModel.mode.shortDescription)。当前会按 \(viewModel.tone.title) / \(viewModel.length.title) / \(viewModel.scenario.title) 生成。",
-                foreground: .secondary,
-                background: Color(.tertiarySystemFill)
-            )
-
             VStack(spacing: 14) {
                 TextEditorCard(
-                    title: "你的草稿或想表达的内容",
-                    subtitle: "支持中文或英文，哪怕只有要点也可以。",
-                    placeholder: "例如：想感谢对方的更新，并说明我们会在下周三前确认时间。",
+                    title: "草稿",
+                    placeholder: "写中文或英文要点",
                     text: $viewModel.originalDraft,
-                    minHeight: 130
+                    minHeight: 112
                 )
 
                 TextEditorCard(
-                    title: "收到的邮件内容",
-                    subtitle: "适合直接粘贴对方邮件，或者让 OCR 自动带入。",
-                    placeholder: "把对方发来的邮件粘贴在这里。",
+                    title: "来信",
+                    placeholder: "粘贴收到的邮件",
                     text: $viewModel.receivedEmailText,
-                    minHeight: 170
+                    minHeight: 150
                 )
 
                 ocrCard
 
                 TextEditorCard(
-                    title: "补充要求",
-                    subtitle: "例如：更礼貌、简洁一些、强调截止时间、不要太强硬。",
-                    placeholder: "补充风格、立场、长度或行动项要求。",
+                    title: "要求",
+                    placeholder: "如：更礼貌、更简洁、强调截止时间",
                     text: $viewModel.additionalRequirements,
-                    minHeight: 100
+                    minHeight: 88
                 )
-
-                senderProfileCard
             }
         }
         .padding(24)
         .cardStyle()
     }
 
-    private var ocrCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-                    Label("导入邮件截图", systemImage: "photo.on.rectangle")
-                        .font(.system(size: 14, weight: .semibold))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(accentColor.opacity(0.12))
-                        )
+    private var modeSelector: some View {
+        HStack(spacing: 10) {
+            ForEach(EmailAssistantMode.allCases) { mode in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        viewModel.mode = mode
+                    }
+                } label: {
+                    VStack(spacing: 8) {
+                        Image(systemName: mode.iconName)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(viewModel.mode == mode ? accentColor : .secondary)
+
+                        Text(mode.title)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(viewModel.mode == mode ? .primary : .secondary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 78)
+                    .padding(.horizontal, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .fill(viewModel.mode == mode ? accentColor.opacity(0.12) : Color(.tertiarySystemFill))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(viewModel.mode == mode ? accentColor.opacity(0.45) : Color.primary.opacity(0.06), lineWidth: viewModel.mode == mode ? 1.5 : 1)
+                    )
                 }
                 .buttonStyle(.plain)
-
-                if viewModel.isRecognizingScreenshot {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                        Text("识别中")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.secondary)
-                    }
-                } else if viewModel.hasOCRSegments {
-                    Button("全选") {
-                        viewModel.selectAllOCRSegments()
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button("清空勾选") {
-                        viewModel.clearOCRSelection()
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-
-            if viewModel.hasOCRSegments {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("OCR 段落（已选 \(viewModel.selectedOCRSegmentCount) 条）")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.primary)
-
-                    ForEach(viewModel.ocrSegments) { segment in
-                        Button {
-                            viewModel.toggleOCRSegment(segment.id)
-                        } label: {
-                            HStack(alignment: .top, spacing: 10) {
-                                Image(systemName: segment.isSelected ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(segment.isSelected ? accentColor : .secondary)
-
-                                Text(segment.text)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(.primary)
-                                    .multilineTextAlignment(.leading)
-
-                                Spacer(minLength: 0)
-                            }
-                            .padding(12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(Color(.tertiarySystemFill))
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    HStack(spacing: 12) {
-                        Button("替换来信内容") {
-                            viewModel.applySelectedOCRToReceivedEmail(replace: true)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(accentColor)
-                        .disabled(!viewModel.canApplySelectedOCR)
-
-                        Button("追加到来信内容") {
-                            viewModel.applySelectedOCRToReceivedEmail(replace: false)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(accentColor)
-                        .disabled(!viewModel.canApplySelectedOCR)
-
-                        Button(role: .destructive) {
-                            viewModel.clearScreenshotText()
-                        } label: {
-                            Text("清除 OCR")
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                }
             }
         }
     }
 
-    private var senderProfileCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("发件偏好")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.primary)
-
-            TextField("姓名（可选）", text: $viewModel.senderName)
-                .textFieldStyle(.roundedBorder)
-
-            HStack(spacing: 12) {
-                TextField("职位或团队", text: $viewModel.senderRoleOrTeam)
-                    .textFieldStyle(.roundedBorder)
-
-                TextField("公司", text: $viewModel.senderCompany)
-                    .textFieldStyle(.roundedBorder)
+    private var ocrCard: some View {
+        HStack(spacing: 10) {
+            PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                Label("导入截图", systemImage: "photo.on.rectangle")
+                    .font(.system(size: 14, weight: .semibold))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(accentColor.opacity(0.12))
+                    )
             }
+            .buttonStyle(.plain)
 
-            TextField("偏好结尾", text: $viewModel.preferredClosing)
-                .textFieldStyle(.roundedBorder)
-
-            TextEditorCard(
-                title: "签名",
-                subtitle: "如果希望固定签名，可以写在这里。",
-                placeholder: "例如：Dapeng\nProduct Engineer",
-                text: $viewModel.signature,
-                minHeight: 90
-            )
+            if viewModel.isRecognizingScreenshot {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("识别中")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
     private var conversationCard: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top, spacing: 12) {
-                sectionHeader(
-                    eyebrow: "Conversation",
-                    title: "生成结果",
-                    description: viewModel.hasConversation
-                        ? "主版本和替代版本都保留在这里，可以继续追问或者把某一版放回草稿区。"
-                        : "上下文准备好后，点一次生成即可。"
-                )
+                sectionTitle("结果")
 
                 Spacer(minLength: 12)
 
@@ -379,13 +184,7 @@ public struct EmailAssistantView: View {
                 }
             }
 
-            if viewModel.completedConversation.isEmpty {
-                emptyState(
-                    icon: "envelope.badge",
-                    title: "还没有生成结果",
-                    description: "先把草稿、来信或截图内容填进去，再生成第一版英文邮件。"
-                )
-            } else {
+            if !viewModel.completedConversation.isEmpty {
                 VStack(spacing: 14) {
                     ForEach(viewModel.completedConversation) { message in
                         messageRow(message)
@@ -394,7 +193,7 @@ public struct EmailAssistantView: View {
             }
 
             VStack(alignment: .leading, spacing: 12) {
-                TextField("继续说：例如“更正式一点”或“把截止时间说得更明确”", text: $viewModel.messageDraft, axis: .vertical)
+                TextField("继续修改", text: $viewModel.messageDraft, axis: .vertical)
                     .lineLimit(2 ... 5)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
@@ -424,13 +223,6 @@ public struct EmailAssistantView: View {
                     .tint(accentColor)
                     .disabled(!viewModel.canSend)
 
-                    if viewModel.isGenerating {
-                        Button("停止生成") {
-                            viewModel.stopGenerating()
-                        }
-                        .buttonStyle(.bordered)
-                    }
-
                     Button("重置全部") {
                         viewModel.resetAll()
                     }
@@ -445,7 +237,7 @@ public struct EmailAssistantView: View {
     private func messageRow(_ message: EmailAssistantThreadMessage) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(message.role == .assistant ? "AI 结果" : "你的要求")
+                Text(message.role == .assistant ? "结果" : "要求")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.secondary)
 
@@ -467,23 +259,14 @@ public struct EmailAssistantView: View {
                             .textSelection(.enabled)
                     }
 
-                    if !output.explanation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        infoStrip(
-                            icon: "text.bubble",
-                            text: output.explanation,
-                            foreground: .secondary,
-                            background: Color(.tertiarySystemFill)
-                        )
-                    }
-
                     HStack(spacing: 12) {
-                        Button("放入草稿区") {
+                        Button("用作草稿") {
                             viewModel.useAssistantMessageAsDraft(message)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(accentColor)
 
-                        Button("复制主版本") {
+                        Button("复制") {
                             UIPasteboard.general.string = output.primaryFormattedText
                             viewModel.presentNotice(tone: .success, message: "已复制主版本。")
                         }
@@ -492,7 +275,7 @@ public struct EmailAssistantView: View {
 
                     if !output.alternatives.isEmpty {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("替代版本")
+                            Text("其他版本")
                                 .font(.system(size: 14, weight: .semibold))
 
                             ForEach(output.alternatives) { variant in
@@ -505,7 +288,7 @@ public struct EmailAssistantView: View {
                                         .textSelection(.enabled)
 
                                     HStack(spacing: 12) {
-                                        Button("放入草稿区") {
+                                        Button("用作草稿") {
                                             viewModel.useDraftVariant(variant)
                                         }
                                         .buttonStyle(.bordered)
@@ -547,63 +330,35 @@ public struct EmailAssistantView: View {
 
     private func loadPhotoItem(_ item: PhotosPickerItem) async {
         do {
-            guard let data = try await item.loadTransferable(type: Data.self) else {
+            guard let data = try await item.loadTransferable(type: Data.self),
+                  let image = UIImage(data: data) else {
                 viewModel.presentNotice(tone: .caution, message: EmailAssistantError.imageLoadFailed.localizedDescription)
                 return
             }
 
-            await viewModel.importScreenshotText(from: data)
+            await MainActor.run {
+                cropSource = EmailAssistantCropSource(image: image)
+            }
         } catch {
             viewModel.presentNotice(tone: .caution, message: error.localizedDescription)
         }
     }
 
-    private func sectionHeader(eyebrow: String, title: String, description: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(eyebrow)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            Text(title)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(.primary)
-
-            Text(description)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+    private func applyCrop(_ normalizedRect: CGRect, to image: UIImage) async {
+        guard let croppedImage = ImageOCRService.cropImage(image, normalizedRect: normalizedRect),
+              let croppedData = ImageOCRService.storedImageData(from: croppedImage) else {
+            viewModel.presentNotice(tone: .caution, message: EmailAssistantError.cropFailed.localizedDescription)
+            return
         }
+
+        await viewModel.importScreenshotText(from: croppedData)
     }
 
-    private func heroMetric(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(0.72))
-
-            Text(value)
-                .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(.white)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.white.opacity(0.08))
-        )
-    }
-
-    private func statusChip(title: String, color: Color, prominent: Bool = false) -> some View {
+    private func sectionTitle(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(prominent ? color : color.opacity(0.18))
-            )
+            .font(.system(size: 22, weight: .bold))
+            .foregroundStyle(.primary)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func noticeBanner(_ notice: EmailAssistantNotice, onDarkBackground: Bool) -> some View {
@@ -635,58 +390,15 @@ public struct EmailAssistantView: View {
         )
     }
 
-    private func infoStrip(
-        icon: String,
-        text: String,
-        foreground: Color,
-        background: Color
-    ) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(foreground)
+}
 
-            Text(text)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(foreground)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(background)
-        )
-    }
-
-    private func emptyState(icon: String, title: String, description: String) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            Text(title)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.primary)
-
-            Text(description)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 28)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
-        )
-    }
+private struct EmailAssistantCropSource: Identifiable {
+    let id = UUID()
+    let image: UIImage
 }
 
 private struct TextEditorCard: View {
     let title: String
-    let subtitle: String
     let placeholder: String
     @Binding var text: String
     let minHeight: CGFloat
@@ -696,10 +408,6 @@ private struct TextEditorCard: View {
             Text(title)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.primary)
-
-            Text(subtitle)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.secondary)
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -724,8 +432,155 @@ private struct TextEditorCard: View {
     }
 }
 
+private struct EmailAssistantCropImageEditor: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let image: UIImage
+    let onConfirm: (CGRect) -> Void
+
+    @State private var selectionRect: CGRect?
+    @State private var imageFrame: CGRect = .zero
+
+    var body: some View {
+        NavigationStack {
+            GeometryReader { proxy in
+                let containerFrame = CGRect(origin: .zero, size: proxy.size)
+                let resolvedImageFrame = aspectFitRect(
+                    for: image.size,
+                    in: containerFrame.insetBy(dx: 20, dy: 20)
+                )
+
+                ZStack {
+                    Color(.systemGroupedBackground)
+                        .ignoresSafeArea()
+
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: resolvedImageFrame.width, height: resolvedImageFrame.height)
+                        .position(x: resolvedImageFrame.midX, y: resolvedImageFrame.midY)
+
+                    Rectangle()
+                        .fill(Color.clear)
+                        .contentShape(Rectangle())
+                        .frame(width: resolvedImageFrame.width, height: resolvedImageFrame.height)
+                        .position(x: resolvedImageFrame.midX, y: resolvedImageFrame.midY)
+                        .gesture(selectionGesture(in: resolvedImageFrame))
+
+                    if let selectionRect {
+                        Rectangle()
+                            .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                            .frame(width: selectionRect.width, height: selectionRect.height)
+                            .position(x: selectionRect.midX, y: selectionRect.midY)
+                    }
+
+                    VStack {
+                        Spacer()
+
+                        Text("拖动调整区域")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(Color(.secondarySystemGroupedBackground))
+                            )
+                            .padding(.bottom, 20)
+                    }
+                }
+                .onAppear {
+                    imageFrame = resolvedImageFrame
+                    if selectionRect == nil {
+                        selectionRect = resolvedImageFrame.insetBy(dx: 6, dy: 6)
+                    }
+                }
+                .onChange(of: proxy.size) { _ in
+                    imageFrame = resolvedImageFrame
+                    if selectionRect == nil {
+                        selectionRect = resolvedImageFrame.insetBy(dx: 6, dy: 6)
+                    }
+                }
+            }
+            .navigationTitle("裁剪截图")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("继续") {
+                        guard let normalizedRect = normalizedSelectionRect else { return }
+                        onConfirm(normalizedRect)
+                        dismiss()
+                    }
+                    .disabled(normalizedSelectionRect == nil)
+                }
+            }
+        }
+    }
+
+    private var normalizedSelectionRect: CGRect? {
+        guard let selectionRect else { return nil }
+        let frame = imageFrame
+        guard frame.width > 0, frame.height > 0 else { return nil }
+
+        let normalizedRect = CGRect(
+            x: (selectionRect.minX - frame.minX) / frame.width,
+            y: (selectionRect.minY - frame.minY) / frame.height,
+            width: selectionRect.width / frame.width,
+            height: selectionRect.height / frame.height
+        )
+
+        guard normalizedRect.width > 0.02, normalizedRect.height > 0.02 else {
+            return nil
+        }
+
+        return normalizedRect
+    }
+
+    private func selectionGesture(in imageFrame: CGRect) -> some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { value in
+                let start = clamped(value.startLocation, to: imageFrame)
+                let current = clamped(value.location, to: imageFrame)
+                selectionRect = CGRect(
+                    x: min(start.x, current.x),
+                    y: min(start.y, current.y),
+                    width: abs(current.x - start.x),
+                    height: abs(current.y - start.y)
+                )
+            }
+    }
+
+    private func clamped(_ point: CGPoint, to frame: CGRect) -> CGPoint {
+        CGPoint(
+            x: min(max(point.x, frame.minX), frame.maxX),
+            y: min(max(point.y, frame.minY), frame.maxY)
+        )
+    }
+
+    private func aspectFitRect(for imageSize: CGSize, in containerRect: CGRect) -> CGRect {
+        guard imageSize.width > 0, imageSize.height > 0 else { return containerRect }
+
+        let scale = min(containerRect.width / imageSize.width, containerRect.height / imageSize.height)
+        let fittedSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+
+        return CGRect(
+            x: containerRect.midX - fittedSize.width / 2,
+            y: containerRect.midY - fittedSize.height / 2,
+            width: fittedSize.width,
+            height: fittedSize.height
+        )
+    }
+}
+
 #Preview {
     NavigationStack {
         EmailAssistantView()
+            .environmentObject(AppNavigationState())
     }
 }

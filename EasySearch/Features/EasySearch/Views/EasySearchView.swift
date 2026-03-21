@@ -3,7 +3,6 @@ import SwiftUI
 struct EasySearchView: View {
     @ObservedObject var viewModel: SearchViewModel
     @FocusState private var isSearchFieldFocused: Bool
-    @State private var didAutofocusOnLaunch = false
 
     var body: some View {
         NavigationStack {
@@ -42,18 +41,6 @@ struct EasySearchView: View {
             .navigationTitle("搜索")
             .navigationBarTitleDisplayMode(.inline)
             .scrollDismissesKeyboard(.interactively)
-            .onAppear {
-                autofocusSearchFieldIfNeeded()
-            }
-        }
-    }
-
-    private func autofocusSearchFieldIfNeeded() {
-        guard !didAutofocusOnLaunch else { return }
-        didAutofocusOnLaunch = true
-
-        DispatchQueue.main.async {
-            isSearchFieldFocused = true
         }
     }
 }

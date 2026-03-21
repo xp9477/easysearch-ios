@@ -2,6 +2,7 @@ import SwiftUI
 
 struct QingLongMetric: Identifiable {
     let id: String
+    let symbol: String
     let title: String
     let value: String
 }
@@ -9,97 +10,96 @@ struct QingLongMetric: Identifiable {
 struct QingLongOverviewCard: View {
     @ObservedObject var viewModel: QingLongViewModel
     let metrics: [QingLongMetric]
-    let startConnectionAction: () -> Void
     let refreshAction: () -> Void
     let openPanelAction: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("QingLong")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("青龙管理")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(.primary)
 
-                Text(viewModel.profile?.displayName ?? "连接你的面板")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.primary)
+                    Text(summaryText)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
 
-                Text(
-                    viewModel.profile == nil
-                        ? "先完成 Open API 接入，后面就按“环境变量 / 定时任务”两个工作区管理，不再把接入表单和运维列表堆在一起。"
-                        : "已切到管理视角。连接信息收敛成摘要卡，日常操作集中在下面的工作区里。"
-                )
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+
+                if let connectionStateText {
+                    Text(connectionStateText)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.green)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.green.opacity(0.12))
+                        )
+                }
             }
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 132), spacing: 12)], spacing: 12) {
+            HStack(spacing: 8) {
                 ForEach(metrics) { metric in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(metric.title)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        Image(systemName: metric.symbol)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.green)
 
-                        Text(metric.value)
-                            .font(.system(size: 17, weight: .bold))
-                            .foregroundStyle(.primary)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(metric.value)
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(.primary)
+
+                            Text(metric.title)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
                     .background(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(Color.white.opacity(0.5))
                     )
                 }
             }
 
-            if let statusState = viewModel.statusState {
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: statusIconName(for: statusState.tone))
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(statusColor(for: statusState.tone))
-
-                    Text(statusState.message)
-                        .font(.system(size: 13, weight: .semibold))
+            if let errorMessage {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.orange)
+                    Text(errorMessage)
+                        .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .lineLimit(2)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
                 .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(statusColor(for: statusState.tone).opacity(0.10))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(statusColor(for: statusState.tone).opacity(0.16), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.orange.opacity(0.10))
                 )
             }
 
-            HStack(spacing: 12) {
-                if viewModel.profile == nil {
-                    Button(action: startConnectionAction) {
-                        Label("开始连接", systemImage: "link.badge.plus")
-                            .font(.system(size: 16, weight: .semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.green)
-                } else {
+            if viewModel.profile != nil {
+                HStack(spacing: 10) {
                     Button(action: refreshAction) {
                         HStack {
-                            Label("立即刷新", systemImage: "arrow.clockwise")
-                            Spacer()
+                            Image(systemName: "arrow.clockwise")
+                            Text("刷新")
                             if viewModel.isRefreshing {
                                 ProgressView()
+                                    .scaleEffect(0.8)
                             }
                         }
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                        .padding(.vertical, 10)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.green)
@@ -107,10 +107,10 @@ struct QingLongOverviewCard: View {
 
                     if let openPanelAction {
                         Button(action: openPanelAction) {
-                            Label("打开面板", systemImage: "arrow.up.right.square")
-                                .font(.system(size: 16, weight: .semibold))
+                            Label("面板", systemImage: "arrow.up.right.square")
+                                .font(.system(size: 14, weight: .semibold))
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
+                                .padding(.vertical, 10)
                         }
                         .buttonStyle(.bordered)
                         .tint(.green)
@@ -119,9 +119,9 @@ struct QingLongOverviewCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(24)
+        .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [
@@ -134,30 +134,38 @@ struct QingLongOverviewCard: View {
                 )
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
         )
     }
 
-    private func statusIconName(for tone: QingLongStatusTone) -> String {
-        switch tone {
-        case .success:
-            return "checkmark.circle.fill"
-        case .info:
-            return "info.circle.fill"
-        case .error:
-            return "exclamationmark.triangle.fill"
+    private var summaryText: String {
+        if let profile = viewModel.profile {
+            if let lastRefreshedAt = viewModel.lastRefreshedAt {
+                return "\(profile.hostLabel) · \(relativeDateText(lastRefreshedAt))"
+            }
+            return profile.hostLabel
         }
+
+        return "未连接"
     }
 
-    private func statusColor(for tone: QingLongStatusTone) -> Color {
-        switch tone {
-        case .success:
-            return .green
-        case .info:
-            return .blue
-        case .error:
-            return .orange
+    private var connectionStateText: String? {
+        guard viewModel.profile != nil else { return nil }
+        return "已连接"
+    }
+
+    private var errorMessage: String? {
+        guard let statusState = viewModel.statusState, statusState.tone == .error else {
+            return nil
         }
+        return statusState.message
+    }
+
+    private func relativeDateText(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = .autoupdatingCurrent
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }

@@ -18,6 +18,17 @@ enum EmailAssistantMode: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    var iconName: String {
+        switch self {
+        case .polish:
+            return "wand.and.stars"
+        case .reply:
+            return "arrowshape.turn.up.left"
+        case .discuss:
+            return "bubble.left.and.text.bubble.right"
+        }
+    }
+
     var shortDescription: String {
         switch self {
         case .polish:
@@ -151,60 +162,6 @@ enum EmailAssistantScenario: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-struct EmailAssistantSenderProfile: Hashable, Codable {
-    var name: String
-    var roleOrTeam: String
-    var company: String
-    var preferredClosing: String
-    var signature: String
-
-    static let empty = EmailAssistantSenderProfile(
-        name: "",
-        roleOrTeam: "",
-        company: "",
-        preferredClosing: "Best regards,",
-        signature: ""
-    )
-
-    var hasContent: Bool {
-        [
-            name,
-            roleOrTeam,
-            company,
-            preferredClosing,
-            signature
-        ].contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-    }
-
-    var serializedSummary: String {
-        [
-            line(label: "发件人姓名", value: name),
-            line(label: "职位或团队", value: roleOrTeam),
-            line(label: "公司", value: company),
-            line(label: "偏好结尾", value: preferredClosing),
-            line(label: "签名", value: signature)
-        ]
-        .joined(separator: "\n")
-    }
-
-    private func line(label: String, value: String) -> String {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return "\(label)：\(trimmed.isEmpty ? "无" : trimmed)"
-    }
-}
-
-struct EmailAssistantOCRSegment: Identifiable, Hashable, Codable {
-    let id: UUID
-    var text: String
-    var isSelected: Bool
-
-    init(id: UUID = UUID(), text: String, isSelected: Bool = true) {
-        self.id = id
-        self.text = text
-        self.isSelected = isSelected
-    }
-}
-
 struct EmailAssistantDraftVariant: Identifiable, Hashable, Codable {
     let id: UUID
     let title: String
@@ -295,15 +252,12 @@ struct EmailAssistantContext: Hashable {
     let scenario: EmailAssistantScenario
     let originalDraft: String
     let receivedEmailText: String
-    let screenshotOCRText: String
     let additionalRequirements: String
-    let senderProfile: EmailAssistantSenderProfile
 
     var hasUsableContent: Bool {
         [
             originalDraft,
             receivedEmailText,
-            screenshotOCRText,
             additionalRequirements
         ].contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
@@ -316,9 +270,7 @@ struct EmailAssistantContext: Hashable {
             "长度偏好：\(length.title)",
             contextLine(label: "原始草稿", value: originalDraft),
             contextLine(label: "收到的邮件内容", value: receivedEmailText),
-            contextLine(label: "截图 OCR 文本", value: screenshotOCRText),
-            contextLine(label: "补充要求", value: additionalRequirements),
-            "发件偏好：\n\(senderProfile.serializedSummary)"
+            contextLine(label: "补充要求", value: additionalRequirements)
         ]
         .joined(separator: "\n\n")
     }
@@ -336,10 +288,7 @@ struct EmailAssistantPersistedState: Codable {
     var scenario: EmailAssistantScenario
     var originalDraft: String
     var receivedEmailText: String
-    var screenshotOCRText: String
     var additionalRequirements: String
-    var senderProfile: EmailAssistantSenderProfile
-    var ocrSegments: [EmailAssistantOCRSegment]
     var conversation: [EmailAssistantThreadMessage]
 }
 

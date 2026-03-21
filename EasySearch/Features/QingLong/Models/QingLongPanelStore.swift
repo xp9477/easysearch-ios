@@ -6,7 +6,7 @@ extension Notification.Name {
 
 protocol QingLongPanelStore {
     func loadProfile() -> QingLongPanelProfile?
-    func saveProfile(_ profile: QingLongPanelProfile)
+    func saveProfile(_ profile: QingLongPanelProfile, postsNotification: Bool)
     func deleteProfile()
 }
 
@@ -26,9 +26,10 @@ struct QingLongPanelLocalStore: QingLongPanelStore {
         return profile
     }
 
-    func saveProfile(_ profile: QingLongPanelProfile) {
+    func saveProfile(_ profile: QingLongPanelProfile, postsNotification: Bool = true) {
         guard let data = try? JSONEncoder().encode(profile) else { return }
         userDefaults.set(data, forKey: QingLongStorage.panelProfileKey)
+        guard postsNotification else { return }
         NotificationCenter.default.post(name: .qingLongPanelDidChange, object: nil)
     }
 

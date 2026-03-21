@@ -50,7 +50,6 @@
 		D400000000000000000000005 /* QingLongViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000105 /* QingLongViewModel.swift */; };
 		D400000000000000000000006 /* QingLongView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000106 /* QingLongView.swift */; };
 		D400000000000000000000007 /* QingLongOverviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000107 /* QingLongOverviewCard.swift */; };
-		D400000000000000000000008 /* QingLongConnectionViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000108 /* QingLongConnectionViews.swift */; };
 		D400000000000000000000009 /* QingLongSharedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000109 /* QingLongSharedViews.swift */; };
 		D400000000000000000000010 /* QingLongWorkspaceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000110 /* QingLongWorkspaceViews.swift */; };
 		D500000000000000000000001 /* ImageTranslateFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D500000000000000000000101 /* ImageTranslateFeature.swift */; };
@@ -124,7 +123,6 @@
 		D400000000000000000000105 /* QingLongViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongViewModel.swift; path = EasySearch/Features/QingLong/ViewModels/QingLongViewModel.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000106 /* QingLongView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongView.swift; path = EasySearch/Features/QingLong/Views/QingLongView.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000107 /* QingLongOverviewCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongOverviewCard.swift; path = EasySearch/Features/QingLong/Views/QingLongOverviewCard.swift; sourceTree = SOURCE_ROOT; };
-		D400000000000000000000108 /* QingLongConnectionViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongConnectionViews.swift; path = EasySearch/Features/QingLong/Views/QingLongConnectionViews.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000109 /* QingLongSharedViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongSharedViews.swift; path = EasySearch/Features/QingLong/Views/QingLongSharedViews.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000110 /* QingLongWorkspaceViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongWorkspaceViews.swift; path = EasySearch/Features/QingLong/Views/QingLongWorkspaceViews.swift; sourceTree = SOURCE_ROOT; };
 		D500000000000000000000101 /* ImageTranslateFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateFeature.swift; path = EasySearch/Features/ImageTranslate/ImageTranslateFeature.swift; sourceTree = SOURCE_ROOT; };
@@ -506,7 +504,6 @@
 		D400000000000000000000204 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				D400000000000000000000108 /* QingLongConnectionViews.swift */,
 				D400000000000000000000107 /* QingLongOverviewCard.swift */,
 				D400000000000000000000109 /* QingLongSharedViews.swift */,
 				D400000000000000000000106 /* QingLongView.swift */,
@@ -764,7 +761,6 @@
 				D400000000000000000000003 /* QingLongPanelStore.swift in Sources */,
 				D400000000000000000000004 /* QingLongCoordinator.swift in Sources */,
 				D400000000000000000000005 /* QingLongViewModel.swift in Sources */,
-				D400000000000000000000008 /* QingLongConnectionViews.swift in Sources */,
 				D400000000000000000000007 /* QingLongOverviewCard.swift in Sources */,
 				D400000000000000000000009 /* QingLongSharedViews.swift in Sources */,
 				D400000000000000000000006 /* QingLongView.swift in Sources */,
@@ -808,6 +804,7 @@
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 2NTKHNF6H6;
+				ENABLE_TESTING_SEARCH_PATHS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -817,8 +814,8 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.easysearch.xp9477.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/EasySearch.app/EasySearch";
 				TEST_TARGET_NAME = EasySearch;
@@ -883,7 +880,6 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -939,7 +935,6 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -952,6 +947,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
+				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 2NTKHNF6H6;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -983,6 +979,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
+				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 2NTKHNF6H6;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
@@ -1015,6 +1012,7 @@
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 2NTKHNF6H6;
+				ENABLE_TESTING_SEARCH_PATHS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1024,8 +1022,8 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.easysearch.xp9477.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.0;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/EasySearch.app/EasySearch";
 				TEST_TARGET_NAME = EasySearch;

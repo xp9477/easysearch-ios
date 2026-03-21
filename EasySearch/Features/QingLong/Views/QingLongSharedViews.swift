@@ -1,53 +1,59 @@
 import SwiftUI
 
-struct QingLongSectionHeader: View {
-    let eyebrow: String
-    let title: String
-    let description: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(eyebrow)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            Text(title)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(.primary)
-
-            Text(description)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
-
 struct QingLongEmptyState: View {
     let icon: String
     let title: String
-    let description: String
+    let description: String?
+    let actionTitle: String?
+    let action: (() -> Void)?
+
+    init(
+        icon: String,
+        title: String,
+        description: String? = nil,
+        actionTitle: String? = nil,
+        action: (() -> Void)? = nil
+    ) {
+        self.icon = icon
+        self.title = title
+        self.description = description?.isEmpty == true ? nil : description
+        self.actionTitle = actionTitle
+        self.action = action
+    }
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
             Image(systemName: icon)
-                .font(.system(size: 30, weight: .semibold))
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(.secondary)
 
             Text(title)
-                .font(.system(size: 18, weight: .semibold))
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.primary)
 
-            Text(description)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+            if let description {
+                Text(description)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            if let actionTitle, let action {
+                Button(action: action) {
+                    Label(actionTitle, systemImage: "arrow.right.circle")
+                        .font(.system(size: 13, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                }
+                .buttonStyle(.bordered)
+                .tint(.green)
+            }
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 28)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 18)
         .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color(.tertiarySystemFill))
         )
     }
@@ -60,9 +66,11 @@ struct QingLongSearchField: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
 
             TextField(placeholder, text: $text)
+                .font(.system(size: 14, weight: .medium))
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
 
@@ -76,10 +84,10 @@ struct QingLongSearchField: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 9)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color(.tertiarySystemFill))
         )
     }
@@ -98,10 +106,10 @@ struct QingLongFilterBar<Option: Identifiable & Hashable>: View {
                         selection = option
                     } label: {
                         Text(option[keyPath: title])
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(selection == option ? Color.green : Color.primary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 9)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
                             .background(
                                 Capsule(style: .continuous)
                                     .fill(selection == option ? Color.green.opacity(0.12) : Color(.tertiarySystemFill))
@@ -120,10 +128,10 @@ struct QingLongTag: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11, weight: .semibold))
+            .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(color)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
             .background(
                 Capsule(style: .continuous)
                     .fill(color.opacity(0.12))
@@ -134,11 +142,11 @@ struct QingLongTag: View {
 extension View {
     func cardStyle() -> some View {
         background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(Color(.secondarySystemGroupedBackground))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
         )
     }

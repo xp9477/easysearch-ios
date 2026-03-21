@@ -1,6 +1,32 @@
 import BackgroundTasks
 import SwiftUI
 
+enum AppTab: Hashable {
+    case search
+    case dashboard
+    case settings
+}
+
+enum SettingsRoute: Hashable {
+    case cloudSync
+    case utTracker
+    case gitHubUpdates
+    case imageTranslate
+    case emailAssistant
+    case qingLong
+}
+
+@MainActor
+final class AppNavigationState: ObservableObject {
+    @Published var selectedTab: AppTab = .search
+    @Published var pendingSettingsRoute: SettingsRoute?
+
+    func openSettings(_ route: SettingsRoute? = nil) {
+        pendingSettingsRoute = route
+        selectedTab = .settings
+    }
+}
+
 @main
 struct EasySearchApp: App {
     @Environment(\.scenePhase) private var scenePhase
@@ -42,24 +68,18 @@ struct EasySearchApp: App {
 }
 
 private struct AppShellView: View {
-    private enum AppTab: Hashable {
-        case search
-        case dashboard
-        case settings
-    }
-
     @StateObject private var searchViewModel = SearchViewModel()
-    @State private var selectedTab: AppTab = .search
+    @StateObject private var navigationState = AppNavigationState()
 
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: $navigationState.selectedTab) {
             EasySearchView(viewModel: searchViewModel)
                 .tag(AppTab.search)
                 .tabItem {
                     Label("搜索", systemImage: "magnifyingglass")
                 }
 
-            DashboardView(isTabActive: selectedTab == .dashboard)
+            DashboardView(isTabActive: navigationState.selectedTab == .dashboard)
                 .tag(AppTab.dashboard)
                 .tabItem {
                     Label("模块", systemImage: "square.grid.2x2")
@@ -72,6 +92,7 @@ private struct AppShellView: View {
                 }
         }
         .appTabBarBehavior()
+        .environmentObject(navigationState)
         .task {
             await searchViewModel.refreshConfigIfNeededOnLaunch()
         }

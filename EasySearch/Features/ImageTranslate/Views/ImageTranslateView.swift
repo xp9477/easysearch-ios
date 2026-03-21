@@ -9,6 +9,7 @@ public struct ImageTranslateView: View {
     @State private var isPhotoPickerPresented = false
     @State private var isCameraPresented = false
     @State private var isCropSheetPresented = false
+    @State private var isComparisonExpanded = false
 
     public init() {}
 
@@ -17,12 +18,14 @@ public struct ImageTranslateView: View {
             VStack(alignment: .leading, spacing: 18) {
                 heroCard
 
-                if let notice = viewModel.notice {
-                    noticeBanner(notice)
+                if viewModel.hasHistory {
+                    historyCard
                 }
 
-                historyCard
-                imageCard
+                if viewModel.selectedImage != nil {
+                    imageCard
+                }
+
                 editorCard
 
                 if viewModel.hasTranslation {
@@ -41,8 +44,20 @@ public struct ImageTranslateView: View {
         .navigationTitle("截图翻译")
         .navigationBarTitleDisplayMode(.inline)
         .scrollDismissesKeyboard(.interactively)
+        .overlay(alignment: .top) {
+            if let notice = viewModel.notice {
+                noticeToast(notice)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.28, dampingFraction: 0.9), value: viewModel.notice)
         .task {
             await viewModel.prepare()
+        }
+        .onChange(of: viewModel.latestTranslation) { _ in
+            isComparisonExpanded = false
         }
         .photosPicker(
             isPresented: $isPhotoPickerPresented,
@@ -79,62 +94,14 @@ public struct ImageTranslateView: View {
     }
 
     private var heroCard: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("DeepSeek OCR")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.white.opacity(0.74))
-
-                    Text("截图 / 拍照翻译")
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundStyle(.white)
-
-                    Text("先在本地识别图片文字，再把识别结果交给 DeepSeek 做翻译和多轮优化。识别文本可手动修改，支持最近会话恢复和局部裁剪翻译。")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(Color.white.opacity(0.82))
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 12)
-
-                VStack(alignment: .trailing, spacing: 8) {
-                    heroChip(
-                        title: viewModel.hasConfiguredAPIKey ? "DeepSeek 已配置" : "待配置 API Key",
-                        color: viewModel.hasConfiguredAPIKey ? .green : .orange
-                    )
-
-                    heroChip(title: viewModel.currentModel, color: .white.opacity(0.18))
-                }
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("截图 / 拍照翻译")
+                    .font(.system(size: 26, weight: .bold))
+                    .foregroundStyle(.white)
             }
 
             HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("翻译到")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Color.white.opacity(0.76))
-
-                    Picker(
-                        "翻译到",
-                        selection: Binding(
-                            get: { viewModel.targetLanguage },
-                            set: { newValue in
-                                Task {
-                                    await viewModel.updateTargetLanguage(newValue)
-                                }
-                            }
-                        )
-                    ) {
-                        ForEach(ImageTranslateTargetLanguage.allCases) { language in
-                            Text(language.title).tag(language)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .tint(.white)
-                }
-
-                Spacer()
-
                 Button {
                     viewModel.startFreshSession()
                 } label: {
@@ -149,6 +116,18 @@ public struct ImageTranslateView: View {
                         )
                 }
                 .buttonStyle(.plain)
+            }
+
+            HStack {
+                Picker("输出语言", selection: $viewModel.targetLanguage) {
+                    ForEach(ImageTranslateTargetLanguage.allCases) { language in
+                        Text(language.title).tag(language)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(.white)
+
+                Spacer()
             }
 
             HStack(spacing: 12) {
@@ -189,16 +168,9 @@ public struct ImageTranslateView: View {
                     isCameraPresented = true
                 }
             }
-
-            infoStrip(
-                icon: "lock.shield",
-                text: viewModel.hasConfiguredAPIKey
-                    ? "图片 OCR 在本地完成，发送给 DeepSeek 的只有识别后的文字内容。"
-                    : "本地 OCR 可直接使用。要启用 AI 翻译和多轮讨论，请到“设置”页配置 DeepSeek API Key。"
-            )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(24)
+        .padding(22)
         .background(
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(
@@ -220,22 +192,10 @@ public struct ImageTranslateView: View {
 
     private var historyCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(
-                eyebrow: "History",
-                title: "最近会话",
-                description: viewModel.hasHistory
-                    ? "会自动保存最近 20 条截图翻译记录，点一条即可恢复继续讨论。"
-                    : "首个翻译结果生成后，会自动进入最近会话。"
-            )
+            sectionHeader("最近")
 
-            if viewModel.history.isEmpty {
-                emptyState(
-                    icon: "clock.arrow.trianglehead.counterclockwise.rotate.90",
-                    title: "还没有历史记录",
-                    description: "先完成一次翻译，这里会保留最近会话，方便继续修改或回看。"
-                )
-            } else {
-                VStack(spacing: 12) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
                     ForEach(viewModel.history) { record in
                         historyRow(record)
                     }
@@ -248,68 +208,42 @@ public struct ImageTranslateView: View {
 
     private var imageCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(
-                eyebrow: "Image",
-                title: "图片预览",
-                description: viewModel.selectedImage == nil
-                    ? "支持拍照、相册或剪贴板图片。即使暂时不选图，也可以直接在下面粘贴文本后翻译。"
-                    : "当前图片已经载入。需要局部翻译时，直接裁剪目标区域即可。"
-            )
+            sectionHeader("图片")
 
             if let image = viewModel.selectedImage {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: 280)
                     .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 22, style: .continuous)
                             .stroke(Color.primary.opacity(0.08), lineWidth: 1)
                     )
 
-                HStack(spacing: 10) {
-                    statusChip(title: viewModel.imageStatusText, color: .cyan)
+                HStack(alignment: .center, spacing: 10) {
+                    statusChip(title: viewModel.imageStatusText, color: .cyan, compact: true)
 
                     if viewModel.isRecognizingText {
-                        statusChip(title: "识别中", color: .orange)
+                        statusChip(title: "识别中", color: .orange, compact: true)
                     } else if viewModel.isTranslating {
-                        statusChip(title: "翻译中", color: .green)
+                        statusChip(title: "翻译中", color: .green, compact: true)
                     }
-                }
 
-                HStack(spacing: 12) {
-                    Button {
+                    Spacer(minLength: 0)
+
+                    compactToolButton(title: "裁剪", icon: "crop", tint: .cyan) {
                         isCropSheetPresented = true
-                    } label: {
-                        Label("局部裁剪翻译", systemImage: "crop")
-                            .font(.system(size: 15, weight: .semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.cyan)
                     .disabled(viewModel.isRecognizingText || viewModel.isTranslating)
 
-                    Button {
+                    compactToolButton(title: "重识别", icon: "viewfinder", tint: .secondary) {
                         Task {
                             await viewModel.reRecognizeSelectedImage()
                         }
-                    } label: {
-                        Label("整图重识别", systemImage: "viewfinder")
-                            .font(.system(size: 15, weight: .semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.secondary)
                     .disabled(viewModel.isRecognizingText || viewModel.isTranslating)
                 }
-            } else {
-                emptyState(
-                    icon: "photo.badge.plus",
-                    title: "还没有图片",
-                    description: "顶部三个快捷入口都能直接开始。截图常用“粘贴截图”，拍纸面内容用“拍照”，历史图片从“选图片”进入。"
-                )
             }
         }
         .padding(24)
@@ -318,18 +252,34 @@ public struct ImageTranslateView: View {
 
     private var editorCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(
-                eyebrow: "OCR",
-                title: "识别结果",
-                description: "识别后的文本可以直接改。适合先修正 OCR 错字，再重新发起翻译。"
-            )
+            HStack(alignment: .center, spacing: 12) {
+                sectionHeader("文本")
+
+                Spacer()
+
+                if !viewModel.extractedText.isEmpty {
+                    Text("\(viewModel.extractedText.count)")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+
+                if !viewModel.extractedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button {
+                        viewModel.copyText(viewModel.extractedText, successMessage: "已复制识别文本。")
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .fill(Color(.tertiarySystemFill))
 
                 if viewModel.extractedText.isEmpty {
-                    Text("识别结果会显示在这里，也可以手动粘贴文本后直接翻译。")
+                    Text("可直接粘贴文本")
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 18)
@@ -344,28 +294,10 @@ public struct ImageTranslateView: View {
                     .background(Color.clear)
             }
 
-            HStack(alignment: .center, spacing: 12) {
-                Text("当前 \(viewModel.extractedText.count) 字")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
-
-                if viewModel.needsRetranslation {
-                    Text("识别文本有改动，建议重新翻译")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.orange)
-                }
-
-                Spacer()
-
-                if !viewModel.extractedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Button {
-                        viewModel.copyText(viewModel.extractedText, successMessage: "已复制识别文本。")
-                    } label: {
-                        Label("复制文本", systemImage: "doc.on.doc")
-                            .font(.system(size: 13, weight: .semibold))
-                    }
-                    .buttonStyle(.borderless)
-                }
+            if viewModel.needsRetranslation {
+                Text("文本已改动")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.orange)
             }
 
             Button {
@@ -397,11 +329,19 @@ public struct ImageTranslateView: View {
 
     private var translationCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(
-                eyebrow: "Translation",
-                title: "翻译结果",
-                description: "上面是可直接复制的最终译文，下面保留原文 / 译文对照，方便快速校对。"
-            )
+            HStack(alignment: .center, spacing: 12) {
+                sectionHeader("结果")
+
+                Spacer()
+
+                Button {
+                    viewModel.copyText(viewModel.latestTranslation, successMessage: "已复制翻译结果。")
+                } label: {
+                    Image(systemName: "doc.on.doc.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .buttonStyle(.borderless)
+            }
 
             VStack(alignment: .leading, spacing: 14) {
                 Text(viewModel.latestTranslation)
@@ -419,7 +359,9 @@ public struct ImageTranslateView: View {
                 }
 
                 if !viewModel.translationNotes.isEmpty {
-                    infoStrip(icon: "text.bubble", text: viewModel.translationNotes)
+                    Text(viewModel.translationNotes)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
                 }
             }
             .padding(18)
@@ -430,26 +372,37 @@ public struct ImageTranslateView: View {
 
             if !viewModel.alignedSections.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("原文 / 译文对照")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.primary)
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
+                            isComparisonExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Text("对照")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(.primary)
 
-                    ForEach(viewModel.alignedSections) { section in
-                        comparisonRow(section)
+                            Spacer()
+
+                            Text("\(viewModel.alignedSections.count)")
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.secondary)
+
+                            Image(systemName: isComparisonExpanded ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+
+                    if isComparisonExpanded {
+                        ForEach(viewModel.alignedSections) { section in
+                            comparisonRow(section)
+                        }
                     }
                 }
             }
 
-            Button {
-                viewModel.copyText(viewModel.latestTranslation, successMessage: "已复制翻译结果。")
-            } label: {
-                Label("复制翻译", systemImage: "doc.on.doc.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.cyan)
         }
         .padding(24)
         .cardStyle()
@@ -457,11 +410,7 @@ public struct ImageTranslateView: View {
 
     private var conversationCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(
-                eyebrow: "Conversation",
-                title: "继续优化 / 讨论",
-                description: "支持多轮对话。你可以让它更自然、解释术语、保留原文，或者讨论上下文含义。"
-            )
+            sectionHeader("追问")
 
             VStack(spacing: 12) {
                 ForEach(viewModel.conversation) { message in
@@ -494,7 +443,7 @@ public struct ImageTranslateView: View {
             }
 
             HStack(alignment: .bottom, spacing: 12) {
-                TextField("继续说：比如“更自然一点”或“解释这句里的术语”", text: $viewModel.composerText, axis: .vertical)
+                TextField("继续说", text: $viewModel.composerText, axis: .vertical)
                     .lineLimit(1 ... 4)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
@@ -521,7 +470,7 @@ public struct ImageTranslateView: View {
     }
 
     private func historyRow(_ record: ImageTranslateHistoryRecord) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             Group {
                 if let data = record.previewImageData,
                    let image = UIImage(data: data) {
@@ -536,53 +485,31 @@ public struct ImageTranslateView: View {
                         .background(Color.cyan.opacity(0.10))
                 }
             }
-            .frame(width: 54, height: 54)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .frame(width: 132, height: 92)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(record.title)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
+            Text(record.title)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
 
-                    Spacer(minLength: 8)
+            HStack(spacing: 8) {
+                statusChip(title: record.targetLanguage.title, color: .cyan)
 
-                    Text(relativeDateText(record.updatedAt))
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-
-                HStack(spacing: 8) {
-                    statusChip(title: record.targetLanguage.title, color: .cyan)
-
-                    if let detectedSourceLanguage = record.detectedSourceLanguage,
-                       !detectedSourceLanguage.isEmpty {
-                        statusChip(title: detectedSourceLanguage, color: .secondary)
-                    }
-                }
-
-                Text(record.sourceSnippet)
-                    .font(.system(size: 13, weight: .medium))
+                Text(relativeDateText(record.updatedAt))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
-
-                Text(record.translationSnippet)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
             }
 
-            Button(role: .destructive) {
-                viewModel.deleteHistoryRecord(record)
-            } label: {
-                Image(systemName: "trash")
-                    .font(.system(size: 13, weight: .bold))
-                    .padding(8)
+            if let detectedSourceLanguage = record.detectedSourceLanguage,
+               !detectedSourceLanguage.isEmpty {
+                Text(detectedSourceLanguage)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.borderless)
         }
-        .padding(14)
+        .frame(width: 148, alignment: .leading)
+        .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(Color(.tertiarySystemFill))
@@ -590,6 +517,13 @@ public struct ImageTranslateView: View {
         .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .onTapGesture {
             viewModel.loadHistorySession(record)
+        }
+        .contextMenu {
+            Button(role: .destructive) {
+                viewModel.deleteHistoryRecord(record)
+            } label: {
+                Label("删除", systemImage: "trash")
+            }
         }
     }
 
@@ -647,91 +581,25 @@ public struct ImageTranslateView: View {
         return formatter.localizedString(for: date, relativeTo: Date())
     }
 
-    private func sectionHeader(eyebrow: String, title: String, description: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(eyebrow)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            Text(title)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(.primary)
-
-            Text(description)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private func emptyState(icon: String, title: String, description: String) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            Text(title)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.primary)
-
-            Text(description)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 28)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
-        )
-    }
-
-    private func infoStrip(icon: String, text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(.secondary)
-
-            Text(text)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.white.opacity(0.08))
-        )
-    }
-
-    private func heroChip(title: String, color: Color) -> some View {
+    private func sectionHeader(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(color)
-            )
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(.primary)
     }
 
-    private func statusChip(title: String, color: Color) -> some View {
+    private func statusChip(title: String, color: Color, compact: Bool = false) -> some View {
         Text(title)
-            .font(.system(size: 12, weight: .semibold))
+            .font(.system(size: compact ? 11 : 12, weight: .semibold))
             .foregroundStyle(color)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, compact ? 10 : 12)
+            .padding(.vertical, compact ? 6 : 8)
             .background(
                 Capsule(style: .continuous)
                     .fill(color.opacity(0.14))
             )
     }
 
-    private func noticeBanner(_ notice: ImageTranslateNotice) -> some View {
+    private func noticeToast(_ notice: ImageTranslateNotice) -> some View {
         let tint: Color = {
             switch notice.tone {
             case .neutral:
@@ -743,27 +611,28 @@ public struct ImageTranslateView: View {
             }
         }()
 
-        return HStack(alignment: .top, spacing: 10) {
+        return HStack(alignment: .center, spacing: 10) {
             Image(systemName: notice.tone == .caution ? "exclamationmark.triangle.fill" : "info.circle.fill")
-                .font(.system(size: 15, weight: .bold))
+                .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(tint)
 
             Text(notice.message)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Spacer(minLength: 0)
+                .lineLimit(2)
         }
-        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
+            Capsule(style: .continuous)
+                .fill(.ultraThinMaterial)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            Capsule(style: .continuous)
                 .stroke(tint.opacity(0.20), lineWidth: 1)
         )
+        .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
     }
 
     private func actionButton(
@@ -792,6 +661,22 @@ public struct ImageTranslateView: View {
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
+    }
+
+    private func compactToolButton(
+        title: String,
+        icon: String,
+        tint: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.system(size: 13, weight: .semibold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+        }
+        .buttonStyle(.bordered)
+        .tint(tint)
     }
 
     private func conversationBubble(_ message: ImageTranslateConversationMessage) -> some View {
@@ -866,9 +751,9 @@ private struct CropImageEditor: View {
                         Spacer()
 
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("在图片上拖出要翻译的区域")
+                            Text("拖出要翻译的区域")
                                 .font(.system(size: 15, weight: .semibold))
-                            Text("重新拖动即可改选。适合长截图、菜单局部或只想翻一块界面文案。")
+                            Text("重新拖动可改选")
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundStyle(.secondary)
                         }
@@ -1007,5 +892,6 @@ private struct CameraImagePicker: UIViewControllerRepresentable {
 #Preview {
     NavigationStack {
         ImageTranslateView()
+            .environmentObject(AppNavigationState())
     }
 }

@@ -33,7 +33,6 @@ final class ImageTranslateViewModel: ObservableObject {
     @Published var targetLanguage: ImageTranslateTargetLanguage = .simplifiedChinese {
         didSet { persistCurrentStateIfNeeded() }
     }
-    @Published private(set) var currentModel = "deepseek-chat"
     @Published private(set) var hasConfiguredAPIKey = false
     @Published private(set) var isRecognizingText = false
     @Published private(set) var isTranslating = false
@@ -42,6 +41,7 @@ final class ImageTranslateViewModel: ObservableObject {
     private let store: any ImageTranslateSessionStore
     private let notificationCenter: NotificationCenter
     private var configurationObserver: NSObjectProtocol?
+    private var noticeDismissTask: Task<Void, Never>?
     private var hasPrepared = false
     private var isRestoringState = false
     private var currentSessionID = UUID()
@@ -72,6 +72,7 @@ final class ImageTranslateViewModel: ObservableObject {
     }
 
     deinit {
+        noticeDismissTask?.cancel()
         if let configurationObserver {
             notificationCenter.removeObserver(configurationObserver)
         }
@@ -139,16 +140,6 @@ final class ImageTranslateViewModel: ObservableObject {
         await reloadConfiguration(applyDefaultTargetLanguage: true)
         restorePersistedStateIfNeeded()
         history = store.loadHistory()
-
-        if selectedImage == nil,
-           extractedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-           latestTranslation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-           notice == nil {
-            setNotice(
-                tone: .neutral,
-                message: "先粘贴截图、选图或拍照。识别结果支持手动校对，后面可继续追问优化翻译。"
-            )
-        }
     }
 
     func updateTargetLanguage(_ targetLanguage: ImageTranslateTargetLanguage) async {
@@ -159,7 +150,7 @@ final class ImageTranslateViewModel: ObservableObject {
         if hasTranslation {
             setNotice(
                 tone: .neutral,
-                message: "默认目标语言已切到\(targetLanguage.title)，可直接重新翻译当前文本。"
+                message: "当前输出语言已切到\(targetLanguage.title)，可直接重新翻译当前文本。"
             )
         }
     }
@@ -331,7 +322,6 @@ final class ImageTranslateViewModel: ObservableObject {
 
     private func reloadConfiguration(applyDefaultTargetLanguage: Bool) async {
         let configuration = await service.loadConfiguration()
-        currentModel = configuration.resolvedModel
         hasConfiguredAPIKey = configuration.hasAPIKey
         configuredTargetLanguage = configuration.targetLanguage
 
@@ -560,11 +550,32 @@ final class ImageTranslateViewModel: ObservableObject {
     }
 
     private func setNotice(tone: ImageTranslateNoticeTone, message: String?) {
+        noticeDismissTask?.cancel()
+
         guard let message, !message.isEmpty else {
             notice = nil
             return
         }
 
-        notice = ImageTranslateNotice(tone: tone, message: message)
+        let notice = ImageTranslateNotice(tone: tone, message: message)
+        self.notice = notice
+
+        let delay: UInt64
+        switch tone {
+        case .caution:
+            delay = 3_200_000_000
+        case .neutral, .success:
+            delay = 2_000_000_000
+        }
+
+        noticeDismissTask = Task { [weak self, notice] in
+            try? await Task.sleep(nanoseconds: delay)
+            guard !Task.isCancelled else { return }
+
+            await MainActor.run {
+                guard let self, self.notice == notice else { return }
+                self.notice = nil
+            }
+        }
     }
 }

@@ -159,7 +159,13 @@ actor DeepSeekClient {
 
         try validate(response: response, data: data)
 
-        let payload = try decoder.decode(DeepSeekChatCompletionResponse.self, from: data)
+        let payload: DeepSeekChatCompletionResponse
+        do {
+            payload = try decoder.decode(DeepSeekChatCompletionResponse.self, from: data)
+        } catch {
+            throw mapDecodingError(error, payload: data)
+        }
+
         guard let content = payload.choices.first?.message.content?.trimmingCharacters(in: .whitespacesAndNewlines),
               !content.isEmpty else {
             throw DeepSeekClientError.emptyResponse
@@ -305,13 +311,48 @@ actor DeepSeekClient {
             throw DeepSeekClientError.invalidResponse
         }
 
-        let chunk = try decoder.decode(DeepSeekStreamingResponse.self, from: data)
+        let chunk: DeepSeekStreamingResponse
+        do {
+            chunk = try decoder.decode(DeepSeekStreamingResponse.self, from: data)
+        } catch {
+            throw mapDecodingError(error, payload: data)
+        }
+
         for choice in chunk.choices {
             if let content = choice.delta?.content, !content.isEmpty {
                 collectedText += content
                 onDelta(content)
             }
         }
+    }
+
+    private func mapDecodingError(_ error: Error, payload: Data) -> DeepSeekClientError {
+        if error is DecodingError {
+            return invalidResponse(from: payload)
+        }
+
+        return .invalidResponse
+    }
+
+    private func invalidResponse(from data: Data) -> DeepSeekClientError {
+        if let payload = try? decoder.decode(DeepSeekErrorEnvelope.self, from: data) {
+            if let message = payload.error?.message?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !message.isEmpty {
+                return .serverError(message)
+            }
+
+            if let message = payload.message?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !message.isEmpty {
+                return .serverError(message)
+            }
+        }
+
+        let preview = responsePreview(from: data)
+        guard !preview.isEmpty else {
+            return .invalidResponse
+        }
+
+        return .serverError("DeepSeek 返回了无法识别的结果：\(preview)")
     }
 
     private func serverError(from data: Data, statusCode: Int) -> DeepSeekClientError {
@@ -334,5 +375,20 @@ actor DeepSeekClient {
         }
 
         return .serverError("DeepSeek 请求失败，状态码 \(statusCode)。")
+    }
+
+    private func responsePreview(from data: Data?) -> String {
+        guard let data,
+              let rawText = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+              !rawText.isEmpty else {
+            return ""
+        }
+
+        let singleLine = rawText
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\n", with: " ")
+
+        return String(singleLine.prefix(180))
     }
 }
