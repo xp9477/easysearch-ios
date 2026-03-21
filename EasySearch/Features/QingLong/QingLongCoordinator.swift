@@ -61,6 +61,13 @@ private struct QingLongCredentials: Codable, Hashable {
     let clientSecret: String
 }
 
+private struct QingLongEnvironmentPayload: Encodable {
+    let id: Int?
+    let name: String
+    let value: String
+    let remarks: String
+}
+
 private struct QingLongSession: Hashable {
     let token: String
     let expiration: Date
@@ -398,6 +405,32 @@ actor QingLongService {
         try await performEnvironmentAction(path: enabled ? "enable" : "disable", ids: [id])
     }
 
+    func createEnvironment(name: String, value: String, remarks: String) async throws -> QingLongEnvironment {
+        let context = try await authenticatedContext()
+        let payload = [QingLongEnvironmentPayload(id: nil, name: name, value: value, remarks: remarks)]
+        let request = try makeRequest(
+            baseURL: context.profile.baseURL,
+            token: context.session.token,
+            path: ["envs"],
+            method: "POST",
+            body: payload
+        )
+        return try await sendEnvironmentMutationRequest(request)
+    }
+
+    func updateEnvironment(id: Int, name: String, value: String, remarks: String) async throws -> QingLongEnvironment {
+        let context = try await authenticatedContext()
+        let payload = QingLongEnvironmentPayload(id: id, name: name, value: value, remarks: remarks)
+        let request = try makeRequest(
+            baseURL: context.profile.baseURL,
+            token: context.session.token,
+            path: ["envs"],
+            method: "PUT",
+            body: payload
+        )
+        return try await sendEnvironmentMutationRequest(request)
+    }
+
     func runCron(id: Int) async throws {
         try await performCronAction(path: "run", ids: [id])
     }
@@ -558,6 +591,21 @@ actor QingLongService {
         guard statusEnvelope.code == 200 else {
             throw QingLongError.serverError(statusEnvelope.message ?? "青龙面板请求失败。")
         }
+    }
+
+    private func sendEnvironmentMutationRequest(_ request: URLRequest) async throws -> QingLongEnvironment {
+        let data = try await sendResponseData(for: request)
+
+        if let environment = try? decodeEnvelopeData(data, as: QingLongEnvironment.self) {
+            return environment
+        }
+
+        if let environments = try? decodeEnvelopeData(data, as: [QingLongEnvironment].self),
+           let environment = environments.first {
+            return environment
+        }
+
+        throw decodeBodyAsInvalidResponse(data)
     }
 
     private func sendEnvelopeRequest<T: Decodable>(_ request: URLRequest, decodeAs type: T.Type) async throws -> T {

@@ -66,25 +66,31 @@ enum ImageOCRService {
         let normalizedImage = uprightImage(from: image)
         guard let cgImage = normalizedImage.cgImage else { return nil }
 
-        let boundedRect = CGRect(
-            x: min(max(normalizedRect.minX, 0), 1),
-            y: min(max(normalizedRect.minY, 0), 1),
-            width: min(max(normalizedRect.width, 0), 1),
-            height: min(max(normalizedRect.height, 0), 1)
-        )
+        let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let boundedRect = normalizedRect.standardized.intersection(unitRect)
 
-        guard boundedRect.width > 0.02, boundedRect.height > 0.02 else {
+        guard !boundedRect.isNull,
+              boundedRect.width > 0.02,
+              boundedRect.height > 0.02 else {
             return nil
         }
 
+        let pixelWidth = CGFloat(cgImage.width)
+        let pixelHeight = CGFloat(cgImage.height)
+        let imageBounds = CGRect(x: 0, y: 0, width: pixelWidth, height: pixelHeight)
         let cropRect = CGRect(
-            x: boundedRect.minX * normalizedImage.size.width,
-            y: boundedRect.minY * normalizedImage.size.height,
-            width: boundedRect.width * normalizedImage.size.width,
-            height: boundedRect.height * normalizedImage.size.height
-        ).integral
+            x: boundedRect.minX * pixelWidth,
+            y: boundedRect.minY * pixelHeight,
+            width: boundedRect.width * pixelWidth,
+            height: boundedRect.height * pixelHeight
+        )
+        .integral
+        .intersection(imageBounds)
 
-        guard let croppedCGImage = cgImage.cropping(to: cropRect) else {
+        guard !cropRect.isNull,
+              cropRect.width > 1,
+              cropRect.height > 1,
+              let croppedCGImage = cgImage.cropping(to: cropRect) else {
             return nil
         }
 

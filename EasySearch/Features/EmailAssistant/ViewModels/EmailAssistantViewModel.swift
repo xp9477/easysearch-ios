@@ -8,7 +8,6 @@ final class EmailAssistantViewModel: ObservableObject {
     @Published var scenario: EmailAssistantScenario = .general { didSet { persistStateIfNeeded() } }
     @Published var originalDraft = "" { didSet { persistStateIfNeeded() } }
     @Published var receivedEmailText = "" { didSet { persistStateIfNeeded() } }
-    @Published var additionalRequirements = "" { didSet { persistStateIfNeeded() } }
     @Published var messageDraft = ""
     @Published private(set) var conversation: [EmailAssistantThreadMessage] = [] { didSet { persistStateIfNeeded() } }
     @Published private(set) var isGenerating = false
@@ -48,8 +47,7 @@ final class EmailAssistantViewModel: ObservableObject {
             length: length,
             scenario: scenario,
             originalDraft: originalDraft,
-            receivedEmailText: receivedEmailText,
-            additionalRequirements: additionalRequirements
+            receivedEmailText: receivedEmailText
         )
     }
 
@@ -70,7 +68,7 @@ final class EmailAssistantViewModel: ObservableObject {
         let trimmedDraft = messageDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         let instruction = trimmedDraft.isEmpty ? mode.defaultInstruction : trimmedDraft
 
-        guard currentContext.hasUsableContent || !completedConversation.isEmpty else {
+        guard currentContext.hasUsableContent || !completedConversation.isEmpty || !trimmedDraft.isEmpty else {
             notice = EmailAssistantNotice(tone: .caution, message: EmailAssistantError.emptyContext.localizedDescription)
             return
         }
@@ -111,11 +109,6 @@ final class EmailAssistantViewModel: ObservableObject {
         }
     }
 
-    func sendQuickPrompt(_ prompt: String) async {
-        messageDraft = prompt
-        await sendCurrentMessage()
-    }
-
     func importScreenshotText(from imageData: Data) async {
         isRecognizingScreenshot = true
         defer { isRecognizingScreenshot = false }
@@ -153,31 +146,10 @@ final class EmailAssistantViewModel: ObservableObject {
         scenario = .general
         originalDraft = ""
         receivedEmailText = ""
-        additionalRequirements = ""
         messageDraft = ""
         conversation = []
         store.clear()
         notice = EmailAssistantNotice(tone: .neutral, message: "已重置。")
-    }
-
-    func useAssistantMessageAsDraft(_ message: EmailAssistantThreadMessage) {
-        guard let output = message.structuredOutput else {
-            guard message.role == .assistant else { return }
-            originalDraft = message.content
-            mode = .polish
-            notice = EmailAssistantNotice(tone: .success, message: "已放入草稿。")
-            return
-        }
-
-        originalDraft = output.primaryFormattedText
-        mode = .polish
-        notice = EmailAssistantNotice(tone: .success, message: "已放入草稿。")
-    }
-
-    func useDraftVariant(_ variant: EmailAssistantDraftVariant) {
-        originalDraft = variant.formattedText
-        mode = .polish
-        notice = EmailAssistantNotice(tone: .success, message: "已放入草稿。")
     }
 
     func presentNotice(tone: EmailAssistantNoticeTone, message: String) {
@@ -190,7 +162,7 @@ final class EmailAssistantViewModel: ObservableObject {
         conversation.append(
             EmailAssistantThreadMessage(
                 role: .assistant,
-                content: output.primaryFormattedText,
+                content: output.formattedText,
                 structuredOutput: output
             )
         )
@@ -227,7 +199,6 @@ final class EmailAssistantViewModel: ObservableObject {
         scenario = state.scenario
         originalDraft = state.originalDraft
         receivedEmailText = state.receivedEmailText
-        additionalRequirements = state.additionalRequirements
         conversation = state.conversation
         isRestoringState = false
     }
@@ -243,7 +214,6 @@ final class EmailAssistantViewModel: ObservableObject {
                 scenario: scenario,
                 originalDraft: originalDraft,
                 receivedEmailText: receivedEmailText,
-                additionalRequirements: additionalRequirements,
                 conversation: conversation
             )
         )

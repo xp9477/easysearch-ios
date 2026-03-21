@@ -54,7 +54,9 @@ actor EmailAssistantService {
         conversationHistory: [EmailAssistantThreadMessage],
         latestUserMessage: String
     ) async throws -> EmailAssistantStructuredOutput {
-        guard context.hasUsableContent || !conversationHistory.isEmpty else {
+        guard context.hasUsableContent ||
+                !conversationHistory.isEmpty ||
+                !latestUserMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw EmailAssistantError.emptyContext
         }
 
@@ -123,28 +125,15 @@ actor EmailAssistantService {
         3. Keep the email aligned with this scenario: \(context.scenario.promptDescription).
         4. Use this tone: \(context.tone.promptDescription).
         5. Apply this length preference: \(context.length.promptDescription).
-        6. Generate one primary email and exactly two alternatives with visibly different tones or strategies.
-        7. Do not use markdown code fences.
-        8. Output only in the exact plain-text block format below.
+        6. Generate only one final email draft.
+        7. Do not add explanations, options, or alternative versions.
+        8. Do not use markdown code fences.
+        9. Output only in the exact plain-text block format below.
 
         Required output format:
-        [PRIMARY_SUBJECT]
+        [SUBJECT]
         <english subject line>
-        [PRIMARY_BODY]
-        <english email body>
-        [EXPLANATION]
-        <1-2 short Chinese sentences explaining why this draft works>
-        [ALTERNATIVE_1_TITLE]
-        <short Chinese label such as 更正式 / 更直接 / 更友好>
-        [ALTERNATIVE_1_SUBJECT]
-        <english subject line>
-        [ALTERNATIVE_1_BODY]
-        <english email body>
-        [ALTERNATIVE_2_TITLE]
-        <short Chinese label>
-        [ALTERNATIVE_2_SUBJECT]
-        <english subject line>
-        [ALTERNATIVE_2_BODY]
+        [BODY]
         <english email body>
 
         Current context:
@@ -155,11 +144,10 @@ actor EmailAssistantService {
     private func parseStructuredOutput(from rawText: String) throws -> EmailAssistantStructuredOutput {
         let sections = parseSections(from: rawText)
 
-        let primarySubject = normalizedSection(sections["PRIMARY_SUBJECT"])
-        let primaryBody = normalizedSection(sections["PRIMARY_BODY"])
-        let explanation = normalizedSection(sections["EXPLANATION"])
+        let subject = normalizedSection(sections["SUBJECT"], fallback: sections["PRIMARY_SUBJECT"])
+        let body = normalizedSection(sections["BODY"], fallback: sections["PRIMARY_BODY"])
 
-        if primarySubject.isEmpty && primaryBody.isEmpty {
+        if subject.isEmpty && body.isEmpty {
             let fallback = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !fallback.isEmpty else {
                 throw EmailAssistantError.emptyResponse
@@ -167,47 +155,22 @@ actor EmailAssistantService {
 
             return EmailAssistantStructuredOutput(
                 subject: inferredSubject(from: fallback),
-                body: fallback,
-                explanation: "模型没有完全按约定格式返回，这里保留了原始结果供你继续修改。",
-                alternatives: []
+                body: fallback
             )
         }
 
-        let alternatives = [
-            makeAlternative(
-                title: normalizedSection(sections["ALTERNATIVE_1_TITLE"]),
-                subject: normalizedSection(sections["ALTERNATIVE_1_SUBJECT"]),
-                body: normalizedSection(sections["ALTERNATIVE_1_BODY"]),
-                fallbackTitle: "更正式"
-            ),
-            makeAlternative(
-                title: normalizedSection(sections["ALTERNATIVE_2_TITLE"]),
-                subject: normalizedSection(sections["ALTERNATIVE_2_SUBJECT"]),
-                body: normalizedSection(sections["ALTERNATIVE_2_BODY"]),
-                fallbackTitle: "更直接"
-            )
-        ]
-        .compactMap { $0 }
-
         return EmailAssistantStructuredOutput(
-            subject: primarySubject.isEmpty ? inferredSubject(from: primaryBody) : primarySubject,
-            body: primaryBody,
-            explanation: explanation,
-            alternatives: alternatives
+            subject: subject.isEmpty ? inferredSubject(from: body) : subject,
+            body: body
         )
     }
 
     private func parseSections(from rawText: String) -> [String: String] {
         let markers = [
+            "SUBJECT",
+            "BODY",
             "PRIMARY_SUBJECT",
-            "PRIMARY_BODY",
-            "EXPLANATION",
-            "ALTERNATIVE_1_TITLE",
-            "ALTERNATIVE_1_SUBJECT",
-            "ALTERNATIVE_1_BODY",
-            "ALTERNATIVE_2_TITLE",
-            "ALTERNATIVE_2_SUBJECT",
-            "ALTERNATIVE_2_BODY"
+            "PRIMARY_BODY"
         ]
 
         var result: [String: String] = [:]
@@ -233,8 +196,12 @@ actor EmailAssistantService {
         return result
     }
 
-    private func normalizedSection(_ value: String?) -> String {
-        value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    private func normalizedSection(_ value: String?, fallback: String? = nil) -> String {
+        let primary = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !primary.isEmpty {
+            return primary
+        }
+        return fallback?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
     private func inferredSubject(from text: String) -> String {
@@ -244,20 +211,6 @@ actor EmailAssistantService {
             .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
             .first { !$0.isEmpty }
         return firstLine ?? ""
-    }
-
-    private func makeAlternative(
-        title: String,
-        subject: String,
-        body: String,
-        fallbackTitle: String
-    ) -> EmailAssistantDraftVariant? {
-        guard !subject.isEmpty || !body.isEmpty else { return nil }
-        return EmailAssistantDraftVariant(
-            title: title.isEmpty ? fallbackTitle : title,
-            subject: subject.isEmpty ? inferredSubject(from: body) : subject,
-            body: body
-        )
     }
 
     private func mapDeepSeekError(_ error: DeepSeekClientError) -> EmailAssistantError {

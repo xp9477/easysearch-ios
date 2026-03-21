@@ -1,48 +1,9 @@
 import Foundation
 
-enum QingLongWorkspaceSection: String, CaseIterable, Identifiable {
-    case environments
-    case crons
-
-    var id: Self { self }
-
-    var title: String {
-        switch self {
-        case .environments:
-            return "环境变量"
-        case .crons:
-            return "定时任务"
-        }
-    }
-}
-
-enum QingLongEnvironmentFilter: String, CaseIterable, Identifiable {
-    case all
-    case enabled
-    case disabled
-    case pinned
-
-    var id: Self { self }
-
-    var title: String {
-        switch self {
-        case .all:
-            return "全部"
-        case .enabled:
-            return "已启用"
-        case .disabled:
-            return "已禁用"
-        case .pinned:
-            return "Pinned"
-        }
-    }
-}
-
 enum QingLongCronFilter: String, CaseIterable, Identifiable {
     case all
     case running
     case disabled
-    case hasLog
 
     var id: Self { self }
 
@@ -54,9 +15,76 @@ enum QingLongCronFilter: String, CaseIterable, Identifiable {
             return "运行中"
         case .disabled:
             return "已禁用"
-        case .hasLog:
-            return "有日志"
         }
+    }
+}
+
+enum QingLongLinkedEnvironmentStatus: Hashable {
+    case missing
+    case empty
+    case configured
+}
+
+struct QingLongLinkedEnvironment: Hashable {
+    let scriptKey: String
+    let primaryEnvironment: QingLongEnvironment?
+    let auxiliaryCount: Int
+
+    var status: QingLongLinkedEnvironmentStatus {
+        guard let primaryEnvironment else { return .missing }
+        return primaryEnvironment.isEmptyValue ? .empty : .configured
+    }
+}
+
+struct QingLongEnvironmentEditorContext: Identifiable, Hashable {
+    enum Scope: Hashable {
+        case script(cronTitle: String, scriptKey: String)
+        case shared
+    }
+
+    let id = UUID()
+    let scope: Scope
+    let environment: QingLongEnvironment?
+    let suggestedName: String
+    let suggestedRemarks: String
+
+    var title: String {
+        switch scope {
+        case .script:
+            return environment == nil ? "新建脚本变量" : "编辑脚本变量"
+        case .shared:
+            return environment == nil ? "新建共享变量" : "编辑共享变量"
+        }
+    }
+
+    var subtitle: String? {
+        switch scope {
+        case let .script(cronTitle, scriptKey):
+            return "\(cronTitle) · \(scriptKey)"
+        case .shared:
+            return nil
+        }
+    }
+
+    var allowsNameEditing: Bool {
+        switch scope {
+        case .script:
+            return false
+        case .shared:
+            return true
+        }
+    }
+
+    var initialName: String {
+        environment?.name ?? suggestedName
+    }
+
+    var initialValue: String {
+        environment?.value ?? ""
+    }
+
+    var initialRemarks: String {
+        environment?.remarks ?? suggestedRemarks
     }
 }
 
@@ -87,10 +115,7 @@ final class QingLongViewModel: ObservableObject {
     @Published var draftBaseURL = ""
     @Published var draftClientID = ""
     @Published var draftClientSecret = ""
-    @Published var selectedSection: QingLongWorkspaceSection = .environments
-    @Published var environmentSearchText = ""
     @Published var cronSearchText = ""
-    @Published var environmentFilter: QingLongEnvironmentFilter = .all
     @Published var cronFilter: QingLongCronFilter = .all
     @Published private(set) var profile: QingLongPanelProfile?
     @Published private(set) var environments: [QingLongEnvironment] = []
@@ -117,34 +142,6 @@ final class QingLongViewModel: ObservableObject {
             !pendingCronIDs.isEmpty
     }
 
-    var filteredEnvironments: [QingLongEnvironment] {
-        let query = normalizedQuery(environmentSearchText)
-
-        return environments.filter { environment in
-            let matchesFilter: Bool
-            switch environmentFilter {
-            case .all:
-                matchesFilter = true
-            case .enabled:
-                matchesFilter = environment.isEnabled
-            case .disabled:
-                matchesFilter = !environment.isEnabled
-            case .pinned:
-                matchesFilter = environment.isPinned
-            }
-
-            guard matchesFilter else { return false }
-            guard !query.isEmpty else { return true }
-
-            return [
-                environment.titleText,
-                environment.remarks
-            ]
-            .joined(separator: " ")
-            .localizedCaseInsensitiveContains(query)
-        }
-    }
-
     var filteredCrons: [QingLongCron] {
         let query = normalizedQuery(cronSearchText)
 
@@ -157,23 +154,32 @@ final class QingLongViewModel: ObservableObject {
                 matchesFilter = cron.isRunning
             case .disabled:
                 matchesFilter = !cron.isEnabled
-            case .hasLog:
-                matchesFilter = cron.hasLog
             }
 
             guard matchesFilter else { return false }
             guard !query.isEmpty else { return true }
 
+            let linkedEnvironment = linkedEnvironment(for: cron)
             return [
                 cron.primaryTitle,
                 cron.secondaryTitle,
                 cron.command,
                 cron.schedule,
-                cron.labels.joined(separator: " ")
+                cron.labels.joined(separator: " "),
+                cron.scriptEnvironmentKey ?? "",
+                linkedEnvironment?.primaryEnvironment?.remarks ?? ""
             ]
             .joined(separator: " ")
             .localizedCaseInsensitiveContains(query)
         }
+    }
+
+    var sharedEnvironments: [QingLongEnvironment] {
+        environments.filter(isSharedEnvironment(_:))
+    }
+
+    var sharedEnvironmentCount: Int {
+        sharedEnvironments.count
     }
 
     func prepare() async {
@@ -249,11 +255,8 @@ final class QingLongViewModel: ObservableObject {
         loadingCronLogID = nil
         selectedCronLog = nil
         diagnosticReport = nil
-        environmentSearchText = ""
         cronSearchText = ""
-        environmentFilter = .all
         cronFilter = .all
-        selectedSection = .environments
         setStatus("已移除青龙面板配置。", tone: .info)
     }
 
@@ -284,6 +287,87 @@ final class QingLongViewModel: ObservableObject {
             scheduleBackgroundRefresh()
         } catch {
             presentError(error)
+        }
+    }
+
+    func linkedEnvironment(for cron: QingLongCron) -> QingLongLinkedEnvironment? {
+        guard let scriptKey = cron.scriptEnvironmentKey else { return nil }
+
+        let primaryEnvironment = environments.first { $0.matches(scriptKey: scriptKey) }
+        let auxiliaryCount = environments.filter { $0.hasScriptPrefix(scriptKey) }.count
+        return QingLongLinkedEnvironment(
+            scriptKey: scriptKey,
+            primaryEnvironment: primaryEnvironment,
+            auxiliaryCount: auxiliaryCount
+        )
+    }
+
+    func makeScriptEnvironmentEditor(for cron: QingLongCron) -> QingLongEnvironmentEditorContext? {
+        guard let linkedEnvironment = linkedEnvironment(for: cron) else { return nil }
+        return QingLongEnvironmentEditorContext(
+            scope: .script(cronTitle: cron.primaryTitle, scriptKey: linkedEnvironment.scriptKey),
+            environment: linkedEnvironment.primaryEnvironment,
+            suggestedName: linkedEnvironment.scriptKey,
+            suggestedRemarks: cron.primaryTitle
+        )
+    }
+
+    func makeSharedEnvironmentEditor(for environment: QingLongEnvironment? = nil) -> QingLongEnvironmentEditorContext {
+        QingLongEnvironmentEditorContext(
+            scope: .shared,
+            environment: environment,
+            suggestedName: environment?.name ?? "",
+            suggestedRemarks: environment?.remarks ?? ""
+        )
+    }
+
+    func saveEnvironment(
+        using context: QingLongEnvironmentEditorContext,
+        name: String,
+        value: String,
+        remarks: String
+    ) async -> Bool {
+        let resolvedName = context.allowsNameEditing ? normalizedQuery(name) : context.suggestedName
+        guard !resolvedName.isEmpty else {
+            setStatus("变量名不能为空。", tone: .error)
+            return false
+        }
+
+        guard isValidEnvironmentName(resolvedName) else {
+            setStatus("变量名只支持字母、数字和下划线，且不能以数字开头。", tone: .error)
+            return false
+        }
+
+        let resolvedRemarks = remarks.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        do {
+            let environment: QingLongEnvironment
+
+            if let existingEnvironment = context.environment {
+                pendingEnvironmentIDs.insert(existingEnvironment.id)
+                defer { pendingEnvironmentIDs.remove(existingEnvironment.id) }
+
+                environment = try await QingLongService.shared.updateEnvironment(
+                    id: existingEnvironment.id,
+                    name: resolvedName,
+                    value: value,
+                    remarks: resolvedRemarks
+                )
+            } else {
+                environment = try await QingLongService.shared.createEnvironment(
+                    name: resolvedName,
+                    value: value,
+                    remarks: resolvedRemarks
+                )
+            }
+
+            upsertEnvironment(environment)
+            setStatus(context.environment == nil ? "已创建 \(resolvedName)" : "已更新 \(resolvedName)", tone: .success)
+            scheduleBackgroundRefresh()
+            return true
+        } catch {
+            presentError(error)
+            return false
         }
     }
 
@@ -382,6 +466,15 @@ final class QingLongViewModel: ObservableObject {
             .sorted(by: QingLongEnvironment.sort(lhs:rhs:))
     }
 
+    private func upsertEnvironment(_ environment: QingLongEnvironment) {
+        if environments.contains(where: { $0.id == environment.id }) {
+            replaceEnvironment(environment.id) { _ in environment }
+            return
+        }
+
+        environments = (environments + [environment]).sorted(by: QingLongEnvironment.sort(lhs:rhs:))
+    }
+
     private func replaceCron(_ id: Int, transform: (QingLongCron) -> QingLongCron) {
         crons = crons
             .map { $0.id == id ? transform($0) : $0 }
@@ -422,5 +515,29 @@ final class QingLongViewModel: ObservableObject {
 
     private func normalizedQuery(_ text: String) -> String {
         text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func isSharedEnvironment(_ environment: QingLongEnvironment) -> Bool {
+        let scriptKeys = Set(crons.compactMap(\.scriptEnvironmentKey))
+
+        for scriptKey in scriptKeys {
+            if environment.matches(scriptKey: scriptKey) || environment.hasScriptPrefix(scriptKey) {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    private func isValidEnvironmentName(_ name: String) -> Bool {
+        guard !name.isEmpty else { return false }
+
+        if let firstScalar = name.unicodeScalars.first,
+           CharacterSet.decimalDigits.contains(firstScalar) {
+            return false
+        }
+
+        let allowedCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_"))
+        return name.unicodeScalars.allSatisfy(allowedCharacters.contains)
     }
 }

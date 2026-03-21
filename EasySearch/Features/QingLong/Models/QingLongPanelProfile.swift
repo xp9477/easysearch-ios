@@ -115,6 +115,18 @@ struct QingLongEnvironment: Identifiable, Hashable, Decodable {
         return "\(value.prefix(4))••••\(value.suffix(4))"
     }
 
+    var isEmptyValue: Bool {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    func matches(scriptKey: String) -> Bool {
+        name.compare(scriptKey, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+    }
+
+    func hasScriptPrefix(_ scriptKey: String) -> Bool {
+        name.lowercased().hasPrefix(scriptKey.lowercased() + "__")
+    }
+
     static func sort(lhs: QingLongEnvironment, rhs: QingLongEnvironment) -> Bool {
         if lhs.isPinned != rhs.isPinned {
             return lhs.isPinned && !rhs.isPinned
@@ -142,6 +154,18 @@ struct QingLongEnvironment: Identifiable, Hashable, Decodable {
             position: position
         )
     }
+
+    func updatingContent(name: String, value: String, remarks: String) -> QingLongEnvironment {
+        QingLongEnvironment(
+            id: id,
+            name: name,
+            value: value,
+            remarks: remarks,
+            status: status,
+            isPinnedValue: isPinnedValue,
+            position: position
+        )
+    }
 }
 
 struct QingLongCron: Identifiable, Hashable, Decodable {
@@ -158,6 +182,7 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
     let isPinnedValue: Int?
     let labels: [String]
     let lastRunningTime: Int64?
+    let lastExecutionTime: Int64?
     let logPath: String
     let extraSchedules: [ExtraSchedule]
 
@@ -171,6 +196,7 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
         case isPinnedValue = "isPinned"
         case labels
         case lastRunningTime = "last_running_time"
+        case lastExecutionTime = "last_execution_time"
         case logPath = "log_path"
         case extraSchedules = "extra_schedules"
     }
@@ -185,6 +211,7 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
         isPinnedValue: Int?,
         labels: [String],
         lastRunningTime: Int64?,
+        lastExecutionTime: Int64?,
         logPath: String,
         extraSchedules: [ExtraSchedule]
     ) {
@@ -197,6 +224,7 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
         self.isPinnedValue = isPinnedValue
         self.labels = labels
         self.lastRunningTime = lastRunningTime
+        self.lastExecutionTime = lastExecutionTime
         self.logPath = logPath
         self.extraSchedules = extraSchedules
     }
@@ -215,12 +243,26 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
         isPinnedValue = try container.decodeLossyIntIfPresent(forKey: .isPinnedValue)
         labels = try container.decodeIfPresent([String].self, forKey: .labels) ?? []
         lastRunningTime = try container.decodeLossyInt64IfPresent(forKey: .lastRunningTime)
+        lastExecutionTime = try container.decodeLossyInt64IfPresent(forKey: .lastExecutionTime)
         logPath = try container.decodeIfPresent(String.self, forKey: .logPath) ?? ""
         extraSchedules = try container.decodeIfPresent([ExtraSchedule].self, forKey: .extraSchedules) ?? []
     }
 
     var primaryTitle: String {
         name.isEmpty ? command : name
+    }
+
+    var scriptReference: String? {
+        Self.scriptReference(from: command)
+    }
+
+    var scriptEnvironmentKey: String? {
+        if let scriptReference {
+            return Self.environmentKey(from: scriptReference)
+        }
+
+        guard !name.isEmpty else { return nil }
+        return Self.environmentKey(from: name)
     }
 
     var secondaryTitle: String {
@@ -263,6 +305,10 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
         Self.date(from: lastRunningTime)
     }
 
+    var lastExecutedAt: Date? {
+        Self.date(from: lastExecutionTime) ?? lastRunningAt
+    }
+
     var hasLog: Bool {
         !logPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -280,8 +326,8 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
             return lhs.isEnabled && !rhs.isEnabled
         }
 
-        if lhs.lastRunningAt != rhs.lastRunningAt {
-            return (lhs.lastRunningAt ?? .distantPast) > (rhs.lastRunningAt ?? .distantPast)
+        if lhs.lastExecutedAt != rhs.lastExecutedAt {
+            return (lhs.lastExecutedAt ?? .distantPast) > (rhs.lastExecutedAt ?? .distantPast)
         }
 
         return lhs.primaryTitle.localizedCaseInsensitiveCompare(rhs.primaryTitle) == .orderedAscending
@@ -298,6 +344,7 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
             isPinnedValue: isPinnedValue,
             labels: labels,
             lastRunningTime: lastRunningTime,
+            lastExecutionTime: lastExecutionTime,
             logPath: logPath,
             extraSchedules: extraSchedules
         )
@@ -314,6 +361,7 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
             isPinnedValue: isPinnedValue,
             labels: labels,
             lastRunningTime: running ? Int64(date.timeIntervalSince1970 * 1000) : lastRunningTime,
+            lastExecutionTime: lastExecutionTime,
             logPath: logPath,
             extraSchedules: extraSchedules
         )
@@ -328,6 +376,57 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
             timeInterval = TimeInterval(rawValue)
         }
         return Date(timeIntervalSince1970: timeInterval)
+    }
+
+    private static func scriptReference(from command: String) -> String? {
+        let scriptExtensions = Set(["js", "mjs", "cjs", "py", "sh", "ts", "bash", "zsh", "ps1"])
+        let tokens = command
+            .split(whereSeparator: \.isWhitespace)
+            .map {
+                String($0)
+                    .trimmingCharacters(in: CharacterSet(charactersIn: "\"'`()[]{};,"))
+            }
+            .filter { !$0.isEmpty }
+
+        for token in tokens {
+            let normalizedToken = token
+                .replacingOccurrences(of: "\\", with: "/")
+                .components(separatedBy: "?")
+                .first?
+                .components(separatedBy: "#")
+                .first ?? token
+            let extensionName = URL(fileURLWithPath: normalizedToken).pathExtension.lowercased()
+            if scriptExtensions.contains(extensionName) {
+                return normalizedToken
+            }
+        }
+
+        return nil
+    }
+
+    private static func environmentKey(from source: String) -> String? {
+        let normalizedSource = source
+            .replacingOccurrences(of: "\\", with: "/")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedSource.isEmpty else { return nil }
+
+        let fileName = URL(fileURLWithPath: normalizedSource).deletingPathExtension().lastPathComponent
+        guard !fileName.isEmpty else { return nil }
+
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_"))
+        let mappedScalars = fileName.unicodeScalars.map { scalar in
+            allowed.contains(scalar) ? Character(scalar) : "_"
+        }
+
+        var result = String(mappedScalars)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        guard !result.isEmpty else { return nil }
+
+        if let firstScalar = result.unicodeScalars.first, CharacterSet.decimalDigits.contains(firstScalar) {
+            result = "_" + result
+        }
+
+        return result
     }
 }
 

@@ -713,6 +713,7 @@ private struct CropImageEditor: View {
 
     @State private var selectionRect: CGRect?
     @State private var imageFrame: CGRect = .zero
+    private let cropCoordinateSpace = "ImageTranslateCropCanvas"
 
     var body: some View {
         NavigationStack {
@@ -767,6 +768,7 @@ private struct CropImageEditor: View {
                         .padding(.bottom, 20)
                     }
                 }
+                .coordinateSpace(name: cropCoordinateSpace)
                 .onAppear {
                     imageFrame = resolvedImageFrame
                 }
@@ -815,7 +817,7 @@ private struct CropImageEditor: View {
     }
 
     private func selectionGesture(in imageFrame: CGRect) -> some Gesture {
-        DragGesture(minimumDistance: 0)
+        DragGesture(minimumDistance: 0, coordinateSpace: .named(cropCoordinateSpace))
             .onChanged { value in
                 let start = clamped(value.startLocation, to: imageFrame)
                 let current = clamped(value.location, to: imageFrame)

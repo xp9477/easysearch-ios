@@ -4,6 +4,8 @@ public struct QingLongView: View {
     @EnvironmentObject private var navigationState: AppNavigationState
     @StateObject private var viewModel = QingLongViewModel()
     @Environment(\.openURL) private var openURL
+    @State private var selectedScriptEnvironmentEditor: QingLongEnvironmentEditorContext?
+    @State private var isShowingSharedEnvironments = false
 
     public init() {}
 
@@ -27,10 +29,11 @@ public struct QingLongView: View {
                     openConfigurationAction: {
                         navigationState.openSettings(.qingLong)
                     },
-                    toggleEnvironmentAction: { environment in
-                        Task {
-                            await viewModel.setEnvironmentEnabled(environment, enabled: !environment.isEnabled)
-                        }
+                    openSharedEnvironmentsAction: {
+                        isShowingSharedEnvironments = true
+                    },
+                    editScriptEnvironmentAction: { cron in
+                        selectedScriptEnvironmentEditor = viewModel.makeScriptEnvironmentEditor(for: cron)
                     },
                     primaryCronAction: { cron in
                         Task {
@@ -84,6 +87,35 @@ public struct QingLongView: View {
                 .navigationTitle(log.title)
                 .navigationBarTitleDisplayMode(.inline)
             }
+        }
+        .sheet(item: $selectedScriptEnvironmentEditor) { context in
+            QingLongEnvironmentEditorSheet(
+                context: context,
+                isExistingEnvironmentPending: context.environment.map { viewModel.isEnvironmentPending($0.id) } ?? false,
+                saveAction: { name, value, remarks in
+                    await viewModel.saveEnvironment(using: context, name: name, value: value, remarks: remarks)
+                },
+                toggleEnabledAction: context.environment.map { environment in
+                    {
+                        Task {
+                            await viewModel.setEnvironmentEnabled(environment, enabled: !environment.isEnabled)
+                        }
+                    }
+                }
+            )
+        }
+        .sheet(isPresented: $isShowingSharedEnvironments) {
+            QingLongSharedEnvironmentsSheet(
+                viewModel: viewModel,
+                saveEnvironmentAction: { context, name, value, remarks in
+                    await viewModel.saveEnvironment(using: context, name: name, value: value, remarks: remarks)
+                },
+                toggleEnvironmentAction: { environment in
+                    Task {
+                        await viewModel.setEnvironmentEnabled(environment, enabled: !environment.isEnabled)
+                    }
+                }
+            )
         }
     }
 

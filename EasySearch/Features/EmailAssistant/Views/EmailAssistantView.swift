@@ -77,27 +77,22 @@ public struct EmailAssistantView: View {
             }
 
             VStack(spacing: 14) {
+                if viewModel.mode == .reply {
+                    TextEditorCard(
+                        title: "来信",
+                        placeholder: "粘贴收到的邮件",
+                        text: $viewModel.receivedEmailText,
+                        minHeight: 150
+                    )
+
+                    ocrCard
+                }
+
                 TextEditorCard(
                     title: "草稿",
-                    placeholder: "写中文或英文要点",
+                    placeholder: viewModel.mode == .reply ? "写回复要点或现有草稿" : "写邮件目标、关键信息或现有草稿",
                     text: $viewModel.originalDraft,
                     minHeight: 112
-                )
-
-                TextEditorCard(
-                    title: "来信",
-                    placeholder: "粘贴收到的邮件",
-                    text: $viewModel.receivedEmailText,
-                    minHeight: 150
-                )
-
-                ocrCard
-
-                TextEditorCard(
-                    title: "要求",
-                    placeholder: "如：更礼貌、更简洁、强调截止时间",
-                    text: $viewModel.additionalRequirements,
-                    minHeight: 88
                 )
             }
         }
@@ -193,7 +188,7 @@ public struct EmailAssistantView: View {
             }
 
             VStack(alignment: .leading, spacing: 12) {
-                TextField("继续修改", text: $viewModel.messageDraft, axis: .vertical)
+                TextField("输入要求或继续修改", text: $viewModel.messageDraft, axis: .vertical)
                     .lineLimit(2 ... 5)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
@@ -250,64 +245,17 @@ public struct EmailAssistantView: View {
 
             if let output = message.structuredOutput {
                 VStack(alignment: .leading, spacing: 10) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("主版本")
-                            .font(.system(size: 14, weight: .semibold))
-                        Text(output.primaryFormattedText)
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(.primary)
-                            .textSelection(.enabled)
-                    }
+                    Text(output.formattedText)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .textSelection(.enabled)
 
                     HStack(spacing: 12) {
-                        Button("用作草稿") {
-                            viewModel.useAssistantMessageAsDraft(message)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(accentColor)
-
                         Button("复制") {
-                            UIPasteboard.general.string = output.primaryFormattedText
-                            viewModel.presentNotice(tone: .success, message: "已复制主版本。")
+                            UIPasteboard.general.string = output.formattedText
+                            viewModel.presentNotice(tone: .success, message: "已复制。")
                         }
                         .buttonStyle(.bordered)
-                    }
-
-                    if !output.alternatives.isEmpty {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("其他版本")
-                                .font(.system(size: 14, weight: .semibold))
-
-                            ForEach(output.alternatives) { variant in
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text(variant.title)
-                                        .font(.system(size: 14, weight: .semibold))
-                                    Text(variant.formattedText)
-                                        .font(.system(size: 14, weight: .medium))
-                                        .foregroundStyle(.primary)
-                                        .textSelection(.enabled)
-
-                                    HStack(spacing: 12) {
-                                        Button("用作草稿") {
-                                            viewModel.useDraftVariant(variant)
-                                        }
-                                        .buttonStyle(.bordered)
-                                        .tint(accentColor)
-
-                                        Button("复制") {
-                                            UIPasteboard.general.string = variant.formattedText
-                                            viewModel.presentNotice(tone: .success, message: "已复制 \(variant.title)。")
-                                        }
-                                        .buttonStyle(.bordered)
-                                    }
-                                }
-                                .padding(14)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                        .fill(Color(.tertiarySystemFill))
-                                )
-                            }
-                        }
                     }
                 }
             } else {
@@ -440,6 +388,7 @@ private struct EmailAssistantCropImageEditor: View {
 
     @State private var selectionRect: CGRect?
     @State private var imageFrame: CGRect = .zero
+    private let cropCoordinateSpace = "EmailAssistantCropCanvas"
 
     var body: some View {
         NavigationStack {
@@ -489,6 +438,7 @@ private struct EmailAssistantCropImageEditor: View {
                             .padding(.bottom, 20)
                     }
                 }
+                .coordinateSpace(name: cropCoordinateSpace)
                 .onAppear {
                     imageFrame = resolvedImageFrame
                     if selectionRect == nil {
@@ -543,7 +493,7 @@ private struct EmailAssistantCropImageEditor: View {
     }
 
     private func selectionGesture(in imageFrame: CGRect) -> some Gesture {
-        DragGesture(minimumDistance: 0)
+        DragGesture(minimumDistance: 0, coordinateSpace: .named(cropCoordinateSpace))
             .onChanged { value in
                 let start = clamped(value.startLocation, to: imageFrame)
                 let current = clamped(value.location, to: imageFrame)

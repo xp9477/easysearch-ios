@@ -3,40 +3,24 @@ import Foundation
 enum EmailAssistantMode: String, CaseIterable, Identifiable, Codable {
     case polish
     case reply
-    case discuss
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .polish:
-            return "润色草稿"
+            return "新邮件"
         case .reply:
-            return "回复来信"
-        case .discuss:
-            return "讨论优化"
+            return "回复邮件"
         }
     }
 
     var iconName: String {
         switch self {
         case .polish:
-            return "wand.and.stars"
+            return "square.and.pencil"
         case .reply:
             return "arrowshape.turn.up.left"
-        case .discuss:
-            return "bubble.left.and.text.bubble.right"
-        }
-    }
-
-    var shortDescription: String {
-        switch self {
-        case .polish:
-            return "把现有内容整理成简洁英文邮件"
-        case .reply:
-            return "基于收到的邮件建议英文回复"
-        case .discuss:
-            return "围绕邮件目标多轮讨论再迭代"
         }
     }
 
@@ -46,8 +30,6 @@ enum EmailAssistantMode: String, CaseIterable, Identifiable, Codable {
             return "请先给我一版可直接发送的简洁英文邮件。"
         case .reply:
             return "请基于当前上下文生成一版英文回复邮件。"
-        case .discuss:
-            return "请先给出一版最稳妥的英文邮件，并保留后续继续优化的空间。"
         }
     }
 }
@@ -162,41 +144,16 @@ enum EmailAssistantScenario: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-struct EmailAssistantDraftVariant: Identifiable, Hashable, Codable {
-    let id: UUID
-    let title: String
+struct EmailAssistantStructuredOutput: Hashable, Codable {
     let subject: String
     let body: String
-
-    init(
-        id: UUID = UUID(),
-        title: String,
-        subject: String,
-        body: String
-    ) {
-        self.id = id
-        self.title = title
-        self.subject = subject
-        self.body = body
-    }
 
     var formattedText: String {
         "Subject: \(subject)\n\n\(body)"
     }
-}
-
-struct EmailAssistantStructuredOutput: Hashable, Codable {
-    let subject: String
-    let body: String
-    let explanation: String
-    let alternatives: [EmailAssistantDraftVariant]
-
-    var primaryFormattedText: String {
-        "Subject: \(subject)\n\n\(body)"
-    }
 
     var transcriptText: String {
-        primaryFormattedText
+        formattedText
     }
 }
 
@@ -252,13 +209,11 @@ struct EmailAssistantContext: Hashable {
     let scenario: EmailAssistantScenario
     let originalDraft: String
     let receivedEmailText: String
-    let additionalRequirements: String
 
     var hasUsableContent: Bool {
         [
             originalDraft,
-            receivedEmailText,
-            additionalRequirements
+            receivedEmailText
         ].contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 
@@ -269,8 +224,7 @@ struct EmailAssistantContext: Hashable {
             "语气偏好：\(tone.title)",
             "长度偏好：\(length.title)",
             contextLine(label: "原始草稿", value: originalDraft),
-            contextLine(label: "收到的邮件内容", value: receivedEmailText),
-            contextLine(label: "补充要求", value: additionalRequirements)
+            contextLine(label: "收到的邮件内容", value: receivedEmailText)
         ]
         .joined(separator: "\n\n")
     }
@@ -288,7 +242,6 @@ struct EmailAssistantPersistedState: Codable {
     var scenario: EmailAssistantScenario
     var originalDraft: String
     var receivedEmailText: String
-    var additionalRequirements: String
     var conversation: [EmailAssistantThreadMessage]
 }
 
@@ -300,7 +253,7 @@ protocol EmailAssistantSessionStore {
 
 struct EmailAssistantUserDefaultsStore: EmailAssistantSessionStore {
     private let userDefaults: UserDefaults
-    private let stateKey = "email-assistant.persisted-state.v2"
+    private let stateKey = "email-assistant.persisted-state.v3"
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
