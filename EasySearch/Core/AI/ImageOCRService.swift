@@ -73,91 +73,17 @@ enum ImageOCRService {
 
     static func cropImage(_ image: UIImage, normalizedRect: CGRect) -> UIImage? {
         let normalizedImage = normalizedDisplayImage(image)
-
-        let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
-        let boundedRect = normalizedRect.standardized.intersection(unitRect)
-
-        guard !boundedRect.isNull,
-              boundedRect.width > 0.02,
-              boundedRect.height > 0.02 else {
-            return nil
-        }
-
-        let imageBounds = CGRect(origin: .zero, size: normalizedImage.size)
-        let cropRect = CGRect(
-            x: boundedRect.minX * imageBounds.width,
-            y: boundedRect.minY * imageBounds.height,
-            width: boundedRect.width * imageBounds.width,
-            height: boundedRect.height * imageBounds.height
-        )
-        .integral
-        .intersection(imageBounds)
-
-        guard !cropRect.isNull,
-              cropRect.width > 1,
-              cropRect.height > 1 else {
-            return nil
-        }
-
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = normalizedImage.scale
-        format.opaque = false
-
-        return UIGraphicsImageRenderer(size: cropRect.size, format: format).image { _ in
-            normalizedImage.draw(
-                in: CGRect(
-                    origin: CGPoint(x: -cropRect.minX, y: -cropRect.minY),
-                    size: imageBounds.size
-                )
-            )
-        }
+        return cropNormalizedImage(normalizedImage, normalizedRect: normalizedRect)
     }
 
     static func cropImage(_ image: UIImage, selection: ImageCropSelection) -> UIImage? {
-        let normalizedImage = normalizedDisplayImage(image)
-        let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
-        let boundedRect = selection.normalizedRect.standardized.intersection(unitRect)
-
         guard selection.displaySize.width > 1,
-              selection.displaySize.height > 1,
-              !boundedRect.isNull,
-              boundedRect.width > 0.02,
-              boundedRect.height > 0.02 else {
+              selection.displaySize.height > 1 else {
             return nil
         }
 
-        let displayBounds = CGRect(origin: .zero, size: selection.displaySize)
-        let cropRect = CGRect(
-            x: boundedRect.minX * displayBounds.width,
-            y: boundedRect.minY * displayBounds.height,
-            width: boundedRect.width * displayBounds.width,
-            height: boundedRect.height * displayBounds.height
-        )
-        .integral
-        .intersection(displayBounds)
-
-        guard !cropRect.isNull,
-              cropRect.width > 1,
-              cropRect.height > 1 else {
-            return nil
-        }
-
-        let format = UIGraphicsImageRendererFormat()
-        format.scale = max(normalizedImage.scale, UIScreen.main.scale)
-        format.opaque = false
-
-        let previewImage = UIGraphicsImageRenderer(size: selection.displaySize, format: format).image { _ in
-            normalizedImage.draw(in: displayBounds)
-        }
-
-        return UIGraphicsImageRenderer(size: cropRect.size, format: format).image { _ in
-            previewImage.draw(
-                in: CGRect(
-                    origin: CGPoint(x: -cropRect.minX, y: -cropRect.minY),
-                    size: displayBounds.size
-                )
-            )
-        }
+        let normalizedImage = normalizedDisplayImage(image)
+        return cropNormalizedImage(normalizedImage, normalizedRect: selection.normalizedRect)
     }
 
     static func storedImageData(from image: UIImage) -> Data? {
@@ -290,6 +216,50 @@ enum ImageOCRService {
         }
 
         return nil
+    }
+
+    private static func cropNormalizedImage(
+        _ image: UIImage,
+        normalizedRect: CGRect
+    ) -> UIImage? {
+        let unitRect = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let boundedRect = normalizedRect.standardized.intersection(unitRect)
+
+        guard !boundedRect.isNull,
+              boundedRect.width > 0.02,
+              boundedRect.height > 0.02,
+              let cgImage = image.cgImage ?? makeCGImage(from: image) else {
+            return nil
+        }
+
+        let pixelBounds = CGRect(
+            x: 0,
+            y: 0,
+            width: CGFloat(cgImage.width),
+            height: CGFloat(cgImage.height)
+        )
+        let scaledRect = CGRect(
+            x: boundedRect.minX * pixelBounds.width,
+            y: boundedRect.minY * pixelBounds.height,
+            width: boundedRect.width * pixelBounds.width,
+            height: boundedRect.height * pixelBounds.height
+        )
+        let cropRect = CGRect(
+            x: floor(scaledRect.minX),
+            y: floor(scaledRect.minY),
+            width: ceil(scaledRect.maxX) - floor(scaledRect.minX),
+            height: ceil(scaledRect.maxY) - floor(scaledRect.minY)
+        )
+        .intersection(pixelBounds)
+
+        guard !cropRect.isNull,
+              cropRect.width > 1,
+              cropRect.height > 1,
+              let croppedCGImage = cgImage.cropping(to: cropRect) else {
+            return nil
+        }
+
+        return UIImage(cgImage: croppedCGImage, scale: image.scale, orientation: .up)
     }
 }
 

@@ -14,6 +14,7 @@
 		36B9C9E9DE2EAFB91FE29C76 /* ImageTranslateHistoryReducerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AED5424721AE4AFD4354443F /* ImageTranslateHistoryReducerTests.swift */; };
 		385A49DB482D3D46438A8BBE /* ImageTranslateFileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3195DD59E264422624CF152A /* ImageTranslateFileStoreTests.swift */; };
 		45B8F0995303899D66B4CFFF /* EasySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D66418FE785F8E727F9BAE4 /* EasySearchView.swift */; };
+		F10000000000000000000001 /* ImageOCRServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000002 /* ImageOCRServiceTests.swift */; };
 		51CC8897363EE934F77838D5 /* SearchBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2376609760E7B3F32B6F9FD /* SearchBar.swift */; };
 		683A685A33F3D4FF8465BC10 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F142A2111DC88139890E4CC /* DashboardView.swift */; };
 		689CF6B202785041EFC90676 /* EasySearchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5166978A4A4BE388668D0139 /* EasySearchApp.swift */; };
@@ -95,6 +96,7 @@
 		84A9CB8EA30ED3CE55AC2A70 /* ImageTranslateTextAlignmentTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageTranslateTextAlignmentTests.swift; sourceTree = "<group>"; };
 		8A0697B7D17CAD38D2E763F4 /* EngineGridView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EngineGridView.swift; path = EasySearch/Features/EasySearch/Views/EngineGridView.swift; sourceTree = SOURCE_ROOT; };
 		9D66418FE785F8E727F9BAE4 /* EasySearchView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EasySearchView.swift; path = EasySearch/Features/EasySearch/Views/EasySearchView.swift; sourceTree = SOURCE_ROOT; };
+		F10000000000000000000002 /* ImageOCRServiceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageOCRServiceTests.swift; sourceTree = "<group>"; };
 		A2000009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A2000010 /* search-engines.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "search-engines.json"; sourceTree = "<group>"; };
 		A3000000 /* EasySearch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EasySearch.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -324,6 +326,7 @@
 		B924F2B5DBEE2D8D30100156 /* EasySearchTests */ = {
 			isa = PBXGroup;
 			children = (
+				F10000000000000000000002 /* ImageOCRServiceTests.swift */,
 				84A9CB8EA30ED3CE55AC2A70 /* ImageTranslateTextAlignmentTests.swift */,
 				AED5424721AE4AFD4354443F /* ImageTranslateHistoryReducerTests.swift */,
 				3195DD59E264422624CF152A /* ImageTranslateFileStoreTests.swift */,
@@ -718,6 +721,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F10000000000000000000001 /* ImageOCRServiceTests.swift in Sources */,
 				DC00DBD3D1788263EDDB8459 /* ImageTranslateTextAlignmentTests.swift in Sources */,
 				36B9C9E9DE2EAFB91FE29C76 /* ImageTranslateHistoryReducerTests.swift in Sources */,
 				385A49DB482D3D46438A8BBE /* ImageTranslateFileStoreTests.swift in Sources */,

@@ -3301,6 +3301,9 @@ private struct HiddenJavDBMovieDetailView: View {
         GridItem(.flexible(), spacing: 8),
         GridItem(.flexible(), spacing: 8)
     ]
+    private let favoritePlaybackColumns = [
+        GridItem(.adaptive(minimum: 150), spacing: 8)
+    ]
     private let relatedMovieColumns = [
         GridItem(.adaptive(minimum: 146), spacing: 10)
     ]
@@ -3480,7 +3483,7 @@ private struct HiddenJavDBMovieDetailView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                LazyVGrid(columns: columns, spacing: 8) {
+                LazyVGrid(columns: favoritePlaybackColumns, spacing: 8) {
                     ForEach(favoritePlaybackEntries) { playback in
                         HiddenJavDBFavoritePlaybackTile(
                             playback: playback,
@@ -3862,6 +3865,7 @@ private struct HiddenJavDBFavoritePlaybackTile: View {
 
 private struct HiddenPlaybackThumbnailView: View {
     let playback: HiddenJavDBFavoritePlayback
+    private let thumbnailAspectRatio: CGFloat = 25.0 / 14.0
 
     @State private var image: UIImage?
     @State private var isLoading = false
@@ -3902,10 +3906,13 @@ private struct HiddenPlaybackThumbnailView: View {
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.88))
                     .lineLimit(1)
+                    .minimumScaleFactor(0.82)
             }
             .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(height: 102)
+        .frame(maxWidth: .infinity)
+        .aspectRatio(thumbnailAspectRatio, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .task(id: playback.id) {
@@ -3930,7 +3937,7 @@ private struct HiddenPlaybackThumbnailView: View {
                         .font(.system(size: 20, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.9))
 
-                    Text(didFail ? "未取到视频帧" : "正在取帧")
+                    Text(didFail ? "未取到预览帧" : "正在取预览帧")
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.82))
                 }
@@ -4028,43 +4035,22 @@ private actor HiddenPlaybackThumbnailPipeline {
         return "\(playback.movie.id)|\(playback.sourceName)|\(normalizedTime)"
     }
 
-    private struct ThumbnailSource {
-        let streamURL: URL
-        let refererURL: URL
-    }
-
     private static func generateThumbnail(
         for playback: HiddenJavDBFavoritePlayback,
         seekThumbnailConfiguration: HiddenJavDBSeekThumbnailConfiguration?
     ) async throws -> UIImage {
         try await Task.detached(priority: .utility) {
-            var lastError: Error?
-
             if let seekThumbnailConfiguration {
-                do {
-                    return try await generateThumbnailFromSeekSprite(
-                        for: playback,
-                        configuration: seekThumbnailConfiguration
-                    )
-                } catch {
-                    lastError = error
-                }
+                return try await generateThumbnailFromSeekSprite(
+                    for: playback,
+                    configuration: seekThumbnailConfiguration
+                )
             }
 
-            let sources = await resolvedSources(for: playback)
-
-            for source in sources {
-                do {
-                    return try await generateThumbnailFromVideo(for: playback, source: source)
-                } catch {
-                    lastError = error
-                }
-            }
-
-            throw lastError ?? NSError(
+            throw NSError(
                 domain: "HiddenPlaybackThumbnailPipeline",
                 code: -2,
-                userInfo: [NSLocalizedDescriptionKey: "未取到可用视频帧"]
+                userInfo: [NSLocalizedDescriptionKey: "未取到可用预览帧"]
             )
         }.value
     }
@@ -4139,212 +4125,6 @@ private actor HiddenPlaybackThumbnailPipeline {
             scale: image.scale,
             orientation: image.imageOrientation
         )
-    }
-
-    private static func thumbnailCandidateTimes(for positionSeconds: Double, duration: CMTime?) -> [Double] {
-        let normalizedDuration = duration.flatMap { loadedDuration -> Double? in
-            let seconds = CMTimeGetSeconds(loadedDuration)
-            return seconds.isFinite && seconds > 0 ? seconds : nil
-        }
-
-        let rawCandidates = [
-            max(0, positionSeconds),
-            max(0, positionSeconds - 1.2),
-            max(0, positionSeconds - 0.4),
-            max(0, positionSeconds + 0.4),
-            max(0, positionSeconds + 1.2),
-            0.8,
-            0
-        ]
-
-        var seen = Set<Int>()
-        return rawCandidates.compactMap { rawValue in
-            let clampedValue: Double
-            if let normalizedDuration {
-                clampedValue = min(max(0, rawValue), max(normalizedDuration - 0.2, 0))
-            } else {
-                clampedValue = max(0, rawValue)
-            }
-
-            let key = Int((clampedValue * 10).rounded())
-            guard seen.insert(key).inserted else { return nil }
-            return clampedValue
-        }
-    }
-
-    private static func resolvedSources(for playback: HiddenJavDBFavoritePlayback) async -> [ThumbnailSource] {
-        var sources: [ThumbnailSource] = []
-        if let resolvedSource = try? await HiddenJavDBAPI.resolvePlayableStream(for: playback) {
-            sources.append(
-                ThumbnailSource(
-                    streamURL: resolvedSource.streamURL,
-                    refererURL: resolvedSource.refererURL
-                )
-            )
-        }
-        sources.append(
-            ThumbnailSource(
-                streamURL: playback.streamURL,
-                refererURL: playback.refererURL
-            )
-        )
-
-        var seen = Set<String>()
-        return sources.filter { source in
-            let key = "\(source.streamURL.absoluteString)|\(source.refererURL.absoluteString)"
-            return seen.insert(key).inserted
-        }
-    }
-
-    private static func generateThumbnailFromVideo(
-        for playback: HiddenJavDBFavoritePlayback,
-        source: ThumbnailSource
-    ) async throws -> UIImage {
-        let asset = makeAsset(for: source)
-        let isPlayable = try await asset.load(.isPlayable)
-        guard isPlayable else {
-            throw NSError(
-                domain: "HiddenPlaybackThumbnailPipeline",
-                code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "视频资源不可播放"]
-            )
-        }
-
-        let tracks = try await asset.loadTracks(withMediaType: .video)
-        guard !tracks.isEmpty else {
-            throw NSError(
-                domain: "HiddenPlaybackThumbnailPipeline",
-                code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "未找到可用视频轨道"]
-            )
-        }
-
-        let duration = try? await asset.load(.duration)
-        let candidateTimes = thumbnailCandidateTimes(for: playback.positionSeconds, duration: duration)
-        var lastError: Error?
-        for time in candidateTimes {
-            do {
-                return try thumbnailImage(for: asset, at: time)
-            } catch {
-                lastError = error
-            }
-        }
-
-        do {
-            return try await asyncThumbnailImage(for: asset, candidateTimes: candidateTimes)
-        } catch {
-            lastError = error
-        }
-
-        throw lastError ?? NSError(
-            domain: "HiddenPlaybackThumbnailPipeline",
-            code: -2,
-            userInfo: [NSLocalizedDescriptionKey: "未取到可用视频帧"]
-        )
-    }
-
-    private static func thumbnailImage(for asset: AVURLAsset, at second: Double) throws -> UIImage {
-        let generator = AVAssetImageGenerator(asset: asset)
-        generator.appliesPreferredTrackTransform = true
-        generator.maximumSize = CGSize(width: 320, height: 180)
-        generator.requestedTimeToleranceBefore = CMTime(seconds: 0.6, preferredTimescale: 600)
-        generator.requestedTimeToleranceAfter = CMTime(seconds: 0.6, preferredTimescale: 600)
-
-        let cgImage = try generator.copyCGImage(
-            at: CMTime(seconds: second, preferredTimescale: 600),
-            actualTime: nil
-        )
-        return UIImage(cgImage: cgImage)
-    }
-
-    private static func asyncThumbnailImage(
-        for asset: AVURLAsset,
-        candidateTimes: [Double]
-    ) async throws -> UIImage {
-        let generator = AVAssetImageGenerator(asset: asset)
-        generator.appliesPreferredTrackTransform = true
-        generator.maximumSize = CGSize(width: 320, height: 180)
-        generator.requestedTimeToleranceBefore = CMTime(seconds: 1.8, preferredTimescale: 600)
-        generator.requestedTimeToleranceAfter = CMTime(seconds: 1.8, preferredTimescale: 600)
-
-        let times = candidateTimes.map { second in
-            NSValue(time: CMTime(seconds: second, preferredTimescale: 600))
-        }
-
-        return try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { continuation in
-                let lock = NSLock()
-                var didResume = false
-                var remaining = times.count
-                var lastError: Error?
-
-                generator.generateCGImagesAsynchronously(forTimes: times) { _, cgImage, _, result, error in
-                    lock.lock()
-                    defer { lock.unlock() }
-
-                    guard !didResume else { return }
-
-                    if result == .succeeded, let cgImage {
-                        didResume = true
-                        generator.cancelAllCGImageGeneration()
-                        continuation.resume(returning: UIImage(cgImage: cgImage))
-                        return
-                    }
-
-                    remaining -= 1
-                    if let error {
-                        lastError = error
-                    }
-
-                    guard remaining == 0 else { return }
-                    didResume = true
-                    continuation.resume(
-                        throwing: lastError ?? NSError(
-                            domain: "HiddenPlaybackThumbnailPipeline",
-                            code: -4,
-                            userInfo: [NSLocalizedDescriptionKey: "异步取帧失败"]
-                        )
-                    )
-                }
-            }
-        } onCancel: {
-            generator.cancelAllCGImageGeneration()
-        }
-    }
-
-    private static func makeAsset(for source: ThumbnailSource) -> AVURLAsset {
-        let headers: [String: String] = [
-            "Referer": source.refererURL.absoluteString,
-            "Origin": "\(source.refererURL.scheme ?? "https")://\(source.refererURL.host ?? "missav.ws")",
-            "User-Agent": HiddenJavDBAPI.userAgent
-        ]
-
-        var options: [String: Any] = [
-            AVURLAssetPreferPreciseDurationAndTimingKey: true,
-            "AVURLAssetHTTPHeaderFieldsKey": headers
-        ]
-
-        let cookies = httpCookies(for: [source.refererURL, source.streamURL])
-        if !cookies.isEmpty {
-            options["AVURLAssetHTTPCookiesKey"] = cookies
-        }
-
-        return AVURLAsset(url: source.streamURL, options: options)
-    }
-
-    private static func httpCookies(for urls: [URL]) -> [HTTPCookie] {
-        var cookies: [HTTPCookie] = []
-        var seen = Set<String>()
-
-        for url in urls {
-            for cookie in HTTPCookieStorage.shared.cookies(for: url) ?? [] {
-                let key = "\(cookie.domain)|\(cookie.path)|\(cookie.name)|\(cookie.value)"
-                guard seen.insert(key).inserted else { continue }
-                cookies.append(cookie)
-            }
-        }
-
-        return cookies
     }
 
     private static func imageCost(for image: UIImage) -> Int {

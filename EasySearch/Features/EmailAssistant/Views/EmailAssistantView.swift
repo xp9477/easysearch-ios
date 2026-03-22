@@ -6,7 +6,7 @@ public struct EmailAssistantView: View {
     @StateObject private var viewModel = EmailAssistantViewModel()
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var cropSource: EmailAssistantCropSource?
-    @State private var croppedPreviewImage: UIImage?
+    @State private var screenshotPreviewImage: UIImage?
 
     private let accentColor = Color.blue
 
@@ -61,8 +61,8 @@ public struct EmailAssistantView: View {
                         accessory: AnyView(ocrInlineButton)
                     )
 
-                    if let croppedPreviewImage {
-                        cropPreviewCard(croppedPreviewImage)
+                    if let screenshotPreviewImage {
+                        cropPreviewCard(screenshotPreviewImage)
                     }
                 }
 
@@ -232,7 +232,7 @@ public struct EmailAssistantView: View {
 
                 HStack(spacing: 12) {
                     Button("重置全部") {
-                        croppedPreviewImage = nil
+                        screenshotPreviewImage = nil
                         viewModel.resetAll()
                     }
                     .buttonStyle(.bordered)
@@ -310,7 +310,7 @@ public struct EmailAssistantView: View {
             return
         }
 
-        croppedPreviewImage = croppedImage
+        screenshotPreviewImage = croppedImage
         await viewModel.importScreenshotText(from: croppedData)
     }
 
