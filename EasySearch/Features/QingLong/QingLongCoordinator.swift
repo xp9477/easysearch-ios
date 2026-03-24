@@ -24,11 +24,18 @@ struct QingLongDiagnosticReport: Identifiable, Hashable {
     let steps: [QingLongDiagnosticStep]
 }
 
+struct QingLongScriptFile: Hashable {
+    let path: String?
+    let fileName: String
+    let content: String
+}
+
 enum QingLongError: LocalizedError {
     case emptyBaseURL
     case invalidBaseURL
     case missingCredentials
     case missingConfiguration
+    case missingScriptReference
     case invalidResponse
     case keychainFailure(OSStatus)
     case serverError(String)
@@ -44,6 +51,8 @@ enum QingLongError: LocalizedError {
             return "请填写 client_id 和 client_secret。"
         case .missingConfiguration:
             return "还没有保存青龙面板配置。"
+        case .missingScriptReference:
+            return "当前任务未识别到脚本文件。"
         case .invalidResponse:
             return "青龙面板返回了无法识别的结果。"
         case let .keychainFailure(status):
@@ -66,6 +75,24 @@ private struct QingLongEnvironmentPayload: Encodable {
     let name: String
     let value: String
     let remarks: String
+}
+
+private struct QingLongCronPayload: Encodable {
+    let id: Int
+    let command: String
+    let schedule: String
+    let name: String?
+    let labels: [String]?
+    let extraSchedules: [QingLongCron.ExtraSchedule]?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case command
+        case schedule
+        case name
+        case labels
+        case extraSchedules = "extra_schedules"
+    }
 }
 
 private struct QingLongSession: Hashable {
@@ -443,6 +470,26 @@ actor QingLongService {
         try await performCronAction(path: enabled ? "enable" : "disable", ids: [id])
     }
 
+    func updateCron(_ cron: QingLongCron, schedule: String) async throws {
+        let context = try await authenticatedContext()
+        let payload = QingLongCronPayload(
+            id: cron.id,
+            command: cron.command,
+            schedule: schedule,
+            name: cron.name.isEmpty ? nil : cron.name,
+            labels: cron.labels.isEmpty ? nil : cron.labels,
+            extraSchedules: cron.extraSchedules.isEmpty ? nil : cron.extraSchedules
+        )
+        let request = try makeRequest(
+            baseURL: context.profile.baseURL,
+            token: context.session.token,
+            path: ["crons"],
+            method: "PUT",
+            body: payload
+        )
+        try await sendStatusRequest(request)
+    }
+
     func fetchCronLog(id: Int) async throws -> String {
         let context = try await authenticatedContext()
         let request = try makeRequest(
@@ -453,6 +500,22 @@ actor QingLongService {
         )
         let logText = try await sendEnvelopeRequest(request, decodeAs: String.self)
         return logText.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+    }
+
+    func fetchScriptFile(path: String?, fileName: String) async throws -> QingLongScriptFile {
+        let context = try await authenticatedContext()
+        let request = try makeRequest(
+            baseURL: context.profile.baseURL,
+            token: context.session.token,
+            path: ["scripts", "detail"],
+            method: "GET",
+            queryItems: [
+                URLQueryItem(name: "path", value: path),
+                URLQueryItem(name: "file", value: fileName)
+            ]
+        )
+        let content = try await sendEnvelopeRequest(request, decodeAs: String.self)
+        return QingLongScriptFile(path: path, fileName: fileName, content: content)
     }
 
     private func fetchEnvironments(baseURL: URL, session: QingLongSession) async throws -> [QingLongEnvironment] {
@@ -559,13 +622,28 @@ actor QingLongService {
         baseURL: URL,
         token: String,
         path: [String],
-        method: String
+        method: String,
+        queryItems: [URLQueryItem]? = nil
     ) throws -> URLRequest {
         let url = path.reduce(openBaseURL(for: baseURL)) { partialURL, component in
             partialURL.appendingPathComponent(component)
         }
 
-        var request = URLRequest(url: url)
+        let resolvedURL: URL
+        if let queryItems, !queryItems.isEmpty {
+            guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+                throw QingLongError.invalidBaseURL
+            }
+            components.queryItems = queryItems.filter { $0.value != nil }
+            guard let urlWithQuery = components.url else {
+                throw QingLongError.invalidBaseURL
+            }
+            resolvedURL = urlWithQuery
+        } else {
+            resolvedURL = url
+        }
+
+        var request = URLRequest(url: resolvedURL)
         request.httpMethod = method
         request.timeoutInterval = 20
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

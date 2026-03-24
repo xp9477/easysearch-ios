@@ -210,6 +210,10 @@ private struct GitHubWatchedRepositoryRow: View {
                 .fill(Color(.systemBackground))
         )
         .contentShape(Rectangle())
+        .onTapGesture {
+            guard !isDeleting else { return }
+            openAction()
+        }
         .contextMenu {
             Button(action: openAction) {
                 Label("打开仓库", systemImage: "arrow.up.right.square")

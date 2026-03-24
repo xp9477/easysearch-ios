@@ -5946,6 +5946,11 @@ private struct HiddenJavDBSeekThumbnailConfiguration: Sendable {
     let urls: [URL]
 }
 
+private struct HiddenJavDBFetchedPage {
+    let html: String
+    let finalURL: URL
+}
+
 private enum HiddenJavDBWatchPlaybackTarget {
     case stream(URL, URL)
     case webPage(URL)
@@ -5970,8 +5975,12 @@ private enum HiddenJavDBAPI {
         while attempts < 8 {
             attempts += 1
             let randomPage = Int.random(in: 1...max(totalPages, 1))
-            let html = try await fetchHTML(from: listURL(page: randomPage))
+            let pageURL = listURL(page: randomPage)
+            let html = try await fetchHTML(from: pageURL)
             let movies = parseMovies(from: html)
+            if movies.isEmpty, let blockingError = movieListingBlockingErrorIfNeeded(from: html, pageURL: pageURL) {
+                throw blockingError
+            }
             if let movie = movies.randomElement() {
                 return (movie, totalPages)
             }
@@ -6073,8 +6082,13 @@ private enum HiddenJavDBAPI {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedQuery.isEmpty else { return [] }
 
-        let html = try await fetchHTML(from: searchURL(query: normalizedQuery))
-        return parseMovies(from: html)
+        let url = searchURL(query: normalizedQuery)
+        let html = try await fetchHTML(from: url)
+        let movies = parseMovies(from: html)
+        if movies.isEmpty, let blockingError = movieListingBlockingErrorIfNeeded(from: html, pageURL: url) {
+            throw blockingError
+        }
+        return movies
     }
 
     static func resolveSeekThumbnailConfig(
@@ -6203,6 +6217,9 @@ private enum HiddenJavDBAPI {
         }
 
         let html = try await fetchHTML(from: listingURL)
+        if let blockingError = movieListingBlockingErrorIfNeeded(from: html, pageURL: listingURL) {
+            throw blockingError
+        }
         let queryPages = regexCaptureAll(pattern: #"(?:\?|&)page=(\d+)"#, in: html, dotMatchesLine: false)
             .compactMap { Int($0) }
         if let maxQueryPage = queryPages.max(), maxQueryPage > 0 {
@@ -6259,6 +6276,10 @@ private enum HiddenJavDBAPI {
     }
 
     private static func fetchHTML(from url: URL) async throws -> String {
+        try await fetchHTML(from: url, allowAgeConfirmationBypass: true)
+    }
+
+    private static func fetchHTML(from url: URL, allowAgeConfirmationBypass: Bool) async throws -> String {
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
         request.httpShouldHandleCookies = true
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
@@ -6278,12 +6299,18 @@ private enum HiddenJavDBAPI {
                 userInfo: [NSLocalizedDescriptionKey: "请求返回异常"]
             )
         }
+        let finalURL = httpResponse.url ?? url
 
         guard (200...299).contains(httpResponse.statusCode) else {
             if httpResponse.statusCode == 403 || httpResponse.statusCode == 503 {
-                if let webHTML = try? await HiddenJavDBWebHTMLFetcher.shared.fetchHTML(from: url),
-                   !isCloudflareChallengeHTML(webHTML) {
-                    return webHTML
+                if let webPage = try await fetchWebFallbackPage(from: url) {
+                    return try await resolveFetchedHTML(
+                        webPage.html,
+                        finalURL: webPage.finalURL,
+                        requestURL: url,
+                        allowAgeConfirmationBypass: allowAgeConfirmationBypass,
+                        allowWebFallback: false
+                    )
                 }
 
                 throw NSError(
@@ -6312,20 +6339,13 @@ private enum HiddenJavDBAPI {
             )
         }
 
-        if isCloudflareChallengeHTML(html) {
-            if let webHTML = try? await HiddenJavDBWebHTMLFetcher.shared.fetchHTML(from: url),
-               !isCloudflareChallengeHTML(webHTML) {
-                return webHTML
-            }
-
-            throw NSError(
-                domain: "HiddenJavDBAPI",
-                code: -7,
-                userInfo: [NSLocalizedDescriptionKey: "检测到验证页，请稍后重试"]
-            )
-        }
-
-        return html
+        return try await resolveFetchedHTML(
+            html,
+            finalURL: finalURL,
+            requestURL: url,
+            allowAgeConfirmationBypass: allowAgeConfirmationBypass,
+            allowWebFallback: true
+        )
     }
 
     private static func parseMovies(from html: String) -> [HiddenJavDBMovie] {
@@ -6982,6 +7002,156 @@ private enum HiddenJavDBAPI {
         return HTTPCookie.requestHeaderFields(with: cookies)["Cookie"]
     }
 
+    private static func fetchWebFallbackPage(from url: URL) async throws -> HiddenJavDBFetchedPage? {
+        do {
+            let page = try await HiddenJavDBWebHTMLFetcher.shared.fetchPage(from: url)
+            guard !isCloudflareChallengeHTML(page.html) else {
+                return nil
+            }
+            return page
+        } catch let error as NSError where error.domain == "HiddenJavDBAPI" {
+            throw error
+        } catch {
+            return nil
+        }
+    }
+
+    private static func resolveFetchedHTML(
+        _ html: String,
+        finalURL: URL,
+        requestURL: URL,
+        allowAgeConfirmationBypass: Bool,
+        allowWebFallback: Bool
+    ) async throws -> String {
+        if allowAgeConfirmationBypass,
+           let confirmationURL = ageConfirmationContinueURLIfNeeded(from: html, finalURL: finalURL),
+           !containsPlayableMovieContent(in: html) {
+            _ = try await fetchHTML(from: confirmationURL, allowAgeConfirmationBypass: false)
+            return try await fetchHTML(from: requestURL, allowAgeConfirmationBypass: false)
+        }
+
+        if let over18Error = ageConfirmationErrorIfNeeded(from: html, finalURL: finalURL) {
+            throw over18Error
+        }
+
+        if isCloudflareChallengeHTML(html) {
+            if allowWebFallback, let webPage = try await fetchWebFallbackPage(from: requestURL) {
+                return try await resolveFetchedHTML(
+                    webPage.html,
+                    finalURL: webPage.finalURL,
+                    requestURL: requestURL,
+                    allowAgeConfirmationBypass: allowAgeConfirmationBypass,
+                    allowWebFallback: false
+                )
+            }
+
+            throw NSError(
+                domain: "HiddenJavDBAPI",
+                code: -7,
+                userInfo: [NSLocalizedDescriptionKey: "检测到验证页，请稍后重试"]
+            )
+        }
+
+        return html
+    }
+
+    private static func movieListingBlockingErrorIfNeeded(from html: String, pageURL: URL) -> NSError? {
+        if let over18Error = ageConfirmationErrorIfNeeded(from: html, finalURL: pageURL),
+           !containsPlayableMovieContent(in: html) {
+            return over18Error
+        }
+        if isCloudflareChallengeHTML(html) {
+            return NSError(
+                domain: "HiddenJavDBAPI",
+                code: -7,
+                userInfo: [NSLocalizedDescriptionKey: "检测到验证页，请稍后重试"]
+            )
+        }
+        return nil
+    }
+
+    private static func ageConfirmationErrorIfNeeded(from html: String, finalURL: URL) -> NSError? {
+        guard isAgeConfirmationHTML(html, finalURL: finalURL) else {
+            return nil
+        }
+
+        return NSError(
+            domain: "HiddenJavDBAPI",
+            code: -35,
+            userInfo: [NSLocalizedDescriptionKey: "需要先完成 18+ 年龄确认，请在网页中确认后重试"]
+        )
+    }
+
+    private static func ageConfirmationContinueURLIfNeeded(from html: String, finalURL: URL) -> URL? {
+        guard isAgeConfirmationHTML(html, finalURL: finalURL) else {
+            return nil
+        }
+
+        let candidates = [
+            regexFirstCapture(
+                pattern: #"<a[^>]*class=["'][^"']*button[^"']*is-success[^"']*is-large[^"']*["'][^>]*href=["']([^"']+/over18\?respond=1[^"']*)["']"#,
+                in: html,
+                dotMatchesLine: true
+            ),
+            regexFirstCapture(
+                pattern: #"<a[^>]+href=["']([^"']*/over18\?respond=1[^"']*)["'][^>]*>"#,
+                in: html,
+                dotMatchesLine: true
+            ),
+            regexFirstCapture(
+                pattern: #"(/over18\?respond=1[^"'\s<]*)"#,
+                in: html,
+                dotMatchesLine: true
+            )
+        ]
+
+        for candidate in candidates {
+            guard let raw = candidate?.nonEmpty,
+                  let url = normalizedExternalURL(from: raw, relativeTo: finalURL) else {
+                continue
+            }
+            return url
+        }
+
+        return nil
+    }
+
+    private static func isAgeConfirmationHTML(_ html: String, finalURL: URL) -> Bool {
+        let lowered = html.lowercased()
+        let path = finalURL.path.lowercased()
+        let hasOver18Markers =
+            lowered.contains("over18-modal")
+            || lowered.contains("/over18?respond=1")
+            || lowered.contains("我已滿18歲".lowercased())
+            || lowered.contains("我已满18岁")
+            || lowered.contains("是,我已滿18歲".lowercased())
+            || lowered.contains("是,我已满18岁")
+
+        guard hasOver18Markers else {
+            return false
+        }
+
+        if path == "/over18" {
+            return true
+        }
+
+        return !containsPlayableMovieContent(in: html)
+    }
+
+    private static func containsPlayableMovieContent(in html: String) -> Bool {
+        if html.range(
+            of: #"<a[^>]+href=["'](/v/[^"'?#]+)["'][^>]*>(?:(?!</a>).)*?<img"#,
+            options: [.regularExpression, .caseInsensitive]
+        ) != nil {
+            return true
+        }
+
+        let lowered = html.lowercased()
+        return lowered.contains("current-title")
+            || lowered.contains("video-id")
+            || lowered.contains("video-meta-panel")
+    }
+
     private static func extractMetadataValue(labelKeywords: [String], in html: String) -> String? {
         for keyword in labelKeywords {
             let escaped = NSRegularExpression.escapedPattern(for: keyword)
@@ -7393,8 +7563,9 @@ private final class HiddenJavDBWebHTMLFetcher: NSObject, WKNavigationDelegate {
     static let shared = HiddenJavDBWebHTMLFetcher()
 
     private let webView: WKWebView
-    private var continuation: CheckedContinuation<String, Error>?
+    private var continuation: CheckedContinuation<HiddenJavDBFetchedPage, Error>?
     private var timeoutTask: Task<Void, Never>?
+    private var requestedURL: URL?
 
     override init() {
         let configuration = WKWebViewConfiguration()
@@ -7406,7 +7577,7 @@ private final class HiddenJavDBWebHTMLFetcher: NSObject, WKNavigationDelegate {
         webView.navigationDelegate = self
     }
 
-    func fetchHTML(from url: URL) async throws -> String {
+    func fetchPage(from url: URL) async throws -> HiddenJavDBFetchedPage {
         if continuation != nil {
             throw NSError(
                 domain: "HiddenJavDBWebHTMLFetcher",
@@ -7415,8 +7586,11 @@ private final class HiddenJavDBWebHTMLFetcher: NSObject, WKNavigationDelegate {
             )
         }
 
+        await syncSharedCookiesToWebView(for: url)
+
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
+            self.requestedURL = url
 
             var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30)
             request.setValue(HiddenJavDBAPI.userAgent, forHTTPHeaderField: "User-Agent")
@@ -7443,7 +7617,9 @@ private final class HiddenJavDBWebHTMLFetcher: NSObject, WKNavigationDelegate {
                     failIfPending(message: "WebView 页面为空")
                     return
                 }
-                finishIfPending(html: htmlString)
+                await syncWebViewCookiesToSharedStore()
+                let finalURL = webView.url ?? requestedURL ?? URL(string: "https://javdb.com")!
+                finishIfPending(page: HiddenJavDBFetchedPage(html: htmlString, finalURL: finalURL))
             } catch {
                 failIfPending(error: error)
             }
@@ -7458,11 +7634,12 @@ private final class HiddenJavDBWebHTMLFetcher: NSObject, WKNavigationDelegate {
         failIfPending(error: error)
     }
 
-    private func finishIfPending(html: String) {
+    private func finishIfPending(page: HiddenJavDBFetchedPage) {
         timeoutTask?.cancel()
         timeoutTask = nil
-        continuation?.resume(returning: html)
+        continuation?.resume(returning: page)
         continuation = nil
+        requestedURL = nil
     }
 
     private func failIfPending(error: Error) {
@@ -7470,6 +7647,7 @@ private final class HiddenJavDBWebHTMLFetcher: NSObject, WKNavigationDelegate {
         timeoutTask = nil
         continuation?.resume(throwing: error)
         continuation = nil
+        requestedURL = nil
     }
 
     private func failIfPending(message: String) {
@@ -7481,11 +7659,44 @@ private final class HiddenJavDBWebHTMLFetcher: NSObject, WKNavigationDelegate {
             )
         )
     }
+
+    private func syncSharedCookiesToWebView(for url: URL) async {
+        let cookieStore = webView.configuration.websiteDataStore.httpCookieStore
+        for cookie in HTTPCookieStorage.shared.cookies(for: url) ?? [] {
+            await cookieStore.setCookieAsync(cookie)
+        }
+    }
+
+    private func syncWebViewCookiesToSharedStore() async {
+        let cookieStore = webView.configuration.websiteDataStore.httpCookieStore
+        for cookie in await cookieStore.allCookiesAsync() {
+            HTTPCookieStorage.shared.setCookie(cookie)
+        }
+    }
 }
 
 private extension String {
     var nonEmpty: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+@MainActor
+private extension WKHTTPCookieStore {
+    func allCookiesAsync() async -> [HTTPCookie] {
+        await withCheckedContinuation { continuation in
+            getAllCookies { cookies in
+                continuation.resume(returning: cookies)
+            }
+        }
+    }
+
+    func setCookieAsync(_ cookie: HTTPCookie) async {
+        await withCheckedContinuation { continuation in
+            setCookie(cookie) {
+                continuation.resume()
+            }
+        }
     }
 }

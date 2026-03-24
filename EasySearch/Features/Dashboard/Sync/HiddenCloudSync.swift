@@ -120,6 +120,30 @@ enum HiddenCloudMerge {
 
         return merged.sorted(by: GitHubWatchedRepository.sort(lhs:rhs:))
     }
+
+    static func qingLongProfiles(
+        primary: [QingLongPanelProfile],
+        secondary: [QingLongPanelProfile]
+    ) -> [QingLongPanelProfile] {
+        let candidates = (primary + secondary).sorted { lhs, rhs in
+            if lhs.syncActivityAt == rhs.syncActivityAt {
+                return lhs.savedAt > rhs.savedAt
+            }
+
+            return lhs.syncActivityAt > rhs.syncActivityAt
+        }
+
+        var merged: [QingLongPanelProfile] = []
+        var seenIDs = Set<String>()
+
+        for profile in candidates {
+            if seenIDs.insert(profile.id).inserted {
+                merged.append(profile)
+            }
+        }
+
+        return merged
+    }
 }
 
 private enum Hidden4KHDURLNormalizer {
@@ -662,6 +686,47 @@ private struct HiddenSupabaseGitHubRepoWatchPayload: Encodable {
     }
 }
 
+private struct HiddenSupabaseQingLongPanelProfileRow: Decodable {
+    let profile_id: String
+    let base_url: String
+    let display_name: String
+    let saved_at: String
+    let last_connected_at: String?
+
+    func asProfile() -> QingLongPanelProfile? {
+        guard
+            let baseURL = URL(string: base_url),
+            let savedAt = HiddenSupabaseDateFormatter.date(from: saved_at)
+        else {
+            return nil
+        }
+
+        return QingLongPanelProfile(
+            id: profile_id,
+            baseURL: baseURL,
+            displayName: display_name,
+            savedAt: savedAt,
+            lastConnectedAt: last_connected_at.flatMap(HiddenSupabaseDateFormatter.date(from:))
+        )
+    }
+}
+
+private struct HiddenSupabaseQingLongPanelProfilePayload: Encodable {
+    let profile_id: String
+    let base_url: String
+    let display_name: String
+    let saved_at: String
+    let last_connected_at: String?
+
+    init(profile: QingLongPanelProfile) {
+        profile_id = profile.id
+        base_url = profile.baseURL.absoluteString
+        display_name = profile.displayName
+        saved_at = HiddenSupabaseDateFormatter.string(from: profile.savedAt)
+        last_connected_at = profile.lastConnectedAt.map(HiddenSupabaseDateFormatter.string(from:))
+    }
+}
+
 private enum HiddenSupabaseDateFormatter {
     private static let preciseFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -994,6 +1059,21 @@ actor HiddenSupabaseService {
         return rows.compactMap { $0.asWatchedRepository() }
     }
 
+    func fetchQingLongPanelProfiles() async throws -> [QingLongPanelProfile] {
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/qinglong_panel_profiles",
+            method: "GET",
+            queryItems: [
+                URLQueryItem(name: "select", value: "*"),
+                URLQueryItem(name: "order", value: "saved_at.desc")
+            ]
+        )
+
+        let data = try await performDataRequest(request)
+        let rows = try JSONDecoder().decode([HiddenSupabaseQingLongPanelProfileRow].self, from: data)
+        return rows.compactMap { $0.asProfile() }
+    }
+
     func upsert4KHDImages(_ imageURLs: [URL]) async throws {
         guard !imageURLs.isEmpty else { return }
         try await upsert4KHDImagesPayload(imageURLs.map(HiddenSupabase4KHDImagePayload.init(imageURL:)))
@@ -1051,6 +1131,29 @@ actor HiddenSupabaseService {
             method: "DELETE",
             queryItems: [
                 URLQueryItem(name: "repo_id", value: "eq.\(id)")
+            ]
+        )
+
+        _ = try await performDataRequest(request)
+    }
+
+    func upsertQingLongPanelProfiles(_ profiles: [QingLongPanelProfile]) async throws {
+        guard !profiles.isEmpty else { return }
+        try await upsertQingLongPanelProfilesPayload(
+            profiles.map(HiddenSupabaseQingLongPanelProfilePayload.init(profile:))
+        )
+    }
+
+    func upsertQingLongPanelProfile(_ profile: QingLongPanelProfile) async throws {
+        try await upsertQingLongPanelProfilesPayload([HiddenSupabaseQingLongPanelProfilePayload(profile: profile)])
+    }
+
+    func deleteQingLongPanelProfile(id: String) async throws {
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/qinglong_panel_profiles",
+            method: "DELETE",
+            queryItems: [
+                URLQueryItem(name: "profile_id", value: "eq.\(id)")
             ]
         )
 
@@ -1139,6 +1242,21 @@ actor HiddenSupabaseService {
             method: "POST",
             queryItems: [
                 URLQueryItem(name: "on_conflict", value: "user_id,repo_id")
+            ],
+            body: body,
+            prefer: "resolution=merge-duplicates,missing=default,return=minimal"
+        )
+
+        _ = try await performDataRequest(request)
+    }
+
+    private func upsertQingLongPanelProfilesPayload(_ payload: [HiddenSupabaseQingLongPanelProfilePayload]) async throws {
+        let body = try JSONEncoder().encode(payload)
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/qinglong_panel_profiles",
+            method: "POST",
+            queryItems: [
+                URLQueryItem(name: "on_conflict", value: "user_id,profile_id")
             ],
             body: body,
             prefer: "resolution=merge-duplicates,missing=default,return=minimal"
@@ -1528,6 +1646,28 @@ final class HiddenCloudSyncViewModel: ObservableObject {
         }
     }
 
+    func syncQingLongProfileUpsertIfPossible(_ profile: QingLongPanelProfile) async {
+        guard await prepareForMutationIfNeeded() else { return }
+
+        do {
+            try await cloudService.upsertQingLongPanelProfile(profile)
+            cloudStatusMessage = "已同步青龙面板配置到云端"
+        } catch {
+            handleCloudMutationError(error, fallbackMessage: "青龙面板配置同步失败")
+        }
+    }
+
+    func syncQingLongProfileDeletionIfPossible(profileID: String) async {
+        guard await prepareForMutationIfNeeded() else { return }
+
+        do {
+            try await cloudService.deleteQingLongPanelProfile(id: profileID)
+            cloudStatusMessage = "已从云端移除青龙面板配置"
+        } catch {
+            handleCloudMutationError(error, fallbackMessage: "青龙面板配置删除失败")
+        }
+    }
+
     private func syncNow(reason: String) async {
         guard isCloudAuthenticated else { return }
 
@@ -1608,6 +1748,24 @@ final class HiddenCloudSyncViewModel: ObservableObject {
                 saveLocal: { GitHubWatchedRepositoryLocalStore().saveRepositories($0) },
                 upsertRemote: { try await self.cloudService.upsertGitHubRepoWatches($0) },
                 merge: HiddenCloudMerge.gitHubRepoWatches
+            ).eraseToAnyCollection(),
+            CloudSyncCollection(
+                label: "青龙",
+                unit: "个",
+                loadLocal: {
+                    QingLongPanelLocalStore().loadProfile().map { [$0] } ?? []
+                },
+                fetchRemote: { try await self.cloudService.fetchQingLongPanelProfiles() },
+                saveLocal: { profiles in
+                    let store = QingLongPanelLocalStore()
+                    if let profile = profiles.first {
+                        store.saveProfile(profile, postsNotification: true)
+                    } else {
+                        store.deleteProfile()
+                    }
+                },
+                upsertRemote: { try await self.cloudService.upsertQingLongPanelProfiles($0) },
+                merge: HiddenCloudMerge.qingLongProfiles
             ).eraseToAnyCollection()
         ]
     }

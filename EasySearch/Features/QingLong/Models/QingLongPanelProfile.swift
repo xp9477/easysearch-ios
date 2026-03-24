@@ -36,6 +36,10 @@ struct QingLongPanelProfile: Codable, Hashable {
         return baseURL.absoluteString
     }
 
+    var syncActivityAt: Date {
+        max(savedAt, lastConnectedAt ?? .distantPast)
+    }
+
     func updatingConnection(at date: Date) -> QingLongPanelProfile {
         QingLongPanelProfile(
             id: id,
@@ -169,8 +173,14 @@ struct QingLongEnvironment: Identifiable, Hashable, Decodable {
 }
 
 struct QingLongCron: Identifiable, Hashable, Decodable {
-    struct ExtraSchedule: Hashable, Decodable {
+    struct ExtraSchedule: Hashable, Codable {
         let schedule: String
+    }
+
+    struct ScriptLocation: Hashable {
+        let path: String?
+        let fileName: String
+        let reference: String
     }
 
     let id: Int
@@ -254,6 +264,28 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
 
     var scriptReference: String? {
         Self.scriptReference(from: command)
+    }
+
+    var scriptLocation: ScriptLocation? {
+        guard let reference = scriptReference else { return nil }
+
+        let normalizedReference = reference
+            .replacingOccurrences(of: "\\", with: "/")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedReference.isEmpty else { return nil }
+
+        let fileName = (normalizedReference as NSString).lastPathComponent
+        guard !fileName.isEmpty else { return nil }
+
+        let parentPath = (normalizedReference as NSString).deletingLastPathComponent
+        let resolvedPath: String?
+        if parentPath.isEmpty || parentPath == "." {
+            resolvedPath = nil
+        } else {
+            resolvedPath = parentPath
+        }
+
+        return ScriptLocation(path: resolvedPath, fileName: fileName, reference: normalizedReference)
     }
 
     var scriptEnvironmentKey: String? {
@@ -361,6 +393,23 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
             isPinnedValue: isPinnedValue,
             labels: labels,
             lastRunningTime: running ? Int64(date.timeIntervalSince1970 * 1000) : lastRunningTime,
+            lastExecutionTime: lastExecutionTime,
+            logPath: logPath,
+            extraSchedules: extraSchedules
+        )
+    }
+
+    func updatingSchedule(_ schedule: String) -> QingLongCron {
+        QingLongCron(
+            id: id,
+            name: name,
+            command: command,
+            schedule: schedule,
+            statusValue: statusValue,
+            isDisabledValue: isDisabledValue,
+            isPinnedValue: isPinnedValue,
+            labels: labels,
+            lastRunningTime: lastRunningTime,
             lastExecutionTime: lastExecutionTime,
             logPath: logPath,
             extraSchedules: extraSchedules

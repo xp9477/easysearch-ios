@@ -88,6 +88,13 @@ struct QingLongEnvironmentEditorContext: Identifiable, Hashable {
     }
 }
 
+struct QingLongCronEditorContext: Identifiable, Hashable {
+    let id = UUID()
+    let cronID: Int
+    let title: String
+    let initialSchedule: String
+}
+
 struct QingLongCronLog: Identifiable, Hashable {
     let id: Int
     let title: String
@@ -205,6 +212,7 @@ final class QingLongViewModel: ObservableObject {
             )
             applySnapshot(snapshot)
             rememberCurrentDraftsAsSaved()
+            await HiddenCloudSyncViewModel.shared.syncQingLongProfileUpsertIfPossible(snapshot.profile)
             setStatus(
                 "已连接 \(snapshot.profile.displayName)，已同步 \(snapshot.environments.count) 个变量和 \(snapshot.crons.count) 个任务。",
                 tone: .success
@@ -227,6 +235,7 @@ final class QingLongViewModel: ObservableObject {
         do {
             let snapshot = try await QingLongService.shared.refreshDashboard()
             applySnapshot(snapshot)
+            await HiddenCloudSyncViewModel.shared.syncQingLongProfileUpsertIfPossible(snapshot.profile)
             if showStatus {
                 setStatus("已刷新 \(snapshot.profile.displayName)。", tone: .info)
             }
@@ -239,6 +248,7 @@ final class QingLongViewModel: ObservableObject {
 
     func disconnect() async {
         deferredRefreshTask?.cancel()
+        let disconnectedProfile = profile
         await QingLongService.shared.disconnect()
         profile = nil
         environments = []
@@ -257,6 +267,9 @@ final class QingLongViewModel: ObservableObject {
         diagnosticReport = nil
         cronSearchText = ""
         cronFilter = .all
+        if let disconnectedProfile {
+            await HiddenCloudSyncViewModel.shared.syncQingLongProfileDeletionIfPossible(profileID: disconnectedProfile.id)
+        }
         setStatus("已移除青龙面板配置。", tone: .info)
     }
 
@@ -431,6 +444,47 @@ final class QingLongViewModel: ObservableObject {
             )
         } catch {
             selectedCronLog = QingLongCronLog(id: cron.id, title: cron.primaryTitle, content: error.localizedDescription)
+        }
+    }
+
+    func loadScriptFile(for cron: QingLongCron) async throws -> QingLongScriptFile {
+        guard let scriptLocation = cron.scriptLocation else {
+            throw QingLongError.missingScriptReference
+        }
+
+        return try await QingLongService.shared.fetchScriptFile(
+            path: scriptLocation.path,
+            fileName: scriptLocation.fileName
+        )
+    }
+
+    func makeCronEditor(for cron: QingLongCron) -> QingLongCronEditorContext {
+        QingLongCronEditorContext(
+            cronID: cron.id,
+            title: cron.primaryTitle,
+            initialSchedule: cron.schedule
+        )
+    }
+
+    func saveCronSchedule(for cron: QingLongCron, schedule: String) async -> Bool {
+        let trimmedSchedule = schedule.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSchedule.isEmpty else {
+            setStatus("Cron 表达式不能为空。", tone: .error)
+            return false
+        }
+
+        pendingCronIDs.insert(cron.id)
+        defer { pendingCronIDs.remove(cron.id) }
+
+        do {
+            try await QingLongService.shared.updateCron(cron, schedule: trimmedSchedule)
+            replaceCron(cron.id) { $0.updatingSchedule(trimmedSchedule) }
+            setStatus("已更新 \(cron.primaryTitle) 的 cron。", tone: .success)
+            scheduleBackgroundRefresh()
+            return true
+        } catch {
+            presentError(error)
+            return false
         }
     }
 

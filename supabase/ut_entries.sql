@@ -1,5 +1,10 @@
 create schema if not exists easysearch;
 
+grant usage on schema easysearch to authenticated;
+grant select, insert, update, delete on all tables in schema easysearch to authenticated;
+alter default privileges in schema easysearch
+    grant select, insert, update, delete on tables to authenticated;
+
 create table if not exists easysearch.ut_entries (
     user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
     entry_id uuid not null,

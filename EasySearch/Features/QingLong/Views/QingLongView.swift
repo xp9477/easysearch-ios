@@ -5,6 +5,7 @@ public struct QingLongView: View {
     @StateObject private var viewModel = QingLongViewModel()
     @Environment(\.openURL) private var openURL
     @State private var selectedScriptEnvironmentEditor: QingLongEnvironmentEditorContext?
+    @State private var selectedCronEditor: QingLongCronEditorContext?
     @State private var isShowingSharedEnvironments = false
 
     public init() {}
@@ -34,6 +35,9 @@ public struct QingLongView: View {
                     },
                     editScriptEnvironmentAction: { cron in
                         selectedScriptEnvironmentEditor = viewModel.makeScriptEnvironmentEditor(for: cron)
+                    },
+                    editCronAction: { cron in
+                        selectedCronEditor = viewModel.makeCronEditor(for: cron)
                     },
                     primaryCronAction: { cron in
                         Task {
@@ -103,6 +107,17 @@ public struct QingLongView: View {
                     }
                 }
             )
+        }
+        .sheet(item: $selectedCronEditor) { context in
+            if let cron = viewModel.crons.first(where: { $0.id == context.cronID }) {
+                QingLongCronEditorSheet(
+                    context: context,
+                    isPending: viewModel.isCronPending(context.cronID),
+                    saveAction: { schedule in
+                        await viewModel.saveCronSchedule(for: cron, schedule: schedule)
+                    }
+                )
+            }
         }
         .sheet(isPresented: $isShowingSharedEnvironments) {
             QingLongSharedEnvironmentsSheet(
