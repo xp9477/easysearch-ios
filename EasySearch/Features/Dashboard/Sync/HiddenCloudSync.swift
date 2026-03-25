@@ -1534,7 +1534,7 @@ final class HiddenCloudSyncViewModel: ObservableObject {
         }
 
         guard isCloudConfigured, isCloudAuthenticated else { return }
-        await syncNow(reason: "云端同步完成")
+        await syncNow(reason: "同步成功")
     }
 
     func signIn(email: String, password: String) async {
@@ -1588,7 +1588,7 @@ final class HiddenCloudSyncViewModel: ObservableObject {
     }
 
     func syncNow() async {
-        await syncNow(reason: "云端同步完成")
+        await syncNow(reason: "同步成功")
     }
 
     func syncUTEntryUpsertIfPossible(_ entry: UTEntry) async {
@@ -1675,9 +1675,8 @@ final class HiddenCloudSyncViewModel: ObservableObject {
         defer { isCloudBusy = false }
 
         do {
-            let reports = try await CloudSyncCoordinator.sync(makeCollections())
-            let summary = reports.map(\.summaryText).joined(separator: " · ")
-            cloudStatusMessage = summary.isEmpty ? reason : "\(reason) · \(summary)"
+            _ = try await CloudSyncCoordinator.sync(makeCollections())
+            cloudStatusMessage = reason
         } catch {
             if error.isHiddenSupabaseAuthFailure {
                 isCloudAuthenticated = false
