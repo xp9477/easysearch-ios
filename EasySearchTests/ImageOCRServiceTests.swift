@@ -36,6 +36,27 @@ final class ImageOCRServiceTests: XCTestCase {
         assertColor(sampledColor(from: croppedImage), closeTo: .systemPink)
     }
 
+    func testNormalizedDisplayImageRasterizesUpOrientedCIBackedImages() {
+        let image = makeCIBackedStripedImage(scale: 3)
+
+        XCTAssertNil(image.cgImage)
+
+        let normalizedImage = ImageOCRService.normalizedDisplayImage(image)
+
+        XCTAssertNotNil(normalizedImage.cgImage)
+        XCTAssertEqual(normalizedImage.imageOrientation, .up)
+
+        guard let croppedImage = ImageOCRService.cropImage(
+            normalizedImage,
+            normalizedRect: CGRect(x: 0.1, y: 0.4, width: 0.8, height: 0.2)
+        ) else {
+            XCTFail("Expected crop result")
+            return
+        }
+
+        assertColor(sampledColor(from: croppedImage), closeTo: .systemBlue)
+    }
+
     private func makeStripedImage(scale: CGFloat) -> UIImage {
         let size = CGSize(width: 100, height: 200)
         let stripeHeight = size.height / 5
@@ -64,6 +85,17 @@ final class ImageOCRServiceTests: XCTestCase {
                 )
             }
         }
+    }
+
+    private func makeCIBackedStripedImage(scale: CGFloat) -> UIImage {
+        let rasterized = makeStripedImage(scale: 1)
+        guard let cgImage = rasterized.cgImage else {
+            XCTFail("Missing cgImage")
+            return rasterized
+        }
+
+        let ciImage = CIImage(cgImage: cgImage)
+        return UIImage(ciImage: ciImage, scale: scale, orientation: .up)
     }
 
     private func sampledColor(from image: UIImage) -> UIColor {

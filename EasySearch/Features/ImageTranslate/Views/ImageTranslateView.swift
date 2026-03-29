@@ -6,10 +6,10 @@ public struct ImageTranslateView: View {
     @StateObject private var viewModel = ImageTranslateViewModel()
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var cameraImage: UIImage?
+    @State private var cropSource: ImageTranslateCropSource?
     @State private var isPhotoPickerPresented = false
     @State private var isCameraPresented = false
-    @State private var isCropSheetPresented = false
-    @State private var isComparisonExpanded = false
+    @State private var activeContentTab: ImageTranslateContentTab = .workspace
 
     private let accentColor = Color(red: 0.05, green: 0.67, blue: 0.73)
     private let accentDeepColor = Color(red: 0.05, green: 0.23, blue: 0.29)
@@ -48,11 +48,11 @@ public struct ImageTranslateView: View {
             VStack(alignment: .leading, spacing: 20) {
                 captureDeck
 
-                workspaceCard
-
-                if viewModel.hasTranslation {
-                    translationCard
+                if availableContentTabs.count > 1 {
+                    contentTabStrip
                 }
+
+                currentContentCard
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
@@ -74,8 +74,11 @@ public struct ImageTranslateView: View {
         .task {
             await viewModel.prepare()
         }
-        .onChange(of: viewModel.latestTranslation) { _ in
-            isComparisonExpanded = false
+        .onChange(of: viewModel.latestTranslation) { newValue in
+            let hasTranslation = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
+                activeContentTab = hasTranslation ? .translation : .workspace
+            }
         }
         .photosPicker(
             isPresented: $isPhotoPickerPresented,
@@ -100,12 +103,10 @@ public struct ImageTranslateView: View {
             CameraImagePicker(image: $cameraImage)
                 .ignoresSafeArea()
         }
-        .sheet(isPresented: $isCropSheetPresented) {
-            if let selectedImage = viewModel.selectedImage {
-                CropImageEditor(image: selectedImage) { selection in
-                    Task {
-                        await viewModel.cropCurrentImage(to: selection)
-                    }
+        .sheet(item: $cropSource) { source in
+            CropImageEditor(image: source.image) { selection in
+                Task {
+                    await applyCrop(selection, to: source)
                 }
             }
         }
@@ -113,7 +114,7 @@ public struct ImageTranslateView: View {
 
     private var captureDeck: some View {
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(
                     LinearGradient(
                         colors: [accentColor, accentDeepColor],
@@ -122,12 +123,16 @@ public struct ImageTranslateView: View {
                     )
                 )
 
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("翻译")
-                            .font(.system(size: 30, weight: .bold, design: .rounded))
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("翻译工作区")
+                            .font(.system(size: 25, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
+
+                        Text("支持文本、截图和拍照翻译")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.72))
 
                         HStack(spacing: 8) {
                             deckPill(systemImage: "globe", title: viewModel.targetLanguage.title)
@@ -146,9 +151,9 @@ public struct ImageTranslateView: View {
                         viewModel.startFreshSession()
                     } label: {
                         Image(systemName: "plus")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(.white)
-                            .frame(width: 42, height: 42)
+                            .frame(width: 38, height: 38)
                             .background(
                                 Circle()
                                     .fill(Color.white.opacity(0.16))
@@ -157,7 +162,10 @@ public struct ImageTranslateView: View {
                     .buttonStyle(.plain)
                 }
 
-                HStack(spacing: 12) {
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3),
+                    spacing: 10
+                ) {
                     deckActionButton(title: "粘贴截图", icon: "doc.on.clipboard") {
                         Task {
                             await viewModel.importClipboardImage()
@@ -206,11 +214,11 @@ public struct ImageTranslateView: View {
                     quickDirectionButton(title: "英译中", targetLanguage: .simplifiedChinese)
                 }
             }
-            .padding(22)
+            .padding(18)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .stroke(Color.white.opacity(0.16), lineWidth: 1)
         )
         .shadow(color: accentDeepColor.opacity(0.20), radius: 18, y: 10)
@@ -219,7 +227,7 @@ public struct ImageTranslateView: View {
     private var quickStatusStrip: some View {
         HStack(spacing: 8) {
             Image(systemName: viewModel.hasTranslation ? "checkmark.seal.fill" : "wand.and.stars")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.82))
 
             Text(
@@ -227,16 +235,91 @@ public struct ImageTranslateView: View {
                     ? "已生成结果"
                     : (viewModel.selectedImage != nil ? (hasRecognizedText ? "可继续处理" : "待识别") : "可直接开始")
             )
-            .font(.system(size: 13, weight: .semibold))
+            .font(.system(size: 12, weight: .semibold))
             .foregroundStyle(.white.opacity(0.86))
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 11)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color.white.opacity(0.12))
+        )
+    }
+
+    private var availableContentTabs: [ImageTranslateContentTab] {
+        var tabs: [ImageTranslateContentTab] = [.workspace]
+
+        if viewModel.hasTranslation {
+            tabs.append(.translation)
+
+            if !viewModel.alignedSections.isEmpty {
+                tabs.append(.comparison)
+            }
+        }
+
+        return tabs
+    }
+
+    private var resolvedContentTab: ImageTranslateContentTab {
+        availableContentTabs.contains(activeContentTab) ? activeContentTab : .workspace
+    }
+
+    @ViewBuilder
+    private var currentContentCard: some View {
+        switch resolvedContentTab {
+        case .workspace:
+            workspaceCard
+        case .translation:
+            translationCard
+        case .comparison:
+            comparisonCard
+        }
+    }
+
+    private var contentTabStrip: some View {
+        HStack(spacing: 10) {
+            ForEach(availableContentTabs) { tab in
+                Button {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
+                        activeContentTab = tab
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: tab.symbolName)
+                            .font(.system(size: 12, weight: .bold))
+
+                        Text(tab.title)
+                            .font(.system(size: 14, weight: .semibold))
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .foregroundStyle(resolvedContentTab == tab ? .white : .primary)
+                    .background {
+                        if resolvedContentTab == tab {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [accentColor, accentDeepColor],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                        } else {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(Color(.tertiarySystemFill))
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
         )
     }
 
@@ -332,7 +415,10 @@ public struct ImageTranslateView: View {
 
                     HStack(spacing: 8) {
                         imageToolButton(title: "裁剪", systemImage: "crop") {
-                            isCropSheetPresented = true
+                            cropSource = ImageTranslateCropSource(
+                                image: image,
+                                mode: .recropCurrentImage
+                            )
                         }
                         .disabled(viewModel.isRecognizingText || viewModel.isTranslating)
 
@@ -460,7 +546,7 @@ public struct ImageTranslateView: View {
                 .buttonStyle(.plain)
             }
 
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 14) {
                 Text(viewModel.latestTranslation)
                     .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(.primary)
@@ -474,21 +560,8 @@ public struct ImageTranslateView: View {
 
                     statusChip(title: "目标 \(viewModel.targetLanguage.title)", color: accentColor)
                 }
-
-                if !viewModel.translationNotes.isEmpty {
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "text.quote")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(accentColor)
-                            .padding(.top, 2)
-
-                        Text(viewModel.translationNotes)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.secondary)
-                    }
-                }
             }
-            .padding(20)
+            .padding(18)
             .background(
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
                     .fill(
@@ -500,37 +573,168 @@ public struct ImageTranslateView: View {
                     )
             )
 
-            if !viewModel.alignedSections.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    Button {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
-                            isComparisonExpanded.toggle()
-                        }
-                    } label: {
-                        HStack(spacing: 8) {
-                            Text("对照")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(.primary)
+            if !viewModel.translationNotes.isEmpty {
+                translationDetailSection(title: "补充说明", systemImage: "text.quote") {
+                    Text(viewModel.translationNotes)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
 
-                            Spacer()
-
-                            Text("\(viewModel.alignedSections.count)")
-                                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                .foregroundStyle(accentColor)
-
-                            Image(systemName: isComparisonExpanded ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
-
-                    if isComparisonExpanded {
-                        ForEach(viewModel.alignedSections) { section in
-                            comparisonRow(section)
+            if !viewModel.meanings.isEmpty {
+                translationDetailSection(title: "详细释义", systemImage: "text.book.closed") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(Array(viewModel.meanings.enumerated()), id: \.offset) { _, item in
+                            translationMeaningRow(item)
                         }
                     }
                 }
+            }
+
+            if !viewModel.examples.isEmpty {
+                translationDetailSection(title: "例句", systemImage: "quote.bubble") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(Array(viewModel.examples.enumerated()), id: \.offset) { _, item in
+                            translationExampleRow(item)
+                        }
+                    }
+                }
+            }
+
+            if !viewModel.collocations.isEmpty {
+                translationDetailSection(title: "常用搭配", systemImage: "text.append") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(Array(viewModel.collocations.enumerated()), id: \.offset) { _, item in
+                            translationCollocationRow(item)
+                        }
+                    }
+                }
+            }
+
+            if !viewModel.alignedSections.isEmpty {
+                Button {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
+                        activeContentTab = .comparison
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Label("查看对照", systemImage: "square.split.2x1")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.primary)
+
+                        Spacer()
+
+                        Text("\(viewModel.alignedSections.count) 段")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundStyle(accentColor)
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20, style: .continuous)
+                            .fill(Color(.tertiarySystemFill))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(20)
+        .cardStyle()
+    }
+
+    private func translationDetailSection<Content: View>(
+        title: String,
+        systemImage: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label(title, systemImage: systemImage)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.primary)
+
+            content()
+        }
+        .padding(18)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(.tertiarySystemFill))
+        )
+    }
+
+    private func translationMeaningRow(_ item: ImageTranslateMeaning) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            if !item.partOfSpeech.isEmpty {
+                Text(item.partOfSpeech)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(accentColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(accentColor.opacity(0.12))
+                    )
+            }
+
+            Text(item.meaning)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func translationExampleRow(_ item: ImageTranslateExample) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(item.source)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.primary)
+                .textSelection(.enabled)
+
+            Text(item.translation)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func translationCollocationRow(_ item: ImageTranslateCollocation) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(item.phrase)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.primary)
+                .textSelection(.enabled)
+
+            Text(item.translation)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            if !item.note.isEmpty {
+                Text(item.note)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary.opacity(0.84))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var comparisonCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .center, spacing: 12) {
+                sectionHeader("对照")
+
+                Spacer()
+
+                metaToken(title: "\(viewModel.alignedSections.count) 段", tint: accentColor)
+            }
+
+            ForEach(viewModel.alignedSections) { section in
+                comparisonRow(section)
             }
         }
         .padding(20)
@@ -576,9 +780,36 @@ public struct ImageTranslateView: View {
                 return
             }
 
-            await viewModel.importImage(image, from: .photoLibrary)
+            let normalizedImage = ImageOCRService.normalizedDisplayImage(image)
+
+            await MainActor.run {
+                cropSource = ImageTranslateCropSource(
+                    image: normalizedImage,
+                    mode: .importAfterCrop(.photoLibrary)
+                )
+            }
         } catch {
             viewModel.presentNotice(tone: .caution, message: error.localizedDescription)
+        }
+    }
+
+    @MainActor
+    private func applyCrop(_ selection: ImageCropSelection, to source: ImageTranslateCropSource) async {
+        switch source.mode {
+        case let .importAfterCrop(inputSource):
+            guard let croppedImage = ImageOCRService.cropImage(source.image, selection: selection) else {
+                viewModel.presentNotice(
+                    tone: .caution,
+                    message: ImageTranslateError.invalidCropArea.localizedDescription
+                )
+                return
+            }
+
+            await viewModel.importImage(croppedImage, from: inputSource)
+            await viewModel.reRecognizeSelectedImage()
+
+        case .recropCurrentImage:
+            await viewModel.cropCurrentImage(to: selection)
         }
     }
 
@@ -644,14 +875,14 @@ public struct ImageTranslateView: View {
     private func deckPill(systemImage: String, title: String) -> some View {
         HStack(spacing: 7) {
             Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .bold))
+                .font(.system(size: 10, weight: .bold))
 
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
         }
         .foregroundStyle(.white.opacity(0.90))
-        .padding(.horizontal, 11)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
         .background(
             Capsule(style: .continuous)
                 .fill(Color.white.opacity(0.12))
@@ -665,24 +896,24 @@ public struct ImageTranslateView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 10) {
                 Image(systemName: icon)
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 18, weight: .bold))
 
                 Text(title)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .lineLimit(2)
             }
-            .frame(maxWidth: .infinity, minHeight: 92, alignment: .leading)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
             .foregroundStyle(Color.white.opacity(isEnabled ? 1 : 0.45))
             .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(Color.white.opacity(isEnabled ? 0.14 : 0.08))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(Color.white.opacity(isEnabled ? 0.10 : 0.04), lineWidth: 1)
             )
         }
@@ -701,14 +932,14 @@ public struct ImageTranslateView: View {
                 .foregroundStyle(.white.opacity(0.76))
 
             Text(value)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.white)
                 .lineLimit(1)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 11)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color.white.opacity(0.12))
         )
     }
@@ -734,12 +965,12 @@ public struct ImageTranslateView: View {
             }
         } label: {
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(isActive ? accentDeepColor : .white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 11)
+                .padding(.vertical, 10)
                 .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(isActive ? Color.white : Color.white.opacity(0.12))
                 )
         }
@@ -788,6 +1019,47 @@ public struct ImageTranslateView: View {
                     .fill(tint.opacity(0.12))
             )
     }
+}
+
+private enum ImageTranslateContentTab: String, Identifiable {
+    case workspace
+    case translation
+    case comparison
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .workspace:
+            return "工作区"
+        case .translation:
+            return "译文"
+        case .comparison:
+            return "对照"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .workspace:
+            return "square.and.pencil"
+        case .translation:
+            return "text.quote"
+        case .comparison:
+            return "square.split.2x1"
+        }
+    }
+}
+
+private struct ImageTranslateCropSource: Identifiable {
+    enum Mode {
+        case importAfterCrop(ImageTranslateInputSource)
+        case recropCurrentImage
+    }
+
+    let id = UUID()
+    let image: UIImage
+    let mode: Mode
 }
 
 private struct CropImageEditor: View {

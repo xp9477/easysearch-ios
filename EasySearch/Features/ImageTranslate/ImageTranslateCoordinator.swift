@@ -174,6 +174,9 @@ private struct ImageTranslateModelPayload: Decodable {
     let reply: String?
     let notes: String?
     let detectedSourceLanguage: String?
+    let meanings: [ImageTranslateMeaningPayload]?
+    let examples: [ImageTranslateExamplePayload]?
+    let collocations: [ImageTranslateCollocationPayload]?
     let suggestedReplies: [String]?
 
     enum CodingKeys: String, CodingKey {
@@ -181,8 +184,32 @@ private struct ImageTranslateModelPayload: Decodable {
         case reply
         case notes
         case detectedSourceLanguage = "detected_source_language"
+        case meanings
+        case examples
+        case collocations
         case suggestedReplies = "suggested_replies"
     }
+}
+
+private struct ImageTranslateMeaningPayload: Decodable {
+    let partOfSpeech: String?
+    let meaning: String?
+
+    enum CodingKeys: String, CodingKey {
+        case partOfSpeech = "part_of_speech"
+        case meaning
+    }
+}
+
+private struct ImageTranslateExamplePayload: Decodable {
+    let source: String?
+    let translation: String?
+}
+
+private struct ImageTranslateCollocationPayload: Decodable {
+    let phrase: String?
+    let translation: String?
+    let note: String?
 }
 
 actor ImageTranslateService {
@@ -329,7 +356,7 @@ actor ImageTranslateService {
                 configuration: configuration.deepSeekConfiguration,
                 messages: messages,
                 responseFormat: .jsonObject,
-                maxTokens: 1800
+                maxTokens: 2400
             )
             return try parseModelPayload(content, fallbackTranslation: fallbackTranslation)
         } catch let error as DeepSeekClientError {
@@ -366,8 +393,45 @@ actor ImageTranslateService {
             reply: reply,
             notes: notes,
             detectedSourceLanguage: detectedSourceLanguage?.isEmpty == true ? nil : detectedSourceLanguage,
+            meanings: normalizeMeanings(payload.meanings),
+            examples: normalizeExamples(payload.examples),
+            collocations: normalizeCollocations(payload.collocations),
             suggestedReplies: normalizeSuggestedReplies(payload.suggestedReplies)
         )
+    }
+
+    private func normalizeMeanings(_ meanings: [ImageTranslateMeaningPayload]?) -> [ImageTranslateMeaning] {
+        let normalized = (meanings ?? []).compactMap { item -> ImageTranslateMeaning? in
+            let partOfSpeech = item.partOfSpeech?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let meaning = item.meaning?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !meaning.isEmpty else { return nil }
+            return ImageTranslateMeaning(partOfSpeech: partOfSpeech, meaning: meaning)
+        }
+
+        return Array(normalized.prefix(5))
+    }
+
+    private func normalizeExamples(_ examples: [ImageTranslateExamplePayload]?) -> [ImageTranslateExample] {
+        let normalized = (examples ?? []).compactMap { item -> ImageTranslateExample? in
+            let source = item.source?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let translation = item.translation?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !source.isEmpty, !translation.isEmpty else { return nil }
+            return ImageTranslateExample(source: source, translation: translation)
+        }
+
+        return Array(normalized.prefix(3))
+    }
+
+    private func normalizeCollocations(_ collocations: [ImageTranslateCollocationPayload]?) -> [ImageTranslateCollocation] {
+        let normalized = (collocations ?? []).compactMap { item -> ImageTranslateCollocation? in
+            let phrase = item.phrase?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let translation = item.translation?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let note = item.note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !phrase.isEmpty, !translation.isEmpty else { return nil }
+            return ImageTranslateCollocation(phrase: phrase, translation: translation, note: note)
+        }
+
+        return Array(normalized.prefix(5))
     }
 
     private func normalizeSuggestedReplies(_ suggestions: [String]?) -> [String] {
@@ -399,6 +463,25 @@ actor ImageTranslateService {
           "reply": "string",
           "notes": "string",
           "detected_source_language": "string",
+          "meanings": [
+            {
+              "part_of_speech": "string",
+              "meaning": "string"
+            }
+          ],
+          "examples": [
+            {
+              "source": "string",
+              "translation": "string"
+            }
+          ],
+          "collocations": [
+            {
+              "phrase": "string",
+              "translation": "string",
+              "note": "string"
+            }
+          ],
           "suggested_replies": ["string", "string", "string"]
         }
 
@@ -407,6 +490,10 @@ actor ImageTranslateService {
         - reply must be concise Chinese for the user, usually one or two sentences.
         - notes should mention OCR uncertainty, terminology choices, or be an empty string.
         - detected_source_language should be a short language label such as English or Japanese.
+        - meanings/examples/collocations are for dictionary-like detail. For word or short phrase lookups, fill them with concise, high-value content. For full sentences or paragraphs, return empty arrays unless the user explicitly asks for lexical detail.
+        - meanings should focus on distinct senses, in concise Chinese, and part_of_speech can be empty when not needed.
+        - examples should be natural and practical. translation should explain the sentence in Chinese.
+        - collocations should favor common combinations or fixed expressions. note is optional and can be empty.
         - suggested_replies must contain exactly 3 short Chinese follow-up suggestions.
         - Preserve proper nouns, numbers, code snippets, and list structure when useful.
         - If the user asks to rewrite, simplify, formalize, or explain, update translation accordingly.
@@ -418,7 +505,8 @@ actor ImageTranslateService {
         sourceText: String,
         targetLanguage: ImageTranslateTargetLanguage
     ) -> String {
-        """
+        let lookupGuidance = lexicalPromptGuidance(for: sourceText, targetLanguage: targetLanguage)
+        return """
         Return json only.
         Task: translate the OCR text into \(targetLanguage.promptLabel).
 
@@ -432,7 +520,12 @@ actor ImageTranslateService {
         - reply: short Chinese guidance telling the user the first draft is ready
         - notes: OCR uncertainty or terminology notes, otherwise empty string
         - detected_source_language: the most likely source language
+        - meanings: detailed senses for word or phrase lookups; otherwise []
+        - examples: practical example sentences for word or phrase lookups; otherwise []
+        - collocations: common collocations or fixed expressions for word or phrase lookups; otherwise []
         - suggested_replies: 3 short Chinese suggestions for multi-turn optimization
+
+        \(lookupGuidance)
         """
     }
 
@@ -444,6 +537,7 @@ actor ImageTranslateService {
         targetLanguage: ImageTranslateTargetLanguage
     ) -> String {
         let transcriptBlock = transcript.isEmpty ? "(none)" : transcript
+        let lookupGuidance = lexicalPromptGuidance(for: sourceText, targetLanguage: targetLanguage)
         return """
         Return json only.
         Continue the translation conversation in \(targetLanguage.promptLabel).
@@ -473,8 +567,57 @@ actor ImageTranslateService {
         - reply: short Chinese answer for the user
         - notes: OCR uncertainty or terminology notes, otherwise empty string
         - detected_source_language: the most likely source language
+        - meanings: updated detailed senses for word or phrase lookups; otherwise []
+        - examples: updated practical examples for word or phrase lookups; otherwise []
+        - collocations: updated common collocations for word or phrase lookups; otherwise []
         - suggested_replies: 3 short Chinese suggestions for the next follow-up
+
+        \(lookupGuidance)
         """
+    }
+
+    private func lexicalPromptGuidance(
+        for sourceText: String,
+        targetLanguage: ImageTranslateTargetLanguage
+    ) -> String {
+        guard isLikelyLexicalQuery(sourceText) else {
+            return """
+            This input is likely a sentence or passage.
+            Keep meanings/examples/collocations empty unless the user explicitly asks for dictionary-style explanation.
+            """
+        }
+
+        if targetLanguage == .english {
+            return """
+            This input is likely a word or short phrase lookup, especially suitable for English vocabulary learning.
+            Besides the final translation, provide 2 to 5 concise meanings, 2 to 3 natural example sentences, and 3 to 5 common collocations in English with Chinese explanation.
+            """
+        }
+
+        return """
+        This input is likely a word or short phrase lookup.
+        Besides the final translation, provide 2 to 5 concise meanings, 2 to 3 natural example sentences, and 3 to 5 common collocations when they help the user understand real usage.
+        """
+    }
+
+    private func isLikelyLexicalQuery(_ sourceText: String) -> Bool {
+        let trimmed = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        guard trimmed.count <= 48 else { return false }
+        guard !trimmed.contains("\n") else { return false }
+
+        let sentencePunctuation = CharacterSet(charactersIn: ".!?。！？;；：:")
+        if trimmed.rangeOfCharacter(from: sentencePunctuation) != nil {
+            return false
+        }
+
+        let tokens = trimmed.split { $0.isWhitespace }
+        if tokens.count <= 4 {
+            return true
+        }
+
+        let compact = trimmed.replacingOccurrences(of: " ", with: "")
+        return compact.count <= 12
     }
 
     private func mapDeepSeekError(_ error: DeepSeekClientError) -> ImageTranslateError {

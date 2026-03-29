@@ -16,6 +16,15 @@ final class ImageTranslateFileStoreTests: XCTestCase {
             latestTranslation: "你好",
             translationNotes: "note",
             detectedSourceLanguage: "English",
+            meanings: [
+                ImageTranslateMeaning(partOfSpeech: "n.", meaning: "问候")
+            ],
+            examples: [
+                ImageTranslateExample(source: "Hello, Sam.", translation: "你好，Sam。")
+            ],
+            collocations: [
+                ImageTranslateCollocation(phrase: "say hello", translation: "打招呼", note: "")
+            ],
             conversation: [
                 ImageTranslateConversationMessage(role: .assistant, text: "done")
             ],
@@ -44,6 +53,15 @@ final class ImageTranslateFileStoreTests: XCTestCase {
             sourceText: "Source full",
             translation: "Translation full",
             translationNotes: "note",
+            meanings: [
+                ImageTranslateMeaning(partOfSpeech: "", meaning: "说明")
+            ],
+            examples: [
+                ImageTranslateExample(source: "Example sentence.", translation: "例句。")
+            ],
+            collocations: [
+                ImageTranslateCollocation(phrase: "common use", translation: "常见用法", note: "note")
+            ],
             conversation: [],
             suggestedReplies: ["继续"],
             selectedImageData: Data([0x10]),
@@ -68,6 +86,9 @@ final class ImageTranslateFileStoreTests: XCTestCase {
             latestTranslation: "",
             translationNotes: "",
             detectedSourceLanguage: nil,
+            meanings: [],
+            examples: [],
+            collocations: [],
             conversation: [],
             suggestedReplies: [],
             composerText: "",

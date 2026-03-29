@@ -174,9 +174,11 @@ enum ImageOCRService {
     }
 
     private static func uprightImage(from image: UIImage) -> UIImage {
-        guard image.imageOrientation != .up else { return image }
-
         let targetSize = orientedSize(for: image)
+        guard targetSize.width > 0, targetSize.height > 0 else {
+            return image
+        }
+
         let format = UIGraphicsImageRendererFormat()
         format.scale = image.scale
         format.opaque = false

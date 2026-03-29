@@ -98,11 +98,30 @@ struct ImageTranslateConversationMessage: Identifiable, Hashable, Codable, Equat
     }
 }
 
+struct ImageTranslateMeaning: Hashable, Codable, Equatable {
+    let partOfSpeech: String
+    let meaning: String
+}
+
+struct ImageTranslateExample: Hashable, Codable, Equatable {
+    let source: String
+    let translation: String
+}
+
+struct ImageTranslateCollocation: Hashable, Codable, Equatable {
+    let phrase: String
+    let translation: String
+    let note: String
+}
+
 struct ImageTranslateResult: Equatable {
     let translation: String
     let reply: String
     let notes: String
     let detectedSourceLanguage: String?
+    let meanings: [ImageTranslateMeaning]
+    let examples: [ImageTranslateExample]
+    let collocations: [ImageTranslateCollocation]
     let suggestedReplies: [String]
 }
 

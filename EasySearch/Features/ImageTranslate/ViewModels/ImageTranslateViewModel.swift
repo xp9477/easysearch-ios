@@ -16,6 +16,15 @@ final class ImageTranslateViewModel: ObservableObject {
     @Published private(set) var translationNotes = "" {
         didSet { persistCurrentStateIfNeeded() }
     }
+    @Published private(set) var meanings: [ImageTranslateMeaning] = [] {
+        didSet { persistCurrentStateIfNeeded() }
+    }
+    @Published private(set) var examples: [ImageTranslateExample] = [] {
+        didSet { persistCurrentStateIfNeeded() }
+    }
+    @Published private(set) var collocations: [ImageTranslateCollocation] = [] {
+        didSet { persistCurrentStateIfNeeded() }
+    }
     @Published private(set) var detectedSourceLanguage: String? {
         didSet { persistCurrentStateIfNeeded() }
     }
@@ -106,6 +115,13 @@ final class ImageTranslateViewModel: ObservableObject {
 
     var hasTranslation: Bool {
         !latestTranslation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var hasSupplementaryTranslationDetails: Bool {
+        !translationNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !meanings.isEmpty
+            || !examples.isEmpty
+            || !collocations.isEmpty
     }
 
     var hasHistory: Bool {
@@ -298,6 +314,9 @@ final class ImageTranslateViewModel: ObservableObject {
         extractedText = record.sourceText
         latestTranslation = record.translation
         translationNotes = record.translationNotes
+        meanings = record.meanings
+        examples = record.examples
+        collocations = record.collocations
         detectedSourceLanguage = record.detectedSourceLanguage
         conversation = record.conversation
         suggestedReplies = record.suggestedReplies
@@ -355,6 +374,9 @@ final class ImageTranslateViewModel: ObservableObject {
         extractedText = state.extractedText
         latestTranslation = state.latestTranslation
         translationNotes = state.translationNotes
+        meanings = state.meanings
+        examples = state.examples
+        collocations = state.collocations
         detectedSourceLanguage = state.detectedSourceLanguage
         conversation = []
         suggestedReplies = []
@@ -402,6 +424,9 @@ final class ImageTranslateViewModel: ObservableObject {
     private func applyTranslationResult(_ result: ImageTranslateResult) {
         latestTranslation = result.translation
         translationNotes = result.notes
+        meanings = result.meanings
+        examples = result.examples
+        collocations = result.collocations
         suggestedReplies = []
 
         if let detectedSourceLanguage = result.detectedSourceLanguage,
@@ -430,6 +455,9 @@ final class ImageTranslateViewModel: ObservableObject {
         extractedText = ""
         latestTranslation = ""
         translationNotes = ""
+        meanings = []
+        examples = []
+        collocations = []
         detectedSourceLanguage = nil
         conversation = []
         suggestedReplies = []
@@ -458,6 +486,9 @@ final class ImageTranslateViewModel: ObservableObject {
             sourceText: trimmedSource,
             translation: trimmedTranslation,
             translationNotes: translationNotes,
+            meanings: meanings,
+            examples: examples,
+            collocations: collocations,
             conversation: conversation,
             suggestedReplies: suggestedReplies,
             selectedImageData: currentImageData,
@@ -510,6 +541,9 @@ final class ImageTranslateViewModel: ObservableObject {
             latestTranslation: latestTranslation,
             translationNotes: translationNotes,
             detectedSourceLanguage: detectedSourceLanguage,
+            meanings: meanings,
+            examples: examples,
+            collocations: collocations,
             conversation: [],
             suggestedReplies: [],
             composerText: "",

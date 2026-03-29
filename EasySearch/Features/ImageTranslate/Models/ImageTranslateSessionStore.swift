@@ -10,6 +10,9 @@ struct ImageTranslatePersistedState: Codable, Equatable {
     var latestTranslation: String
     var translationNotes: String
     var detectedSourceLanguage: String?
+    var meanings: [ImageTranslateMeaning]
+    var examples: [ImageTranslateExample]
+    var collocations: [ImageTranslateCollocation]
     var conversation: [ImageTranslateConversationMessage]
     var suggestedReplies: [String]
     var composerText: String
@@ -28,6 +31,9 @@ struct ImageTranslateHistoryRecord: Identifiable, Hashable, Codable, Equatable {
     var sourceText: String
     var translation: String
     var translationNotes: String
+    var meanings: [ImageTranslateMeaning]
+    var examples: [ImageTranslateExample]
+    var collocations: [ImageTranslateCollocation]
     var conversation: [ImageTranslateConversationMessage]
     var suggestedReplies: [String]
     var selectedImageData: Data?
@@ -135,5 +141,91 @@ final class ImageTranslateFileStore: ImageTranslateSessionStore {
         createDirectoryIfNeeded()
         guard let data = try? encoder.encode(value) else { return }
         try? data.write(to: url, options: .atomic)
+    }
+}
+
+extension ImageTranslatePersistedState {
+    private enum CodingKeys: String, CodingKey {
+        case sessionID
+        case imageSource
+        case targetLanguage
+        case selectedImageData
+        case previewImageData
+        case extractedText
+        case latestTranslation
+        case translationNotes
+        case detectedSourceLanguage
+        case meanings
+        case examples
+        case collocations
+        case conversation
+        case suggestedReplies
+        case composerText
+        case lastTranslatedSourceText
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sessionID = try container.decode(UUID.self, forKey: .sessionID)
+        imageSource = try container.decodeIfPresent(ImageTranslateInputSource.self, forKey: .imageSource)
+        targetLanguage = try container.decode(ImageTranslateTargetLanguage.self, forKey: .targetLanguage)
+        selectedImageData = try container.decodeIfPresent(Data.self, forKey: .selectedImageData)
+        previewImageData = try container.decodeIfPresent(Data.self, forKey: .previewImageData)
+        extractedText = try container.decode(String.self, forKey: .extractedText)
+        latestTranslation = try container.decode(String.self, forKey: .latestTranslation)
+        translationNotes = try container.decode(String.self, forKey: .translationNotes)
+        detectedSourceLanguage = try container.decodeIfPresent(String.self, forKey: .detectedSourceLanguage)
+        meanings = try container.decodeIfPresent([ImageTranslateMeaning].self, forKey: .meanings) ?? []
+        examples = try container.decodeIfPresent([ImageTranslateExample].self, forKey: .examples) ?? []
+        collocations = try container.decodeIfPresent([ImageTranslateCollocation].self, forKey: .collocations) ?? []
+        conversation = try container.decodeIfPresent([ImageTranslateConversationMessage].self, forKey: .conversation) ?? []
+        suggestedReplies = try container.decodeIfPresent([String].self, forKey: .suggestedReplies) ?? []
+        composerText = try container.decodeIfPresent(String.self, forKey: .composerText) ?? ""
+        lastTranslatedSourceText = try container.decodeIfPresent(String.self, forKey: .lastTranslatedSourceText) ?? ""
+    }
+}
+
+extension ImageTranslateHistoryRecord {
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case updatedAt
+        case imageSource
+        case targetLanguage
+        case detectedSourceLanguage
+        case title
+        case sourceSnippet
+        case translationSnippet
+        case sourceText
+        case translation
+        case translationNotes
+        case meanings
+        case examples
+        case collocations
+        case conversation
+        case suggestedReplies
+        case selectedImageData
+        case previewImageData
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        imageSource = try container.decodeIfPresent(ImageTranslateInputSource.self, forKey: .imageSource)
+        targetLanguage = try container.decode(ImageTranslateTargetLanguage.self, forKey: .targetLanguage)
+        detectedSourceLanguage = try container.decodeIfPresent(String.self, forKey: .detectedSourceLanguage)
+        title = try container.decode(String.self, forKey: .title)
+        sourceSnippet = try container.decode(String.self, forKey: .sourceSnippet)
+        translationSnippet = try container.decode(String.self, forKey: .translationSnippet)
+        sourceText = try container.decode(String.self, forKey: .sourceText)
+        translation = try container.decode(String.self, forKey: .translation)
+        translationNotes = try container.decode(String.self, forKey: .translationNotes)
+        meanings = try container.decodeIfPresent([ImageTranslateMeaning].self, forKey: .meanings) ?? []
+        examples = try container.decodeIfPresent([ImageTranslateExample].self, forKey: .examples) ?? []
+        collocations = try container.decodeIfPresent([ImageTranslateCollocation].self, forKey: .collocations) ?? []
+        conversation = try container.decodeIfPresent([ImageTranslateConversationMessage].self, forKey: .conversation) ?? []
+        suggestedReplies = try container.decodeIfPresent([String].self, forKey: .suggestedReplies) ?? []
+        selectedImageData = try container.decodeIfPresent(Data.self, forKey: .selectedImageData)
+        previewImageData = try container.decodeIfPresent(Data.self, forKey: .previewImageData)
     }
 }
