@@ -3295,6 +3295,8 @@ private struct HiddenJavDBMovieDetailView: View {
     @State private var isResolvingWatchPlayback = false
     @State private var resolvingWatchSiteName: String?
     @State private var watchPlaybackErrorMessage: String?
+    @State private var hasCompletedInitialImagePhase = false
+    @State private var missAVDomainDisplay = HiddenMissAVDomainConfiguration.currentHost()
 
     private let columns = [
         GridItem(.flexible(), spacing: 8),
@@ -3314,11 +3316,11 @@ private struct HiddenJavDBMovieDetailView: View {
         viewModel.detailsByMovieID[movie.id]
     }
     private var relatedMovieDetailErrorMessage: String? {
-        guard movieDetail == nil else { return nil }
+        guard hasCompletedInitialImagePhase, movieDetail == nil else { return nil }
         return viewModel.detailErrorsByMovieID[movie.id]
     }
     private var isLoadingRelatedMovieSections: Bool {
-        movieDetail == nil && relatedMovieDetailErrorMessage == nil
+        hasCompletedInitialImagePhase && movieDetail == nil && relatedMovieDetailErrorMessage == nil
     }
 
     init(movie: HiddenJavDBMovie, viewModel: HiddenJavDBViewModel, presentationState: HiddenSpacePresentationState) {
@@ -3347,9 +3349,6 @@ private struct HiddenJavDBMovieDetailView: View {
                         errorMessage: viewModel.detailErrorsByMovieID[movie.id],
                         isLoading: viewModel.detailLoadingIDs.contains(movie.id)
                     )
-                    .task(id: movie.id) {
-                        await viewModel.loadDetailIfNeeded(for: movie)
-                    }
                 }
 
                 watchSection
@@ -3376,7 +3375,8 @@ private struct HiddenJavDBMovieDetailView: View {
         .task {
             await loadImages(force: false)
         }
-        .task(id: movie.id) {
+        .task(id: hasCompletedInitialImagePhase) {
+            guard hasCompletedInitialImagePhase else { return }
             await viewModel.loadDetailIfNeeded(for: movie)
         }
         .fullScreenCover(item: previewImageBinding) { preview in
@@ -3397,7 +3397,9 @@ private struct HiddenJavDBMovieDetailView: View {
             HiddenInAppWebPageView(item: item)
         }
         .onReceive(NotificationCenter.default.publisher(for: .hiddenSpaceSettingsDidChange)) { _ in
-            showDetails = HiddenSpaceSettingsStore.shared.load().showJavDBDetailsByDefault
+            let settings = HiddenSpaceSettingsStore.shared.load()
+            showDetails = settings.showJavDBDetailsByDefault
+            missAVDomainDisplay = HiddenMissAVDomainConfiguration.resolvedHost(from: settings.missAVDomain)
         }
     }
 
@@ -3406,7 +3408,7 @@ private struct HiddenJavDBMovieDetailView: View {
             Text("播放")
                 .font(.headline)
 
-            Text("仅保留 miss.av 入口，直接拉起当前影片播放。")
+            Text("仅保留 miss 入口，直接拉起当前影片播放。")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -3433,7 +3435,7 @@ private struct HiddenJavDBMovieDetailView: View {
                             Text(isResolvingWatchPlayback && resolvingWatchSiteName == HiddenJavDBWatchSite.missAV.name ? "载入中..." : "播放")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.primary)
-                            Text("miss.av")
+                            Text(missAVDomainDisplay)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -3608,7 +3610,14 @@ private struct HiddenJavDBMovieDetailView: View {
                 }
             }
 
-            if isLoading {
+            if !hasCompletedInitialImagePhase {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("截图加载完成后开始加载 \(title)...")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            } else if isLoading {
                 HStack(spacing: 8) {
                     ProgressView()
                     Text("正在加载 \(title)...")
@@ -3644,6 +3653,9 @@ private struct HiddenJavDBMovieDetailView: View {
 
     private func loadImages(force: Bool) async {
         if !force && (!imageURLs.isEmpty || isLoadingImages) {
+            if !imageURLs.isEmpty {
+                hasCompletedInitialImagePhase = true
+            }
             return
         }
 
@@ -3659,6 +3671,8 @@ private struct HiddenJavDBMovieDetailView: View {
         } catch {
             imageErrorMessage = error.localizedDescription
         }
+
+        hasCompletedInitialImagePhase = true
     }
 
     private func openWatchSite(site: HiddenJavDBWatchSite, pageURL: URL) async {
@@ -4268,10 +4282,13 @@ private struct HiddenJavDBWatchSite: Identifiable, Hashable {
     let urlTemplate: String
     var id: String { name }
 
-    static let missAV = HiddenJavDBWatchSite(name: "MISSAV", urlTemplate: "https://missav.ws/{{code}}/")
-    static let defaultSites: [HiddenJavDBWatchSite] = [
-        .missAV
-    ]
+    static var missAV: HiddenJavDBWatchSite {
+        HiddenJavDBWatchSite(name: "MISSAV", urlTemplate: HiddenMissAVDomainConfiguration.currentMovieTemplate())
+    }
+
+    static var defaultSites: [HiddenJavDBWatchSite] {
+        [.missAV]
+    }
 
     var launchMode: LaunchMode {
         switch name {
@@ -4377,7 +4394,7 @@ private struct HiddenInAppVideoPlayerView: View {
 
         let headers: [String: String] = [
             "Referer": item.refererURL.absoluteString,
-            "Origin": "\(item.refererURL.scheme ?? "https")://\(item.refererURL.host ?? "missav.ws")",
+            "Origin": "\(item.refererURL.scheme ?? "https")://\(item.refererURL.host ?? HiddenMissAVDomainConfiguration.currentHost())",
             "User-Agent": HiddenJavDBAPI.userAgent
         ]
         let asset = AVURLAsset(
@@ -5362,6 +5379,7 @@ struct HiddenSpaceSettings: Equatable {
     var fourKHDRandomMode: HiddenRandomMode
     var javDBRandomMode: HiddenJavDBRandomMode
     var showJavDBDetailsByDefault: Bool
+    var missAVDomain: String
 }
 
 extension Notification.Name {
@@ -5376,6 +5394,7 @@ final class HiddenSpaceSettingsStore {
     private let fourKHDRandomModeKey = "hiddenSpace.4khd.randomMode"
     private let javDBRandomModeKey = "hiddenSpace.javdb.randomMode"
     private let showJavDBDetailsByDefaultKey = "hiddenSpace.javdb.showDetailsByDefault"
+    private let missAVDomainKey = "hiddenSpace.javdb.missDomain"
 
     init(
         userDefaults: UserDefaults = .standard,
@@ -5392,7 +5411,8 @@ final class HiddenSpaceSettingsStore {
         return HiddenSpaceSettings(
             fourKHDRandomMode: fourKHDRawValue.flatMap(HiddenRandomMode.init(rawValue:)) ?? .single,
             javDBRandomMode: javDBRawValue.flatMap(HiddenJavDBRandomMode.init(rawValue:)) ?? .single,
-            showJavDBDetailsByDefault: userDefaults.object(forKey: showJavDBDetailsByDefaultKey) as? Bool ?? false
+            showJavDBDetailsByDefault: userDefaults.object(forKey: showJavDBDetailsByDefaultKey) as? Bool ?? false,
+            missAVDomain: userDefaults.string(forKey: missAVDomainKey) ?? ""
         )
     }
 
@@ -5400,7 +5420,48 @@ final class HiddenSpaceSettingsStore {
         userDefaults.set(settings.fourKHDRandomMode.rawValue, forKey: fourKHDRandomModeKey)
         userDefaults.set(settings.javDBRandomMode.rawValue, forKey: javDBRandomModeKey)
         userDefaults.set(settings.showJavDBDetailsByDefault, forKey: showJavDBDetailsByDefaultKey)
+        userDefaults.set(settings.missAVDomain, forKey: missAVDomainKey)
         notificationCenter.post(name: .hiddenSpaceSettingsDidChange, object: nil)
+    }
+}
+
+enum HiddenMissAVDomainConfiguration {
+    static let defaultHost = "missav.ws"
+
+    static func currentHost() -> String {
+        resolvedHost(from: HiddenSpaceSettingsStore.shared.load().missAVDomain)
+    }
+
+    static func currentBaseURL() -> URL {
+        URL(string: "https://\(currentHost())")!
+    }
+
+    static func currentMovieTemplate() -> String {
+        "\(currentBaseURL().absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/{{code}}/"
+    }
+
+    static func resolvedHost(from rawValue: String?) -> String {
+        normalizedHost(from: rawValue) ?? defaultHost
+    }
+
+    static func normalizedHost(from rawValue: String?) -> String? {
+        guard let rawValue else { return nil }
+
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let candidate = trimmed.contains("://") ? trimmed : "https://\(trimmed)"
+        guard let components = URLComponents(string: candidate),
+              let host = components.host?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !host.isEmpty else {
+            return nil
+        }
+
+        if let port = components.port {
+            return "\(host.lowercased()):\(port)"
+        }
+
+        return host.lowercased()
     }
 }
 

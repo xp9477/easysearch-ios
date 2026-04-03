@@ -831,6 +831,7 @@ struct HiddenSpaceSettingsDetailView: View {
     @State private var fourKHDRandomMode = HiddenSpaceSettingsStore.shared.load().fourKHDRandomMode
     @State private var javDBRandomMode = HiddenSpaceSettingsStore.shared.load().javDBRandomMode
     @State private var showJavDBDetailsByDefault = HiddenSpaceSettingsStore.shared.load().showJavDBDetailsByDefault
+    @State private var missAVDomain = HiddenSpaceSettingsStore.shared.load().missAVDomain
 
     var body: some View {
         List {
@@ -844,7 +845,13 @@ struct HiddenSpaceSettingsDetailView: View {
                 Text("4khd")
             }
 
-            Section {
+            Section(
+                header: Text("javdb"),
+                footer: VStack(alignment: .leading, spacing: 4) {
+                    Text("支持直接输入域名或完整 URL；留空时回退默认域名。")
+                    Text("当前生效：\(HiddenMissAVDomainConfiguration.resolvedHost(from: missAVDomain))")
+                }
+            ) {
                 Picker("默认随机模式", selection: $javDBRandomMode) {
                     ForEach(HiddenJavDBRandomMode.allCases) { mode in
                         Text(mode.title).tag(mode)
@@ -852,8 +859,17 @@ struct HiddenSpaceSettingsDetailView: View {
                 }
 
                 Toggle("默认展开详细信息", isOn: $showJavDBDetailsByDefault)
-            } header: {
-                Text("javdb")
+
+                TextField("miss 域名，例如 missav.ai", text: $missAVDomain)
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
+                    .keyboardType(.URL)
+
+                if !missAVDomain.isEmpty {
+                    Button("恢复默认域名") {
+                        missAVDomain = ""
+                    }
+                }
             }
         }
         .navigationTitle("隐藏空间设置")
@@ -870,6 +886,9 @@ struct HiddenSpaceSettingsDetailView: View {
         .onChange(of: showJavDBDetailsByDefault) { _ in
             persistSettings()
         }
+        .onChange(of: missAVDomain) { _ in
+            persistSettings()
+        }
     }
 
     private func loadSettings() {
@@ -877,6 +896,7 @@ struct HiddenSpaceSettingsDetailView: View {
         fourKHDRandomMode = settings.fourKHDRandomMode
         javDBRandomMode = settings.javDBRandomMode
         showJavDBDetailsByDefault = settings.showJavDBDetailsByDefault
+        missAVDomain = settings.missAVDomain
     }
 
     private func persistSettings() {
@@ -884,7 +904,8 @@ struct HiddenSpaceSettingsDetailView: View {
             HiddenSpaceSettings(
                 fourKHDRandomMode: fourKHDRandomMode,
                 javDBRandomMode: javDBRandomMode,
-                showJavDBDetailsByDefault: showJavDBDetailsByDefault
+                showJavDBDetailsByDefault: showJavDBDetailsByDefault,
+                missAVDomain: missAVDomain
             )
         )
     }
