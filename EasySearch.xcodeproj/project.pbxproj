@@ -38,6 +38,9 @@
 		D2A000000000000000000001 /* CloudSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000101 /* CloudSyncCoordinator.swift */; };
 		D2A000000000000000000002 /* HiddenSyncModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000102 /* HiddenSyncModels.swift */; };
 		D2A000000000000000000003 /* HiddenCloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000103 /* HiddenCloudSync.swift */; };
+		D2A000000000000000000004 /* HiddenMissAVModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000104 /* HiddenMissAVModels.swift */; };
+		D2A000000000000000000005 /* HiddenSharedPlayback.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000105 /* HiddenSharedPlayback.swift */; };
+		D2A000000000000000000006 /* HiddenMissAVFeatureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000106 /* HiddenMissAVFeatureView.swift */; };
 		D300000000000000000000001 /* GitHubUpdatesFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000101 /* GitHubUpdatesFeature.swift */; };
 		D300000000000000000000002 /* GitHubUpdatesCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */; };
 		D300000000000000000000003 /* GitHubWatchedRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000103 /* GitHubWatchedRepository.swift */; };
@@ -64,6 +67,13 @@
 		D600000000000000000000004 /* EmailAssistantViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000104 /* EmailAssistantViewModel.swift */; };
 		D600000000000000000000005 /* EmailAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000105 /* EmailAssistantView.swift */; };
 		D700000000000000000000001 /* DeepSeekClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D700000000000000000000101 /* DeepSeekClient.swift */; };
+		E100000000000000000000001 /* ExpenseAssistantFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E100000000000000000000101 /* ExpenseAssistantFeature.swift */; };
+		E100000000000000000000002 /* ExpenseAssistantModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E100000000000000000000102 /* ExpenseAssistantModels.swift */; };
+		E100000000000000000000003 /* ExpenseAssistantStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E100000000000000000000103 /* ExpenseAssistantStore.swift */; };
+		E100000000000000000000004 /* ExpenseAssistantNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E100000000000000000000104 /* ExpenseAssistantNotificationManager.swift */; };
+		E100000000000000000000005 /* ExpenseAssistantViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E100000000000000000000105 /* ExpenseAssistantViewModel.swift */; };
+		E100000000000000000000006 /* ExpenseAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E100000000000000000000106 /* ExpenseAssistantView.swift */; };
+		E100000000000000000000007 /* ExpenseAssistantTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E100000000000000000000107 /* ExpenseAssistantTests.swift */; };
 		DC00DBD3D1788263EDDB8459 /* ImageTranslateTextAlignmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A9CB8EA30ED3CE55AC2A70 /* ImageTranslateTextAlignmentTests.swift */; };
 		E362E51FD8833EE073E17BDE /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DE58CC4FBE5DDA9B8E6C8416 /* Foundation.framework */; };
 		E3CE5ADE8C75D1F8EE33B52A /* ImageTranslateSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEE5D4584B694CD5678242E5 /* ImageTranslateSessionStore.swift */; };
@@ -112,6 +122,9 @@
 		D2A000000000000000000101 /* CloudSyncCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncCoordinator.swift; path = EasySearch/Core/CloudSync/CloudSyncCoordinator.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000102 /* HiddenSyncModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSyncModels.swift; path = EasySearch/Features/Dashboard/Models/HiddenSyncModels.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000103 /* HiddenCloudSync.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenCloudSync.swift; path = EasySearch/Features/Dashboard/Sync/HiddenCloudSync.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000104 /* HiddenMissAVModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenMissAVModels.swift; path = EasySearch/Features/Dashboard/Models/HiddenMissAVModels.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000105 /* HiddenSharedPlayback.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSharedPlayback.swift; path = EasySearch/Features/Dashboard/Views/HiddenSharedPlayback.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000106 /* HiddenMissAVFeatureView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenMissAVFeatureView.swift; path = EasySearch/Features/Dashboard/Views/HiddenMissAVFeatureView.swift; sourceTree = SOURCE_ROOT; };
 		D300000000000000000000101 /* GitHubUpdatesFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesFeature.swift; path = EasySearch/Features/GitHubUpdates/GitHubUpdatesFeature.swift; sourceTree = SOURCE_ROOT; };
 		D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesCoordinator.swift; path = EasySearch/Features/GitHubUpdates/GitHubUpdatesCoordinator.swift; sourceTree = SOURCE_ROOT; };
 		D300000000000000000000103 /* GitHubWatchedRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubWatchedRepository.swift; path = EasySearch/Features/GitHubUpdates/Models/GitHubWatchedRepository.swift; sourceTree = SOURCE_ROOT; };
@@ -138,6 +151,13 @@
 		D600000000000000000000104 /* EmailAssistantViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantViewModel.swift; path = EasySearch/Features/EmailAssistant/ViewModels/EmailAssistantViewModel.swift; sourceTree = SOURCE_ROOT; };
 		D600000000000000000000105 /* EmailAssistantView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantView.swift; path = EasySearch/Features/EmailAssistant/Views/EmailAssistantView.swift; sourceTree = SOURCE_ROOT; };
 		D700000000000000000000101 /* DeepSeekClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DeepSeekClient.swift; path = EasySearch/Core/AI/DeepSeekClient.swift; sourceTree = SOURCE_ROOT; };
+		E100000000000000000000101 /* ExpenseAssistantFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantFeature.swift; path = EasySearch/Features/ExpenseAssistant/ExpenseAssistantFeature.swift; sourceTree = SOURCE_ROOT; };
+		E100000000000000000000102 /* ExpenseAssistantModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantModels.swift; path = EasySearch/Features/ExpenseAssistant/Models/ExpenseAssistantModels.swift; sourceTree = SOURCE_ROOT; };
+		E100000000000000000000103 /* ExpenseAssistantStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantStore.swift; path = EasySearch/Features/ExpenseAssistant/Models/ExpenseAssistantStore.swift; sourceTree = SOURCE_ROOT; };
+		E100000000000000000000104 /* ExpenseAssistantNotificationManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantNotificationManager.swift; path = EasySearch/Features/ExpenseAssistant/Notification/ExpenseAssistantNotificationManager.swift; sourceTree = SOURCE_ROOT; };
+		E100000000000000000000105 /* ExpenseAssistantViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantViewModel.swift; path = EasySearch/Features/ExpenseAssistant/ViewModels/ExpenseAssistantViewModel.swift; sourceTree = SOURCE_ROOT; };
+		E100000000000000000000106 /* ExpenseAssistantView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantView.swift; path = EasySearch/Features/ExpenseAssistant/Views/ExpenseAssistantView.swift; sourceTree = SOURCE_ROOT; };
+		E100000000000000000000107 /* ExpenseAssistantTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExpenseAssistantTests.swift; sourceTree = "<group>"; };
 		D736F78B02EC6C18E86147F2 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
 		DD2DDB34B07E1AF3F585243D /* SettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = EasySearch/Features/Settings/Views/SettingsView.swift; sourceTree = SOURCE_ROOT; };
 		DE58CC4FBE5DDA9B8E6C8416 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
@@ -326,6 +346,7 @@
 		B924F2B5DBEE2D8D30100156 /* EasySearchTests */ = {
 			isa = PBXGroup;
 			children = (
+				E100000000000000000000107 /* ExpenseAssistantTests.swift */,
 				F10000000000000000000002 /* ImageOCRServiceTests.swift */,
 				84A9CB8EA30ED3CE55AC2A70 /* ImageTranslateTextAlignmentTests.swift */,
 				AED5424721AE4AFD4354443F /* ImageTranslateHistoryReducerTests.swift */,
@@ -339,6 +360,8 @@
 			isa = PBXGroup;
 			children = (
 				0F142A2111DC88139890E4CC /* DashboardView.swift */,
+				D2A000000000000000000105 /* HiddenSharedPlayback.swift */,
+				D2A000000000000000000106 /* HiddenMissAVFeatureView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -356,6 +379,7 @@
 			children = (
 				CD7CFE82B7B0EDACEF2A77A2 /* Dashboard */,
 				214A4883BB1976CD8E3A4676 /* EasySearch */,
+				E100000000000000000000201 /* ExpenseAssistant */,
 				6454E79B9B44E6FA2F45817D /* Settings */,
 				D1A000000000000000000201 /* UTTracker */,
 				D300000000000000000000201 /* GitHubUpdates */,
@@ -426,6 +450,7 @@
 			isa = PBXGroup;
 			children = (
 				D2A000000000000000000102 /* HiddenSyncModels.swift */,
+				D2A000000000000000000104 /* HiddenMissAVModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -598,6 +623,51 @@
 			path = AI;
 			sourceTree = "<group>";
 		};
+		E100000000000000000000201 /* ExpenseAssistant */ = {
+			isa = PBXGroup;
+			children = (
+				E100000000000000000000202 /* Models */,
+				E100000000000000000000203 /* Notification */,
+				E100000000000000000000204 /* ViewModels */,
+				E100000000000000000000205 /* Views */,
+				E100000000000000000000101 /* ExpenseAssistantFeature.swift */,
+			);
+			path = ExpenseAssistant;
+			sourceTree = "<group>";
+		};
+		E100000000000000000000202 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				E100000000000000000000102 /* ExpenseAssistantModels.swift */,
+				E100000000000000000000103 /* ExpenseAssistantStore.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		E100000000000000000000203 /* Notification */ = {
+			isa = PBXGroup;
+			children = (
+				E100000000000000000000104 /* ExpenseAssistantNotificationManager.swift */,
+			);
+			path = Notification;
+			sourceTree = "<group>";
+		};
+		E100000000000000000000204 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				E100000000000000000000105 /* ExpenseAssistantViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		E100000000000000000000205 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				E100000000000000000000106 /* ExpenseAssistantView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
 		E59C8AA3A5C7B7392A388AF9 /* UIComponents */ = {
 			isa = PBXGroup;
 			children = (
@@ -721,6 +791,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E100000000000000000000007 /* ExpenseAssistantTests.swift in Sources */,
 				F10000000000000000000001 /* ImageOCRServiceTests.swift in Sources */,
 				DC00DBD3D1788263EDDB8459 /* ImageTranslateTextAlignmentTests.swift in Sources */,
 				36B9C9E9DE2EAFB91FE29C76 /* ImageTranslateHistoryReducerTests.swift in Sources */,
@@ -748,6 +819,9 @@
 				683A685A33F3D4FF8465BC10 /* DashboardView.swift in Sources */,
 				D2A000000000000000000002 /* HiddenSyncModels.swift in Sources */,
 				D2A000000000000000000003 /* HiddenCloudSync.swift in Sources */,
+				D2A000000000000000000004 /* HiddenMissAVModels.swift in Sources */,
+				D2A000000000000000000005 /* HiddenSharedPlayback.swift in Sources */,
+				D2A000000000000000000006 /* HiddenMissAVFeatureView.swift in Sources */,
 				D1A000000000000000000001 /* UTEntry.swift in Sources */,
 				D1A000000000000000000006 /* UTTrackerEntryStore.swift in Sources */,
 				D1A000000000000000000002 /* UTTrackerViewModel.swift in Sources */,
@@ -758,6 +832,12 @@
 				D300000000000000000000004 /* GitHubWatchedRepositoryStore.swift in Sources */,
 				D300000000000000000000001 /* GitHubUpdatesFeature.swift in Sources */,
 				D300000000000000000000002 /* GitHubUpdatesCoordinator.swift in Sources */,
+				E100000000000000000000001 /* ExpenseAssistantFeature.swift in Sources */,
+				E100000000000000000000002 /* ExpenseAssistantModels.swift in Sources */,
+				E100000000000000000000003 /* ExpenseAssistantStore.swift in Sources */,
+				E100000000000000000000004 /* ExpenseAssistantNotificationManager.swift in Sources */,
+				E100000000000000000000005 /* ExpenseAssistantViewModel.swift in Sources */,
+				E100000000000000000000006 /* ExpenseAssistantView.swift in Sources */,
 				D300000000000000000000005 /* GitHubUpdatesViewModel.swift in Sources */,
 				D300000000000000000000006 /* GitHubUpdatesView.swift in Sources */,
 				D400000000000000000000001 /* QingLongFeature.swift in Sources */,

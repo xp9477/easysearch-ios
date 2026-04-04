@@ -24,6 +24,29 @@ public struct QingLongView: View {
                     openPanelAction: openPanelAction
                 )
 
+                QingLongSubscriptionWorkspaceCard(
+                    viewModel: viewModel,
+                    logAction: { subscription in
+                        Task {
+                            await viewModel.loadSubscriptionLog(subscription)
+                        }
+                    },
+                    primaryAction: { subscription in
+                        Task {
+                            if subscription.isRunning || subscription.isQueued {
+                                await viewModel.stopSubscription(subscription)
+                            } else {
+                                await viewModel.runSubscription(subscription)
+                            }
+                        }
+                    },
+                    toggleEnabledAction: { subscription in
+                        Task {
+                            await viewModel.setSubscriptionEnabled(subscription, enabled: !subscription.isEnabled)
+                        }
+                    }
+                )
+
                 QingLongWorkspaceCard(
                     viewModel: viewModel,
                     relativeDateText: relativeDateText(_:),
@@ -92,6 +115,19 @@ public struct QingLongView: View {
                 .navigationBarTitleDisplayMode(.inline)
             }
         }
+        .sheet(item: $viewModel.selectedSubscriptionLog) { log in
+            NavigationStack {
+                ScrollView {
+                    Text(log.content)
+                        .font(.system(.footnote, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(20)
+                }
+                .background(Color(.systemGroupedBackground).ignoresSafeArea())
+                .navigationTitle(log.title)
+                .navigationBarTitleDisplayMode(.inline)
+            }
+        }
         .sheet(item: $selectedScriptEnvironmentEditor) { context in
             QingLongEnvironmentEditorSheet(
                 context: context,
@@ -140,6 +176,7 @@ public struct QingLongView: View {
         return [
             QingLongMetric(id: "envs", symbol: "shippingbox", title: "变量", value: "\(viewModel.environments.count)"),
             QingLongMetric(id: "crons", symbol: "clock.arrow.circlepath", title: "任务", value: "\(viewModel.crons.count)"),
+            QingLongMetric(id: "subs", symbol: "arrow.down.circle", title: "订阅", value: "\(viewModel.subscriptions.count)"),
             QingLongMetric(id: "running", symbol: "play.circle.fill", title: "运行", value: "\(runningCronCount)")
         ]
     }

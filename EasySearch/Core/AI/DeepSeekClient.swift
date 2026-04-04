@@ -1,16 +1,47 @@
 import Foundation
 
 struct DeepSeekClientConfiguration: Equatable {
+    let baseURL: String
     let apiKey: String
     let model: String
+
+    static let defaultBaseURL = "https://api.deepseek.com"
 
     var hasAPIKey: Bool {
         !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    var resolvedBaseURL: String {
+        let trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? Self.defaultBaseURL : trimmed
+    }
+
     var resolvedModel: String {
         let trimmed = model.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? "deepseek-chat" : trimmed
+    }
+
+    var resolvedEndpoint: URL {
+        guard let base = URL(string: resolvedBaseURL) else {
+            return URL(string: "\(Self.defaultBaseURL)/chat/completions")!
+        }
+
+        let normalizedPath = base.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+
+        if normalizedPath.hasSuffix("chat/completions") {
+            return base
+        }
+
+        if normalizedPath.isEmpty {
+            return base
+                .appendingPathComponent("v1")
+                .appendingPathComponent("chat")
+                .appendingPathComponent("completions")
+        }
+
+        return base
+            .appendingPathComponent("chat")
+            .appendingPathComponent("completions")
     }
 }
 
@@ -24,11 +55,11 @@ enum DeepSeekClientError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingAPIKey:
-            return "请先配置 DeepSeek API Key。"
+            return "请先配置 AI API Key。"
         case .invalidResponse:
-            return "DeepSeek 返回了无法识别的结果。"
+            return "AI 服务返回了无法识别的结果。"
         case .emptyResponse:
-            return "DeepSeek 没有返回有效内容，请稍后再试。"
+            return "AI 服务没有返回有效内容，请稍后再试。"
         case let .serverError(message):
             return message
         case let .networkError(message):
@@ -117,7 +148,6 @@ actor DeepSeekClient {
 
     private let urlSession: URLSession
     private let decoder = JSONDecoder()
-    private let endpoint = URL(string: "https://api.deepseek.com/chat/completions")!
 
     private init(urlSession: URLSession? = nil) {
         if let urlSession {
@@ -278,7 +308,7 @@ actor DeepSeekClient {
             streamOptions: stream ? DeepSeekStreamOptions(includeUsage: false) : nil
         )
 
-        var request = URLRequest(url: endpoint, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 120)
+        var request = URLRequest(url: configuration.resolvedEndpoint, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 120)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -352,7 +382,7 @@ actor DeepSeekClient {
             return .invalidResponse
         }
 
-        return .serverError("DeepSeek 返回了无法识别的结果：\(preview)")
+        return .serverError("AI 服务返回了无法识别的结果：\(preview)")
     }
 
     private func serverError(from data: Data, statusCode: Int) -> DeepSeekClientError {
@@ -371,10 +401,10 @@ actor DeepSeekClient {
         if let message = String(data: data, encoding: .utf8)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
            !message.isEmpty {
-            return .serverError("DeepSeek 请求失败（\(statusCode)）：\(message)")
+            return .serverError("AI 请求失败（\(statusCode)）：\(message)")
         }
 
-        return .serverError("DeepSeek 请求失败，状态码 \(statusCode)。")
+        return .serverError("AI 请求失败，状态码 \(statusCode)。")
     }
 
     private func responsePreview(from data: Data?) -> String {

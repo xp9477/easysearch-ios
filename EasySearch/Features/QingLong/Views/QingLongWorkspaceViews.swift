@@ -112,6 +112,277 @@ private enum QingLongJSONFormatter {
     }
 }
 
+struct QingLongSubscriptionWorkspaceCard: View {
+    @ObservedObject var viewModel: QingLongViewModel
+    let logAction: (QingLongSubscription) -> Void
+    let primaryAction: (QingLongSubscription) -> Void
+    let toggleEnabledAction: (QingLongSubscription) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if viewModel.profile == nil {
+                QingLongEmptyState(
+                    icon: "arrow.down.circle",
+                    title: "订阅管理",
+                    description: "连接青龙后可查看并手动拉取订阅。"
+                )
+            } else {
+                QingLongSubscriptionWorkspace(
+                    viewModel: viewModel,
+                    logAction: logAction,
+                    primaryAction: primaryAction,
+                    toggleEnabledAction: toggleEnabledAction
+                )
+            }
+        }
+        .padding(14)
+        .cardStyle()
+    }
+}
+
+private struct QingLongSubscriptionWorkspace: View {
+    @ObservedObject var viewModel: QingLongViewModel
+    let logAction: (QingLongSubscription) -> Void
+    let primaryAction: (QingLongSubscription) -> Void
+    let toggleEnabledAction: (QingLongSubscription) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("订阅管理")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(.primary)
+
+                Text(summaryText)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+
+            QingLongSearchField(text: $viewModel.subscriptionSearchText, placeholder: "搜索订阅")
+
+            QingLongFilterBar(
+                selection: $viewModel.subscriptionFilter,
+                options: QingLongSubscriptionFilter.allCases,
+                title: \.title
+            )
+
+            if viewModel.subscriptions.isEmpty {
+                QingLongEmptyState(
+                    icon: "arrow.down.circle",
+                    title: "没有订阅",
+                    description: "在青龙面板中创建订阅后，这里可以直接拉取和查看日志。"
+                )
+            } else if viewModel.filteredSubscriptions.isEmpty {
+                QingLongEmptyState(
+                    icon: "magnifyingglass",
+                    title: "无匹配结果"
+                )
+            } else {
+                LazyVStack(spacing: 10) {
+                    ForEach(viewModel.filteredSubscriptions) { subscription in
+                        QingLongSubscriptionRow(
+                            subscription: subscription,
+                            isPending: viewModel.isSubscriptionPending(subscription.id),
+                            isLogLoading: viewModel.isLoadingSubscriptionLog(for: subscription.id),
+                            primaryAction: {
+                                primaryAction(subscription)
+                            },
+                            logAction: {
+                                logAction(subscription)
+                            },
+                            toggleEnabledAction: {
+                                toggleEnabledAction(subscription)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private var summaryText: String {
+        let runningCount = viewModel.subscriptions.filter { $0.isRunning || $0.isQueued }.count
+        return "\(viewModel.filteredSubscriptions.count)/\(viewModel.subscriptions.count) 个订阅，\(runningCount) 个拉取中"
+    }
+}
+
+private struct QingLongSubscriptionRow: View {
+    let subscription: QingLongSubscription
+    let isPending: Bool
+    let isLogLoading: Bool
+    let primaryAction: () -> Void
+    let logAction: () -> Void
+    let toggleEnabledAction: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(statusColor)
+                    .frame(width: 4, height: 42)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .center, spacing: 8) {
+                        Text(subscription.titleText)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+
+                        QingLongSubscriptionStateBadge(subscription: subscription)
+
+                        if subscription.autoAddCron {
+                            QingLongTag(text: "自动任务", color: .blue)
+                        }
+
+                        Spacer(minLength: 0)
+
+                        if isPending {
+                            ProgressView()
+                                .scaleEffect(0.85)
+                        }
+                    }
+
+                    Text(subscription.url)
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+
+                    HStack(spacing: 8) {
+                        Label(subscription.scheduleText, systemImage: "clock")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+
+                        if !subscription.detailText.isEmpty {
+                            Text(subscription.detailText)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+
+            HStack(spacing: 10) {
+                Button(action: primaryAction) {
+                    Label(primaryButtonTitle, systemImage: primaryButtonSymbol)
+                        .font(.system(size: 12, weight: .bold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(subscription.isRunning || subscription.isQueued ? .orange : .green)
+                .disabled(isPending || (!subscription.isEnabled && !subscription.isRunning && !subscription.isQueued))
+
+                Button(action: logAction) {
+                    HStack(spacing: 6) {
+                        if isLogLoading {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .frame(width: 12, height: 12)
+                        } else {
+                            Image(systemName: "doc.text")
+                                .frame(width: 12, height: 12)
+                        }
+
+                        Text("日志")
+                    }
+                    .font(.system(size: 12, weight: .bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                }
+                .buttonStyle(.bordered)
+                .tint(.green)
+                .disabled(isPending || isLogLoading || !subscription.hasLog)
+
+                Menu {
+                    Button(action: toggleEnabledAction) {
+                        Label(subscription.isEnabled ? "禁用订阅" : "启用订阅", systemImage: subscription.isEnabled ? "pause.circle" : "play.circle")
+                    }
+                } label: {
+                    Label("更多", systemImage: "ellipsis.circle")
+                        .font(.system(size: 12, weight: .bold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                }
+                .buttonStyle(.bordered)
+                .tint(.secondary)
+                .disabled(isPending)
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(statusColor.opacity(0.12), lineWidth: 1)
+        )
+    }
+
+    private var primaryButtonTitle: String {
+        subscription.isRunning || subscription.isQueued ? "停止" : "拉取"
+    }
+
+    private var primaryButtonSymbol: String {
+        subscription.isRunning || subscription.isQueued ? "stop.fill" : "arrow.down.circle.fill"
+    }
+
+    private var statusColor: Color {
+        if subscription.isRunning {
+            return .green
+        }
+
+        if subscription.isQueued {
+            return .blue
+        }
+
+        if !subscription.isEnabled {
+            return .orange
+        }
+
+        return .secondary
+    }
+}
+
+private struct QingLongSubscriptionStateBadge: View {
+    let subscription: QingLongSubscription
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(statusColor)
+                .frame(width: 7, height: 7)
+
+            Text(subscription.statusText)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(statusColor)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(
+            Capsule(style: .continuous)
+                .fill(statusColor.opacity(0.12))
+        )
+    }
+
+    private var statusColor: Color {
+        if subscription.isRunning {
+            return .green
+        }
+
+        if subscription.isQueued {
+            return .blue
+        }
+
+        if !subscription.isEnabled {
+            return .orange
+        }
+
+        return .gray
+    }
+}
+
 struct QingLongWorkspaceCard: View {
     @ObservedObject var viewModel: QingLongViewModel
     let relativeDateText: (Date) -> String

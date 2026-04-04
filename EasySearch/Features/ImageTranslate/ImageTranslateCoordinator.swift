@@ -19,7 +19,7 @@ enum ImageTranslateError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingAPIKey:
-            return "请先到设置页填写 DeepSeek API Key。"
+            return "请先到设置页填写 AI API Key。"
         case .emptySourceText:
             return "没有可翻译的文字，请先识别图片或手动补充文本。"
         case .invalidImage:
@@ -33,9 +33,9 @@ enum ImageTranslateError: LocalizedError {
         case .cameraUnavailable:
             return "当前设备暂时不能使用相机。"
         case .invalidResponse:
-            return "DeepSeek 返回了无法识别的结果。"
+            return "AI 服务返回了无法识别的结果。"
         case .emptyModelResponse:
-            return "DeepSeek 没有返回有效内容，请重试。"
+            return "AI 服务没有返回有效内容，请重试。"
         case let .ocrFailure(message):
             return "文字识别失败：\(message)"
         case let .serverError(message):
@@ -48,7 +48,7 @@ enum ImageTranslateError: LocalizedError {
 
 private struct ImageTranslateKeychainStore {
     private let service = "com.easysearch.image-translate"
-    private let account = "deepseek.api-key.v1"
+    private let account = "ai.api-key.v1"
 
     func loadAPIKey() throws -> String? {
         let query: [String: Any] = [
@@ -69,7 +69,7 @@ private struct ImageTranslateKeychainStore {
         guard status == errSecSuccess,
               let data = item as? Data,
               let apiKey = String(data: data, encoding: .utf8) else {
-            throw ImageTranslateError.serverError("读取 DeepSeek API Key 失败，Keychain 状态码 \(status)。")
+            throw ImageTranslateError.serverError("读取 AI API Key 失败，Keychain 状态码 \(status)。")
         }
 
         return apiKey
@@ -95,7 +95,7 @@ private struct ImageTranslateKeychainStore {
 
         let status = SecItemAdd(attributes as CFDictionary, nil)
         guard status == errSecSuccess else {
-            throw ImageTranslateError.serverError("保存 DeepSeek API Key 失败，Keychain 状态码 \(status)。")
+            throw ImageTranslateError.serverError("保存 AI API Key 失败，Keychain 状态码 \(status)。")
         }
     }
 
@@ -115,6 +115,7 @@ final class ImageTranslateConfigurationStore {
     private let userDefaults: UserDefaults
     private let keychainStore: ImageTranslateKeychainStore
     private let notificationCenter: NotificationCenter
+    private let baseURLKey = "imageTranslate.ai.baseURL"
     private let modelKey = "imageTranslate.deepseek.model"
     private let targetLanguageKey = "imageTranslate.targetLanguage"
 
@@ -129,14 +130,23 @@ final class ImageTranslateConfigurationStore {
     }
 
     func loadConfiguration() -> ImageTranslateConfiguration {
-        let bundledAPIKey = (Bundle.main.object(forInfoDictionaryKey: "DEEPSEEK_API_KEY") as? String) ?? ""
-        let bundledModel = (Bundle.main.object(forInfoDictionaryKey: "DEEPSEEK_MODEL") as? String) ?? "deepseek-chat"
+        let bundledBaseURL = (Bundle.main.object(forInfoDictionaryKey: "AI_BASE_URL") as? String)
+            ?? (Bundle.main.object(forInfoDictionaryKey: "DEEPSEEK_BASE_URL") as? String)
+            ?? DeepSeekClientConfiguration.defaultBaseURL
+        let bundledAPIKey = (Bundle.main.object(forInfoDictionaryKey: "AI_API_KEY") as? String)
+            ?? (Bundle.main.object(forInfoDictionaryKey: "DEEPSEEK_API_KEY") as? String)
+            ?? ""
+        let bundledModel = (Bundle.main.object(forInfoDictionaryKey: "AI_MODEL") as? String)
+            ?? (Bundle.main.object(forInfoDictionaryKey: "DEEPSEEK_MODEL") as? String)
+            ?? "deepseek-chat"
+        let storedBaseURL = userDefaults.string(forKey: baseURLKey) ?? bundledBaseURL
         let storedAPIKey = (try? keychainStore.loadAPIKey()) ?? nil
         let storedModel = userDefaults.string(forKey: modelKey) ?? bundledModel
         let rawTargetLanguage = userDefaults.string(forKey: targetLanguageKey)
         let targetLanguage = rawTargetLanguage.flatMap(ImageTranslateTargetLanguage.init(rawValue:)) ?? .simplifiedChinese
 
         return ImageTranslateConfiguration(
+            baseURL: storedBaseURL,
             apiKey: storedAPIKey ?? bundledAPIKey,
             model: storedModel,
             targetLanguage: targetLanguage
@@ -144,10 +154,12 @@ final class ImageTranslateConfigurationStore {
     }
 
     func saveConfiguration(
+        baseURL: String,
         apiKey: String,
         model: String,
         targetLanguage: ImageTranslateTargetLanguage
     ) throws {
+        let trimmedBaseURL = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedAPIKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -157,6 +169,7 @@ final class ImageTranslateConfigurationStore {
             try keychainStore.saveAPIKey(trimmedAPIKey)
         }
 
+        userDefaults.set(trimmedBaseURL.isEmpty ? DeepSeekClientConfiguration.defaultBaseURL : trimmedBaseURL, forKey: baseURLKey)
         userDefaults.set(trimmedModel.isEmpty ? "deepseek-chat" : trimmedModel, forKey: modelKey)
         userDefaults.set(targetLanguage.rawValue, forKey: targetLanguageKey)
 

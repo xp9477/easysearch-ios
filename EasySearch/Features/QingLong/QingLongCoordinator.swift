@@ -301,6 +301,7 @@ actor QingLongService {
         let fetchedAt = Date()
         async let environments = fetchEnvironments(baseURL: normalizedBaseURL, session: session)
         async let crons = fetchCrons(baseURL: normalizedBaseURL, session: session)
+        async let subscriptions = fetchSubscriptions(baseURL: normalizedBaseURL, session: session)
 
         let profile = QingLongPanelProfile(
             baseURL: normalizedBaseURL,
@@ -313,6 +314,7 @@ actor QingLongService {
             profile: profile,
             environments: try await environments,
             crons: try await crons,
+            subscriptions: try await subscriptions,
             fetchedAt: fetchedAt
         )
 
@@ -393,6 +395,15 @@ actor QingLongService {
         let cronProbe = await probeRequest(cronRequest)
         steps.append(makeDiagnosticStep(title: "读取定时任务", url: cronRequest.url, probe: cronProbe))
 
+        let subscriptionRequest = try makeRequest(
+            baseURL: normalizedBaseURL,
+            token: token,
+            path: ["subscriptions"],
+            method: "GET"
+        )
+        let subscriptionProbe = await probeRequest(subscriptionRequest)
+        steps.append(makeDiagnosticStep(title: "读取订阅", url: subscriptionRequest.url, probe: subscriptionProbe))
+
         return QingLongDiagnosticReport(baseURL: normalizedBaseURL.absoluteString, generatedAt: Date(), steps: steps)
     }
 
@@ -409,12 +420,14 @@ actor QingLongService {
         let fetchedAt = Date()
         async let environments = fetchEnvironments(baseURL: profile.baseURL, session: session)
         async let crons = fetchCrons(baseURL: profile.baseURL, session: session)
+        async let subscriptions = fetchSubscriptions(baseURL: profile.baseURL, session: session)
 
         let updatedProfile = profile.updatingConnection(at: fetchedAt)
         let snapshot = QingLongDashboardSnapshot(
             profile: updatedProfile,
             environments: try await environments,
             crons: try await crons,
+            subscriptions: try await subscriptions,
             fetchedAt: fetchedAt
         )
 
@@ -470,6 +483,18 @@ actor QingLongService {
         try await performCronAction(path: enabled ? "enable" : "disable", ids: [id])
     }
 
+    func runSubscription(id: Int) async throws {
+        try await performSubscriptionAction(path: "run", ids: [id])
+    }
+
+    func stopSubscription(id: Int) async throws {
+        try await performSubscriptionAction(path: "stop", ids: [id])
+    }
+
+    func setSubscriptionEnabled(id: Int, enabled: Bool) async throws {
+        try await performSubscriptionAction(path: enabled ? "enable" : "disable", ids: [id])
+    }
+
     func updateCron(_ cron: QingLongCron, schedule: String) async throws {
         let context = try await authenticatedContext()
         let payload = QingLongCronPayload(
@@ -496,6 +521,18 @@ actor QingLongService {
             baseURL: context.profile.baseURL,
             token: context.session.token,
             path: ["crons", "\(id)", "log"],
+            method: "GET"
+        )
+        let logText = try await sendEnvelopeRequest(request, decodeAs: String.self)
+        return logText.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
+    }
+
+    func fetchSubscriptionLog(id: Int) async throws -> String {
+        let context = try await authenticatedContext()
+        let request = try makeRequest(
+            baseURL: context.profile.baseURL,
+            token: context.session.token,
+            path: ["subscriptions", "\(id)", "log"],
             method: "GET"
         )
         let logText = try await sendEnvelopeRequest(request, decodeAs: String.self)
@@ -540,6 +577,17 @@ actor QingLongService {
         return crons.sorted(by: QingLongCron.sort(lhs:rhs:))
     }
 
+    private func fetchSubscriptions(baseURL: URL, session: QingLongSession) async throws -> [QingLongSubscription] {
+        let request = try makeRequest(
+            baseURL: baseURL,
+            token: session.token,
+            path: ["subscriptions"],
+            method: "GET"
+        )
+        let subscriptions = try await sendListEnvelopeRequest(request, decodeAs: QingLongSubscription.self)
+        return subscriptions.sorted(by: QingLongSubscription.sort(lhs:rhs:))
+    }
+
     private func performEnvironmentAction(path: String, ids: [Int]) async throws {
         let context = try await authenticatedContext()
         let request = try makeRequest(
@@ -558,6 +606,18 @@ actor QingLongService {
             baseURL: context.profile.baseURL,
             token: context.session.token,
             path: ["crons", path],
+            method: "PUT",
+            body: ids
+        )
+        try await sendStatusRequest(request)
+    }
+
+    private func performSubscriptionAction(path: String, ids: [Int]) async throws {
+        let context = try await authenticatedContext()
+        let request = try makeRequest(
+            baseURL: context.profile.baseURL,
+            token: context.session.token,
+            path: ["subscriptions", path],
             method: "PUT",
             body: ids
         )

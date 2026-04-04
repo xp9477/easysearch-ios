@@ -10,6 +10,7 @@ enum AppTab: Hashable {
 enum SettingsRoute: Hashable {
     case cloudSync
     case utTracker
+    case expenseAssistant
     case gitHubUpdates
     case imageTranslate
     case emailAssistant
@@ -40,6 +41,8 @@ struct EasySearchApp: App {
                 .task {
                     await UTNotificationManager.shared.configure()
                     await UTNotificationManager.shared.refreshSchedulesIfAuthorized()
+                    await ExpenseAssistantNotificationManager.shared.configure()
+                    await ExpenseAssistantNotificationManager.shared.refreshSchedulesIfAuthorized()
                     await GitHubUpdatesNotificationManager.shared.configure()
                     await HiddenCloudSyncViewModel.shared.prepareIfNeeded()
                     await GitHubUpdatesBackgroundRefreshManager.scheduleNextRefresh()
@@ -48,6 +51,7 @@ struct EasySearchApp: App {
                     guard phase == .active else { return }
                     Task {
                         await UTNotificationManager.shared.refreshStateAndSchedules()
+                        await ExpenseAssistantNotificationManager.shared.refreshStateAndSchedules()
                         await GitHubUpdatesNotificationManager.shared.refreshAuthorizationStatus()
                         let summary = await GitHubUpdatesService.shared.refreshRepositories(trigger: .foreground)
                         if summary.didPersistChanges {

@@ -126,6 +126,7 @@ struct ImageTranslateResult: Equatable {
 }
 
 struct ImageTranslateConfiguration: Equatable {
+    var baseURL: String
     var apiKey: String
     var model: String
     var targetLanguage: ImageTranslateTargetLanguage
@@ -141,6 +142,7 @@ struct ImageTranslateConfiguration: Equatable {
 
     var deepSeekConfiguration: DeepSeekClientConfiguration {
         DeepSeekClientConfiguration(
+            baseURL: baseURL,
             apiKey: apiKey,
             model: resolvedModel
         )

@@ -241,7 +241,7 @@ final class ImageTranslateViewModel: ObservableObject {
         }
 
         isTranslating = true
-        setNotice(tone: .neutral, message: "正在调用 DeepSeek 生成翻译。")
+        setNotice(tone: .neutral, message: "正在调用 AI 模型生成翻译。")
 
         do {
             let result = try await service.translate(

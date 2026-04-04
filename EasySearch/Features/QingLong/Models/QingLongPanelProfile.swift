@@ -479,10 +479,263 @@ struct QingLongCron: Identifiable, Hashable, Decodable {
     }
 }
 
+struct QingLongSubscriptionIntervalSchedule: Hashable, Codable {
+    let type: String
+    let value: Int
+}
+
+struct QingLongSubscription: Identifiable, Hashable, Decodable {
+    let id: Int
+    let name: String
+    let type: String
+    let scheduleType: String
+    let schedule: String
+    let intervalSchedule: QingLongSubscriptionIntervalSchedule?
+    let url: String
+    let branch: String
+    let statusValue: Int?
+    let pid: Int?
+    let isDisabledValue: Int?
+    let logPath: String
+    let alias: String
+    let autoAddCronValue: Int?
+    let autoDelCronValue: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case type
+        case scheduleType = "schedule_type"
+        case schedule
+        case intervalSchedule = "interval_schedule"
+        case url
+        case branch
+        case statusValue = "status"
+        case pid
+        case isDisabledValue = "is_disabled"
+        case logPath = "log_path"
+        case alias
+        case autoAddCronValue = "autoAddCron"
+        case autoDelCronValue = "autoDelCron"
+    }
+
+    init(
+        id: Int,
+        name: String,
+        type: String,
+        scheduleType: String,
+        schedule: String,
+        intervalSchedule: QingLongSubscriptionIntervalSchedule?,
+        url: String,
+        branch: String,
+        statusValue: Int?,
+        pid: Int?,
+        isDisabledValue: Int?,
+        logPath: String,
+        alias: String,
+        autoAddCronValue: Int?,
+        autoDelCronValue: Int?
+    ) {
+        self.id = id
+        self.name = name
+        self.type = type
+        self.scheduleType = scheduleType
+        self.schedule = schedule
+        self.intervalSchedule = intervalSchedule
+        self.url = url
+        self.branch = branch
+        self.statusValue = statusValue
+        self.pid = pid
+        self.isDisabledValue = isDisabledValue
+        self.logPath = logPath
+        self.alias = alias
+        self.autoAddCronValue = autoAddCronValue
+        self.autoDelCronValue = autoDelCronValue
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeLossyInt(forKey: .id)
+        name = (try container.decodeIfPresent(String.self, forKey: .name) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        type = (try container.decodeIfPresent(String.self, forKey: .type) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        scheduleType = (try container.decodeIfPresent(String.self, forKey: .scheduleType) ?? "crontab")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        schedule = (try container.decodeIfPresent(String.self, forKey: .schedule) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        intervalSchedule = try container.decodeIfPresent(QingLongSubscriptionIntervalSchedule.self, forKey: .intervalSchedule)
+        url = (try container.decodeIfPresent(String.self, forKey: .url) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        branch = (try container.decodeIfPresent(String.self, forKey: .branch) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        statusValue = try container.decodeLossyIntIfPresent(forKey: .statusValue)
+        pid = try container.decodeLossyIntIfPresent(forKey: .pid)
+        isDisabledValue = try container.decodeLossyIntIfPresent(forKey: .isDisabledValue)
+        logPath = (try container.decodeIfPresent(String.self, forKey: .logPath) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        alias = (try container.decodeIfPresent(String.self, forKey: .alias) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        autoAddCronValue = try container.decodeLossyIntIfPresent(forKey: .autoAddCronValue)
+        autoDelCronValue = try container.decodeLossyIntIfPresent(forKey: .autoDelCronValue)
+    }
+
+    var titleText: String {
+        if !name.isEmpty {
+            return name
+        }
+
+        if !alias.isEmpty {
+            return alias
+        }
+
+        return url.isEmpty ? "未命名订阅" : url
+    }
+
+    var detailText: String {
+        let parts = [typeText, branch.isEmpty ? nil : branch].compactMap { $0 }
+        return parts.isEmpty ? "未设置" : parts.joined(separator: " · ")
+    }
+
+    var scheduleText: String {
+        guard scheduleType == "interval" else {
+            return schedule.isEmpty ? "未设置" : schedule
+        }
+
+        guard let intervalSchedule else { return "未设置" }
+        return "每\(intervalSchedule.value)\(intervalUnitText)"
+    }
+
+    var typeText: String {
+        switch type {
+        case "private-repo":
+            return "私有仓库"
+        case "public-repo":
+            return "公开仓库"
+        case "file":
+            return "单文件"
+        default:
+            return type.isEmpty ? "未知类型" : type
+        }
+    }
+
+    var isEnabled: Bool {
+        isDisabledValue != 1
+    }
+
+    var isRunning: Bool {
+        statusValue == 0
+    }
+
+    var isQueued: Bool {
+        statusValue == 3
+    }
+
+    var statusText: String {
+        if isRunning {
+            return "拉取中"
+        }
+
+        if isQueued {
+            return "排队中"
+        }
+
+        if !isEnabled {
+            return "已禁用"
+        }
+
+        return "空闲"
+    }
+
+    var hasLog: Bool {
+        !logPath.isEmpty
+    }
+
+    var autoAddCron: Bool {
+        autoAddCronValue == 1
+    }
+
+    var autoDelCron: Bool {
+        autoDelCronValue == 1
+    }
+
+    static func sort(lhs: QingLongSubscription, rhs: QingLongSubscription) -> Bool {
+        if lhs.isRunning != rhs.isRunning {
+            return lhs.isRunning && !rhs.isRunning
+        }
+
+        if lhs.isQueued != rhs.isQueued {
+            return lhs.isQueued && !rhs.isQueued
+        }
+
+        if lhs.isEnabled != rhs.isEnabled {
+            return lhs.isEnabled && !rhs.isEnabled
+        }
+
+        return lhs.titleText.localizedCaseInsensitiveCompare(rhs.titleText) == .orderedAscending
+    }
+
+    func updatingEnabled(_ enabled: Bool) -> QingLongSubscription {
+        QingLongSubscription(
+            id: id,
+            name: name,
+            type: type,
+            scheduleType: scheduleType,
+            schedule: schedule,
+            intervalSchedule: intervalSchedule,
+            url: url,
+            branch: branch,
+            statusValue: statusValue,
+            pid: pid,
+            isDisabledValue: enabled ? 0 : 1,
+            logPath: logPath,
+            alias: alias,
+            autoAddCronValue: autoAddCronValue,
+            autoDelCronValue: autoDelCronValue
+        )
+    }
+
+    func updatingRunning(_ running: Bool) -> QingLongSubscription {
+        QingLongSubscription(
+            id: id,
+            name: name,
+            type: type,
+            scheduleType: scheduleType,
+            schedule: schedule,
+            intervalSchedule: intervalSchedule,
+            url: url,
+            branch: branch,
+            statusValue: running ? 0 : 1,
+            pid: running ? (pid ?? 1) : nil,
+            isDisabledValue: isDisabledValue,
+            logPath: logPath,
+            alias: alias,
+            autoAddCronValue: autoAddCronValue,
+            autoDelCronValue: autoDelCronValue
+        )
+    }
+
+    private var intervalUnitText: String {
+        switch intervalSchedule?.type {
+        case "days":
+            return "天"
+        case "hours":
+            return "小时"
+        case "minutes":
+            return "分钟"
+        case "seconds":
+            return "秒"
+        default:
+            return "次"
+        }
+    }
+}
+
 struct QingLongDashboardSnapshot: Hashable {
     let profile: QingLongPanelProfile
     let environments: [QingLongEnvironment]
     let crons: [QingLongCron]
+    let subscriptions: [QingLongSubscription]
     let fetchedAt: Date
 }
 

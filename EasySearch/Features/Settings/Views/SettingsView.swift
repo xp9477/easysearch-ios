@@ -6,9 +6,11 @@ struct SettingsView: View {
     @EnvironmentObject private var registry: FeatureRegistry
     @StateObject private var cloudViewModel = HiddenCloudSyncViewModel.shared
     @StateObject private var utNotificationManager = UTNotificationManager.shared
+    @StateObject private var expenseAssistantNotificationManager = ExpenseAssistantNotificationManager.shared
     @StateObject private var gitHubNotificationManager = GitHubUpdatesNotificationManager.shared
     @State private var path = NavigationPath()
     @State private var deepSeekConfiguration = ImageTranslateConfiguration(
+        baseURL: DeepSeekClientConfiguration.defaultBaseURL,
         apiKey: "",
         model: "deepseek-chat",
         targetLanguage: .simplifiedChinese
@@ -99,6 +101,7 @@ struct SettingsView: View {
             .task {
                 await cloudViewModel.prepareIfNeeded()
                 await utNotificationManager.configure()
+                await expenseAssistantNotificationManager.configure()
                 await gitHubNotificationManager.configure()
                 refreshSummaryState()
                 handlePendingRouteIfNeeded()
@@ -125,12 +128,14 @@ struct SettingsView: View {
             CloudSyncSettingsDetailView()
         case .utTracker:
             UTTrackerSettingsDetailView()
+        case .expenseAssistant:
+            ExpenseAssistantSettingsDetailView()
         case .gitHubUpdates:
             GitHubUpdatesSettingsDetailView()
         case .imageTranslate:
-            DeepSeekSettingsDetailView(entry: .imageTranslate)
+            AISettingsDetailView(entry: .imageTranslate)
         case .emailAssistant:
-            DeepSeekSettingsDetailView(entry: .emailAssistant)
+            AISettingsDetailView(entry: .emailAssistant)
         case .qingLong:
             QingLongSettingsDetailView()
         }
@@ -158,6 +163,14 @@ struct SettingsView: View {
                 status: utNotificationManager.statusText,
                 systemImage: feature.iconName,
                 route: .utTracker
+            )
+        case "expense-assistant":
+            return ModuleSettingsItem(
+                id: feature.id,
+                title: feature.title,
+                status: expenseAssistantNotificationManager.statusText,
+                systemImage: feature.iconName,
+                route: .expenseAssistant
             )
         case "github-updates":
             let repositoryText = gitHubRepositoryCount > 0 ? " · \(gitHubRepositoryCount) 个仓库" : ""
@@ -416,6 +429,55 @@ private struct UTTrackerSettingsDetailView: View {
     }
 }
 
+private struct ExpenseAssistantSettingsDetailView: View {
+    @StateObject private var notificationManager = ExpenseAssistantNotificationManager.shared
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        List {
+            Section {
+                SettingsValueRow(title: "状态", value: notificationManager.statusText)
+
+                switch notificationManager.authorizationStatus {
+                case .notDetermined:
+                    Button {
+                        Task {
+                            await notificationManager.requestAuthorization()
+                        }
+                    } label: {
+                        Label("开启通知", systemImage: "bell.badge")
+                    }
+
+                case .denied:
+                    Button {
+                        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+                        openURL(settingsURL)
+                    } label: {
+                        Label("前往系统设置", systemImage: "gearshape")
+                    }
+
+                case .authorized, .provisional, .ephemeral:
+                    Button {
+                        Task {
+                            await notificationManager.refreshStateAndSchedules()
+                        }
+                    } label: {
+                        Label("刷新提醒", systemImage: "arrow.clockwise")
+                    }
+
+                @unknown default:
+                    EmptyView()
+                }
+            }
+        }
+        .navigationTitle("报销助手")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await notificationManager.configure()
+        }
+    }
+}
+
 private struct GitHubUpdatesSettingsDetailView: View {
     @StateObject private var notificationManager = GitHubUpdatesNotificationManager.shared
     @Environment(\.openURL) private var openURL
@@ -475,7 +537,7 @@ private struct GitHubUpdatesSettingsDetailView: View {
     }
 }
 
-private enum DeepSeekSettingsEntry {
+private enum AISettingsEntry {
     case imageTranslate
     case emailAssistant
 
@@ -493,9 +555,10 @@ private enum DeepSeekSettingsEntry {
     }
 }
 
-private struct DeepSeekSettingsDetailView: View {
-    let entry: DeepSeekSettingsEntry
+private struct AISettingsDetailView: View {
+    let entry: AISettingsEntry
 
+    @State private var baseURL = ""
     @State private var apiKey = ""
     @State private var model = ""
     @State private var targetLanguage: ImageTranslateTargetLanguage = .simplifiedChinese
@@ -510,11 +573,16 @@ private struct DeepSeekSettingsDetailView: View {
             Section {
                 SettingsValueRow(title: "状态", value: configurationStatusText)
 
-                SecureField("DeepSeek API Key", text: $apiKey)
+                TextField("Base URL", text: $baseURL)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                    .autocorrectionDisabled()
+
+                SecureField("AI API Key", text: $apiKey)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
 
-                TextField("模型", text: $model)
+                TextField("模型 ID", text: $model)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
 
@@ -530,6 +598,8 @@ private struct DeepSeekSettingsDetailView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+            } footer: {
+                Text("支持 OpenAI 兼容接口。CLIProxyAPI 可填写为你的服务地址，例如 http://127.0.0.1:8080/v1，模型填写你在代理里要转发的模型 ID。")
             }
 
             if entry.showsTargetLanguage {
@@ -551,6 +621,7 @@ private struct DeepSeekSettingsDetailView: View {
 
     private func loadConfiguration() {
         let configuration = ImageTranslateConfigurationStore.shared.loadConfiguration()
+        baseURL = configuration.baseURL
         apiKey = configuration.apiKey
         model = configuration.model
         targetLanguage = configuration.targetLanguage
@@ -559,14 +630,15 @@ private struct DeepSeekSettingsDetailView: View {
     private func saveConfiguration() {
         do {
             try ImageTranslateConfigurationStore.shared.saveConfiguration(
+                baseURL: baseURL,
                 apiKey: apiKey,
                 model: model,
                 targetLanguage: targetLanguage
             )
             loadConfiguration()
             statusMessage = apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? "已清除本地 DeepSeek API Key。"
-                : "DeepSeek 配置已保存，翻译和邮件助手都会同步使用。"
+                ? "已清除本地 AI API Key。"
+                : "AI 配置已保存，翻译和邮件助手都会同步使用。"
         } catch {
             statusMessage = error.localizedDescription
         }
@@ -846,11 +918,7 @@ struct HiddenSpaceSettingsDetailView: View {
             }
 
             Section(
-                header: Text("javdb"),
-                footer: VStack(alignment: .leading, spacing: 4) {
-                    Text("支持直接输入域名或完整 URL；留空时回退默认域名。")
-                    Text("当前生效：\(HiddenMissAVDomainConfiguration.resolvedHost(from: missAVDomain))")
-                }
+                header: Text("javdb")
             ) {
                 Picker("默认随机模式", selection: $javDBRandomMode) {
                     ForEach(HiddenJavDBRandomMode.allCases) { mode in
@@ -859,7 +927,15 @@ struct HiddenSpaceSettingsDetailView: View {
                 }
 
                 Toggle("默认展开详细信息", isOn: $showJavDBDetailsByDefault)
+            }
 
+            Section(
+                header: Text("MissAV"),
+                footer: VStack(alignment: .leading, spacing: 4) {
+                    Text("支持直接输入域名或完整 URL；留空时回退默认域名。")
+                    Text("当前生效：\(HiddenMissAVDomainConfiguration.resolvedHost(from: missAVDomain))")
+                }
+            ) {
                 TextField("miss 域名，例如 missav.ai", text: $missAVDomain)
                     .textInputAutocapitalization(.never)
                     .disableAutocorrection(true)

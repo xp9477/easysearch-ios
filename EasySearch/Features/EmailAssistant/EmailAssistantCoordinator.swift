@@ -14,13 +14,13 @@ enum EmailAssistantError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingAPIKey:
-            return "请先到设置页配置 DeepSeek API Key。"
+            return "请先到设置页配置 AI API Key。"
         case .emptyContext:
             return "请先输入草稿、来信，或在下方写要求。"
         case .emptyResponse:
-            return "DeepSeek 没有返回可用内容，请稍后再试。"
+            return "AI 服务没有返回可用内容，请稍后再试。"
         case .invalidResponse:
-            return "DeepSeek 返回了无法识别的结果。"
+            return "AI 服务返回了无法识别的结果。"
         case let .serverError(message):
             return message
         case let .networkError(message):

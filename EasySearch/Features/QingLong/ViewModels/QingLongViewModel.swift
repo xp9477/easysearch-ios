@@ -19,6 +19,25 @@ enum QingLongCronFilter: String, CaseIterable, Identifiable {
     }
 }
 
+enum QingLongSubscriptionFilter: String, CaseIterable, Identifiable {
+    case all
+    case running
+    case disabled
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .all:
+            return "全部"
+        case .running:
+            return "拉取中"
+        case .disabled:
+            return "已禁用"
+        }
+    }
+}
+
 enum QingLongLinkedEnvironmentStatus: Hashable {
     case missing
     case empty
@@ -101,6 +120,12 @@ struct QingLongCronLog: Identifiable, Hashable {
     let content: String
 }
 
+struct QingLongSubscriptionLog: Identifiable, Hashable {
+    let id: Int
+    let title: String
+    let content: String
+}
+
 enum QingLongStatusTone: Hashable {
     case success
     case info
@@ -124,9 +149,12 @@ final class QingLongViewModel: ObservableObject {
     @Published var draftClientSecret = ""
     @Published var cronSearchText = ""
     @Published var cronFilter: QingLongCronFilter = .all
+    @Published var subscriptionSearchText = ""
+    @Published var subscriptionFilter: QingLongSubscriptionFilter = .all
     @Published private(set) var profile: QingLongPanelProfile?
     @Published private(set) var environments: [QingLongEnvironment] = []
     @Published private(set) var crons: [QingLongCron] = []
+    @Published private(set) var subscriptions: [QingLongSubscription] = []
     @Published private(set) var lastRefreshedAt: Date?
     @Published private(set) var isPreparing = false
     @Published private(set) var isConnecting = false
@@ -134,9 +162,12 @@ final class QingLongViewModel: ObservableObject {
     @Published private(set) var isRunningDiagnostics = false
     @Published private(set) var pendingEnvironmentIDs: Set<Int> = []
     @Published private(set) var pendingCronIDs: Set<Int> = []
+    @Published private(set) var pendingSubscriptionIDs: Set<Int> = []
     @Published private(set) var loadingCronLogID: Int?
+    @Published private(set) var loadingSubscriptionLogID: Int?
     @Published private(set) var statusState: QingLongStatusState?
     @Published var selectedCronLog: QingLongCronLog?
+    @Published var selectedSubscriptionLog: QingLongSubscriptionLog?
     @Published var diagnosticReport: QingLongDiagnosticReport?
 
     var isBusy: Bool {
@@ -145,8 +176,10 @@ final class QingLongViewModel: ObservableObject {
             isRefreshing ||
             isRunningDiagnostics ||
             loadingCronLogID != nil ||
+            loadingSubscriptionLogID != nil ||
             !pendingEnvironmentIDs.isEmpty ||
-            !pendingCronIDs.isEmpty
+            !pendingCronIDs.isEmpty ||
+            !pendingSubscriptionIDs.isEmpty
     }
 
     var filteredCrons: [QingLongCron] {
@@ -175,6 +208,36 @@ final class QingLongViewModel: ObservableObject {
                 cron.labels.joined(separator: " "),
                 cron.scriptEnvironmentKey ?? "",
                 linkedEnvironment?.primaryEnvironment?.remarks ?? ""
+            ]
+            .joined(separator: " ")
+            .localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    var filteredSubscriptions: [QingLongSubscription] {
+        let query = normalizedQuery(subscriptionSearchText)
+
+        return subscriptions.filter { subscription in
+            let matchesFilter: Bool
+            switch subscriptionFilter {
+            case .all:
+                matchesFilter = true
+            case .running:
+                matchesFilter = subscription.isRunning || subscription.isQueued
+            case .disabled:
+                matchesFilter = !subscription.isEnabled
+            }
+
+            guard matchesFilter else { return false }
+            guard !query.isEmpty else { return true }
+
+            return [
+                subscription.titleText,
+                subscription.alias,
+                subscription.typeText,
+                subscription.url,
+                subscription.branch,
+                subscription.scheduleText
             ]
             .joined(separator: " ")
             .localizedCaseInsensitiveContains(query)
@@ -214,7 +277,7 @@ final class QingLongViewModel: ObservableObject {
             rememberCurrentDraftsAsSaved()
             await HiddenCloudSyncViewModel.shared.syncQingLongProfileUpsertIfPossible(snapshot.profile)
             setStatus(
-                "已连接 \(snapshot.profile.displayName)，已同步 \(snapshot.environments.count) 个变量和 \(snapshot.crons.count) 个任务。",
+                "已连接 \(snapshot.profile.displayName)，已同步 \(snapshot.environments.count) 个变量、\(snapshot.crons.count) 个任务和 \(snapshot.subscriptions.count) 个订阅。",
                 tone: .success
             )
         } catch {
@@ -253,6 +316,7 @@ final class QingLongViewModel: ObservableObject {
         profile = nil
         environments = []
         crons = []
+        subscriptions = []
         lastRefreshedAt = nil
         draftBaseURL = ""
         draftClientID = ""
@@ -262,11 +326,16 @@ final class QingLongViewModel: ObservableObject {
         savedClientSecret = ""
         pendingEnvironmentIDs = []
         pendingCronIDs = []
+        pendingSubscriptionIDs = []
         loadingCronLogID = nil
+        loadingSubscriptionLogID = nil
         selectedCronLog = nil
+        selectedSubscriptionLog = nil
         diagnosticReport = nil
         cronSearchText = ""
         cronFilter = .all
+        subscriptionSearchText = ""
+        subscriptionFilter = .all
         if let disconnectedProfile {
             await HiddenCloudSyncViewModel.shared.syncQingLongProfileDeletionIfPossible(profileID: disconnectedProfile.id)
         }
@@ -426,6 +495,48 @@ final class QingLongViewModel: ObservableObject {
         }
     }
 
+    func runSubscription(_ subscription: QingLongSubscription) async {
+        pendingSubscriptionIDs.insert(subscription.id)
+        defer { pendingSubscriptionIDs.remove(subscription.id) }
+
+        do {
+            try await QingLongService.shared.runSubscription(id: subscription.id)
+            replaceSubscription(subscription.id) { $0.updatingRunning(true) }
+            setStatus("已触发 \(subscription.titleText) 拉取。", tone: .success)
+            scheduleBackgroundRefresh()
+        } catch {
+            presentError(error)
+        }
+    }
+
+    func stopSubscription(_ subscription: QingLongSubscription) async {
+        pendingSubscriptionIDs.insert(subscription.id)
+        defer { pendingSubscriptionIDs.remove(subscription.id) }
+
+        do {
+            try await QingLongService.shared.stopSubscription(id: subscription.id)
+            replaceSubscription(subscription.id) { $0.updatingRunning(false) }
+            setStatus("已停止 \(subscription.titleText) 拉取。", tone: .success)
+            scheduleBackgroundRefresh()
+        } catch {
+            presentError(error)
+        }
+    }
+
+    func setSubscriptionEnabled(_ subscription: QingLongSubscription, enabled: Bool) async {
+        pendingSubscriptionIDs.insert(subscription.id)
+        defer { pendingSubscriptionIDs.remove(subscription.id) }
+
+        do {
+            try await QingLongService.shared.setSubscriptionEnabled(id: subscription.id, enabled: enabled)
+            replaceSubscription(subscription.id) { $0.updatingEnabled(enabled) }
+            setStatus(enabled ? "已启用 \(subscription.titleText)" : "已禁用 \(subscription.titleText)", tone: .success)
+            scheduleBackgroundRefresh()
+        } catch {
+            presentError(error)
+        }
+    }
+
     func loadCronLog(_ cron: QingLongCron) async {
         loadingCronLogID = cron.id
         selectedCronLog = QingLongCronLog(id: cron.id, title: cron.primaryTitle, content: "日志加载中...")
@@ -456,6 +567,31 @@ final class QingLongViewModel: ObservableObject {
             path: scriptLocation.path,
             fileName: scriptLocation.fileName
         )
+    }
+
+    func loadSubscriptionLog(_ subscription: QingLongSubscription) async {
+        loadingSubscriptionLogID = subscription.id
+        selectedSubscriptionLog = QingLongSubscriptionLog(id: subscription.id, title: subscription.titleText, content: "日志加载中...")
+        defer {
+            if loadingSubscriptionLogID == subscription.id {
+                loadingSubscriptionLogID = nil
+            }
+        }
+
+        do {
+            let logText = try await QingLongService.shared.fetchSubscriptionLog(id: subscription.id)
+            selectedSubscriptionLog = QingLongSubscriptionLog(
+                id: subscription.id,
+                title: subscription.titleText,
+                content: logText.isEmpty ? "当前没有可显示的日志内容。" : logText
+            )
+        } catch {
+            selectedSubscriptionLog = QingLongSubscriptionLog(
+                id: subscription.id,
+                title: subscription.titleText,
+                content: error.localizedDescription
+            )
+        }
     }
 
     func makeCronEditor(for cron: QingLongCron) -> QingLongCronEditorContext {
@@ -500,6 +636,14 @@ final class QingLongViewModel: ObservableObject {
         loadingCronLogID == cronID
     }
 
+    func isSubscriptionPending(_ subscriptionID: Int) -> Bool {
+        pendingSubscriptionIDs.contains(subscriptionID)
+    }
+
+    func isLoadingSubscriptionLog(for subscriptionID: Int) -> Bool {
+        loadingSubscriptionLogID == subscriptionID
+    }
+
     func discardDraftChanges() {
         draftBaseURL = savedBaseURLString
         draftClientID = savedClientID
@@ -536,6 +680,12 @@ final class QingLongViewModel: ObservableObject {
             .sorted(by: QingLongCron.sort(lhs:rhs:))
     }
 
+    private func replaceSubscription(_ id: Int, transform: (QingLongSubscription) -> QingLongSubscription) {
+        subscriptions = subscriptions
+            .map { $0.id == id ? transform($0) : $0 }
+            .sorted(by: QingLongSubscription.sort(lhs:rhs:))
+    }
+
     private func applyStoredConfiguration(_ configuration: QingLongStoredConfiguration) {
         profile = configuration.profile
         draftBaseURL = configuration.profile?.baseURL.absoluteString ?? ""
@@ -551,6 +701,7 @@ final class QingLongViewModel: ObservableObject {
         draftBaseURL = snapshot.profile.baseURL.absoluteString
         environments = snapshot.environments
         crons = snapshot.crons
+        subscriptions = snapshot.subscriptions
         lastRefreshedAt = snapshot.fetchedAt
     }
 

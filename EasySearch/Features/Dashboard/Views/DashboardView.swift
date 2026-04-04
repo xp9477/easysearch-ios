@@ -10,6 +10,7 @@ public struct DashboardView: View {
     private let isTabActive: Bool
     @StateObject private var hidden4KHDViewModel = HiddenSpaceViewModel()
     @StateObject private var hiddenJavDBViewModel = HiddenJavDBViewModel()
+    @StateObject private var hiddenMissAVViewModel = HiddenMissAVViewModel()
     @StateObject private var hiddenPresentationState = HiddenSpacePresentationState()
     @State private var path = NavigationPath()
     @State private var savedHiddenSpacePath = NavigationPath()
@@ -197,7 +198,11 @@ public struct DashboardView: View {
         case .fourKHD:
             Hidden4KHDFeatureView(viewModel: hidden4KHDViewModel)
         case .fourKHDFavorites:
-            HiddenFavoriteAlbumsView(viewModel: hidden4KHDViewModel, presentationState: hiddenPresentationState)
+            Hidden4KHDFavoritesView(viewModel: hidden4KHDViewModel, presentationState: hiddenPresentationState)
+        case .fourKHDFavoriteImages:
+            HiddenFavoriteImagesView(viewModel: hidden4KHDViewModel, presentationState: hiddenPresentationState)
+        case .fourKHDFavoriteAlbums:
+            HiddenFavoriteAlbumsView(viewModel: hidden4KHDViewModel)
         case let .fourKHDAlbum(album):
             HiddenAlbumDetailView(album: album, viewModel: hidden4KHDViewModel, presentationState: hiddenPresentationState)
         case .javDB:
@@ -206,6 +211,16 @@ public struct DashboardView: View {
             HiddenJavDBFavoriteMoviesView(viewModel: hiddenJavDBViewModel, presentationState: hiddenPresentationState)
         case let .javDBMovie(movie):
             HiddenJavDBMovieDetailView(movie: movie, viewModel: hiddenJavDBViewModel, presentationState: hiddenPresentationState)
+        case .missAV:
+            HiddenMissAVFeatureView(viewModel: hiddenMissAVViewModel)
+        case let .missAVSection(title, url):
+            HiddenMissAVSectionPageView(title: title, url: url, viewModel: hiddenMissAVViewModel)
+        case .missAVFavorites:
+            HiddenMissAVFavoritesView(viewModel: hiddenMissAVViewModel)
+        case .missAVHistory:
+            HiddenMissAVFeatureView(viewModel: hiddenMissAVViewModel)
+        case let .missAVMovie(movie):
+            HiddenMissAVMovieDetailView(movie: movie, viewModel: hiddenMissAVViewModel)
         }
     }
 
@@ -235,23 +250,30 @@ public struct DashboardView: View {
     }
 }
 
-private enum HiddenSpaceRoute: Hashable {
+enum HiddenSpaceRoute: Hashable {
     case settings
     case fourKHD
     case fourKHDFavorites
+    case fourKHDFavoriteImages
+    case fourKHDFavoriteAlbums
     case fourKHDAlbum(HiddenAlbum)
     case javDB
     case javDBFavorites
     case javDBMovie(HiddenJavDBMovie)
+    case missAV
+    case missAVSection(title: String, url: URL)
+    case missAVFavorites
+    case missAVHistory
+    case missAVMovie(HiddenMissAVMovie)
 }
 
 private enum HiddenSpacePresentedModal: Hashable {
-    case favoriteAlbumsPreview(PreviewImage)
+    case fourKHDFavoritesPreview(PreviewImage)
     case albumDetailPreview(albumID: String, preview: PreviewImage)
-    case javDBFavoritesPlayer(HiddenInAppPlayerItem)
+    case javDBFavoritesPlayer(HiddenSharedPlayerItem)
     case javDBMoviePreview(movieID: String, preview: HiddenJavDBPreviewImage)
-    case javDBMoviePlayer(movieID: String, item: HiddenInAppPlayerItem)
-    case javDBMovieWebPage(movieID: String, item: HiddenInAppWebPageItem)
+    case javDBMoviePlayer(movieID: String, item: HiddenSharedPlayerItem)
+    case javDBMovieWebPage(movieID: String, item: HiddenSharedWebPageItem)
 }
 
 @MainActor
@@ -270,6 +292,11 @@ struct HiddenSpaceView: View {
 
                 NavigationLink(value: HiddenSpaceRoute.javDB) {
                     javDBFeatureCard
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink(value: HiddenSpaceRoute.missAV) {
+                    missAVFeatureCard
                 }
                 .buttonStyle(.plain)
             }
@@ -337,6 +364,39 @@ struct HiddenSpaceView: View {
                     .font(.headline)
                     .foregroundStyle(.primary)
                 Text("随机影片、喜欢影片、详情信息（默认折叠）")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
+    }
+
+    private var missAVFeatureCard: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(.tertiarySystemFill))
+                    .frame(width: 54, height: 54)
+                Image(systemName: "play.tv")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.primary)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("MissAV")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Text("首页分区、搜索、详情、原生播放、收藏、历史")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -637,23 +697,14 @@ private struct Hidden4KHDFeatureView: View {
     }
 }
 
-private struct HiddenFavoriteAlbumsView: View {
+private struct Hidden4KHDFavoritesView: View {
     @ObservedObject var viewModel: HiddenSpaceViewModel
     @ObservedObject var presentationState: HiddenSpacePresentationState
     @State private var randomFavoriteImageURL: URL?
-    @State private var randomFavoritePool: [URL] = []
+    @State private var randomFavoritePreviewPool: [URL] = []
+    @State private var randomFavoriteSourceLabel: String?
     @State private var isLoadingRandomFavorite = false
     @State private var randomFavoriteError: String?
-
-    private let albumColumns = [
-        GridItem(.flexible(), spacing: 10),
-        GridItem(.flexible(), spacing: 10)
-    ]
-    private let imageColumns = [
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8)
-    ]
 
     var body: some View {
         ScrollView {
@@ -670,44 +721,7 @@ private struct HiddenFavoriteAlbumsView: View {
             } else {
                 VStack(alignment: .leading, spacing: 14) {
                     randomFavoriteCard
-
-                    if !viewModel.favoriteImageURLs.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("喜欢的图片")
-                                .font(.headline)
-
-                            LazyVGrid(columns: imageColumns, spacing: 8) {
-                                ForEach(Array(viewModel.favoriteImageURLs.enumerated()), id: \.offset) { index, imageURL in
-                                    AlbumGridImageTile(
-                                        url: imageURL,
-                                        isFavorite: true,
-                                        onPreview: {
-                                            previewImage = PreviewImage(index: index, urls: viewModel.favoriteImageURLs)
-                                        },
-                                        onToggleFavorite: {
-                                            viewModel.toggleFavoriteImage(imageURL)
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    if !viewModel.favoriteAlbums.isEmpty {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("喜欢的 album")
-                                .font(.headline)
-
-                            LazyVGrid(columns: albumColumns, spacing: 10) {
-                                ForEach(viewModel.favoriteAlbums) { album in
-                                    NavigationLink(value: HiddenSpaceRoute.fourKHDAlbum(album)) {
-                                        FavoriteAlbumTile(album: album)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                    }
+                    favoriteCollectionsSection
                 }
                 .padding(.horizontal, 12)
                 .padding(.top, 12)
@@ -719,7 +733,8 @@ private struct HiddenFavoriteAlbumsView: View {
         .task(id: viewModel.totalFavoritesCount) {
             guard viewModel.totalFavoritesCount > 0 else {
                 randomFavoriteImageURL = nil
-                randomFavoritePool = []
+                randomFavoritePreviewPool = []
+                randomFavoriteSourceLabel = nil
                 randomFavoriteError = nil
                 return
             }
@@ -748,15 +763,23 @@ private struct HiddenFavoriteAlbumsView: View {
 
             if let imageURL = randomFavoriteImageURL {
                 Button {
+                    let previewPool = randomFavoritePreviewPool.isEmpty ? [imageURL] : randomFavoritePreviewPool
                     let normalized = HiddenSpaceAPI.normalizeImageURL(imageURL).absoluteString
-                    let index = randomFavoritePool.firstIndex(where: { $0.absoluteString == normalized }) ?? 0
-                    previewImage = PreviewImage(index: index, urls: randomFavoritePool)
+                    let index = previewPool.firstIndex(where: { $0.absoluteString == normalized }) ?? 0
+                    previewImage = PreviewImage(index: index, urls: previewPool)
                 } label: {
                     AsyncCoverImage(url: imageURL, fitToContainer: true)
-                        .frame(height: 220)
+                        .frame(height: 300)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
                 .buttonStyle(.plain)
+
+                if let randomFavoriteSourceLabel {
+                    Text(randomFavoriteSourceLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
 
                 Button {
                     Task {
@@ -803,6 +826,38 @@ private struct HiddenFavoriteAlbumsView: View {
         )
     }
 
+    @ViewBuilder
+    private var favoriteCollectionsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("分类查看")
+                .font(.headline)
+
+            if !viewModel.favoriteImageURLs.isEmpty {
+                NavigationLink(value: HiddenSpaceRoute.fourKHDFavoriteImages) {
+                    HiddenFavoriteSectionLinkCard(
+                        title: "喜欢的图片",
+                        subtitle: "进入子页分页查看，避免总览页一次性加载全部图片",
+                        countText: "\(viewModel.favoriteImageURLs.count)",
+                        systemImage: "photo.stack"
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+
+            if !viewModel.favoriteAlbums.isEmpty {
+                NavigationLink(value: HiddenSpaceRoute.fourKHDFavoriteAlbums) {
+                    HiddenFavoriteSectionLinkCard(
+                        title: "喜欢的 album",
+                        subtitle: "进入子页分页查看 album，按页控制封面数量",
+                        countText: "\(viewModel.favoriteAlbums.count)",
+                        systemImage: "square.stack.3d.up"
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
     private func loadRandomFavorite(force: Bool) async {
         if !force, randomFavoriteImageURL != nil {
             return
@@ -820,22 +875,25 @@ private struct HiddenFavoriteAlbumsView: View {
 
         do {
             let selection = try await viewModel.fetchRandomFavoriteImageSelection()
-            randomFavoritePool = selection.pool
+            randomFavoritePreviewPool = selection.previewPool
             randomFavoriteImageURL = selection.selected
+            randomFavoriteSourceLabel = selection.sourceLabel
+            viewModel.prefetchImages(Array(selection.previewPool.prefix(6)))
         } catch {
-            randomFavoritePool = []
+            randomFavoritePreviewPool = []
             randomFavoriteImageURL = nil
+            randomFavoriteSourceLabel = nil
             randomFavoriteError = error.localizedDescription
         }
     }
 
     private var previewImage: PreviewImage? {
         get {
-            guard case let .favoriteAlbumsPreview(preview) = presentationState.modal else { return nil }
+            guard case let .fourKHDFavoritesPreview(preview) = presentationState.modal else { return nil }
             return preview
         }
         nonmutating set {
-            presentationState.modal = newValue.map(HiddenSpacePresentedModal.favoriteAlbumsPreview)
+            presentationState.modal = newValue.map(HiddenSpacePresentedModal.fourKHDFavoritesPreview)
         }
     }
 
@@ -844,6 +902,309 @@ private struct HiddenFavoriteAlbumsView: View {
             get: { previewImage },
             set: { previewImage = $0 }
         )
+    }
+}
+
+private struct HiddenFavoriteImagesView: View {
+    @ObservedObject var viewModel: HiddenSpaceViewModel
+    @ObservedObject var presentationState: HiddenSpacePresentationState
+    @State private var currentPage = 0
+
+    private let imageColumns = [
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8)
+    ]
+    private let pageSize = 30
+
+    var body: some View {
+        ScrollView {
+            if viewModel.favoriteImageURLs.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Text("还没有喜欢的图片")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 220)
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("喜欢的图片")
+                            .font(.headline)
+                        Spacer()
+                        Text("\(viewModel.favoriteImageURLs.count) 张")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HiddenPagedFavoritesControls(
+                        pageText: "第 \(effectivePage + 1) / \(pageCount) 页",
+                        visibleRangeText: "显示 \(visibleRangeText)",
+                        canGoPrevious: effectivePage > 0,
+                        canGoNext: effectivePage < pageCount - 1,
+                        onPrevious: { currentPage = max(effectivePage - 1, 0) },
+                        onNext: { currentPage = min(effectivePage + 1, pageCount - 1) }
+                    )
+
+                    LazyVGrid(columns: imageColumns, spacing: 8) {
+                        ForEach(Array(currentPageImageURLs.enumerated()), id: \.offset) { offset, imageURL in
+                            let globalIndex = currentRange.lowerBound + offset
+                            AlbumGridImageTile(
+                                url: imageURL,
+                                isFavorite: true,
+                                onPreview: {
+                                    previewImage = PreviewImage(index: globalIndex, urls: viewModel.favoriteImageURLs)
+                                },
+                                onToggleFavorite: {
+                                    viewModel.toggleFavoriteImage(imageURL)
+                                }
+                            )
+                        }
+                    }
+
+                    HiddenPagedFavoritesControls(
+                        pageText: "第 \(effectivePage + 1) / \(pageCount) 页",
+                        visibleRangeText: "显示 \(visibleRangeText)",
+                        canGoPrevious: effectivePage > 0,
+                        canGoNext: effectivePage < pageCount - 1,
+                        onPrevious: { currentPage = max(effectivePage - 1, 0) },
+                        onNext: { currentPage = min(effectivePage + 1, pageCount - 1) }
+                    )
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
+            }
+        }
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .navigationTitle("喜欢图片")
+        .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: viewModel.favoriteImageURLs.count) { _ in
+            currentPage = min(currentPage, max(pageCount - 1, 0))
+        }
+        .task(id: effectivePage) {
+            guard !currentPageImageURLs.isEmpty else { return }
+            viewModel.prefetchImages(Array(currentPageImageURLs.prefix(8)))
+        }
+        .fullScreenCover(item: previewImageBinding) { preview in
+            HiddenImagePreviewView(
+                imageURLs: preview.urls,
+                initialIndex: preview.index,
+                viewModel: viewModel
+            )
+        }
+    }
+
+    private var pageCount: Int {
+        max(Int(ceil(Double(viewModel.favoriteImageURLs.count) / Double(pageSize))), 1)
+    }
+
+    private var effectivePage: Int {
+        min(max(currentPage, 0), max(pageCount - 1, 0))
+    }
+
+    private var currentRange: Range<Int> {
+        let start = effectivePage * pageSize
+        let end = min(start + pageSize, viewModel.favoriteImageURLs.count)
+        return start..<end
+    }
+
+    private var currentPageImageURLs: [URL] {
+        Array(viewModel.favoriteImageURLs[currentRange])
+    }
+
+    private var visibleRangeText: String {
+        "\(currentRange.lowerBound + 1)-\(currentRange.upperBound) / \(viewModel.favoriteImageURLs.count) 张"
+    }
+
+    private var previewImage: PreviewImage? {
+        get {
+            guard case let .fourKHDFavoritesPreview(preview) = presentationState.modal else { return nil }
+            return preview
+        }
+        nonmutating set {
+            presentationState.modal = newValue.map(HiddenSpacePresentedModal.fourKHDFavoritesPreview)
+        }
+    }
+
+    private var previewImageBinding: Binding<PreviewImage?> {
+        Binding(
+            get: { previewImage },
+            set: { previewImage = $0 }
+        )
+    }
+}
+
+private struct HiddenFavoriteAlbumsView: View {
+    @ObservedObject var viewModel: HiddenSpaceViewModel
+    @State private var currentPage = 0
+
+    private let albumColumns = [
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10)
+    ]
+    private let pageSize = 18
+
+    var body: some View {
+        ScrollView {
+            if viewModel.favoriteAlbums.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "square.stack.3d.up.slash")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Text("还没有喜欢的 album")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 220)
+            } else {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("喜欢的 album")
+                            .font(.headline)
+                        Spacer()
+                        Text("\(viewModel.favoriteAlbums.count) 个")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HiddenPagedFavoritesControls(
+                        pageText: "第 \(effectivePage + 1) / \(pageCount) 页",
+                        visibleRangeText: "显示 \(visibleRangeText)",
+                        canGoPrevious: effectivePage > 0,
+                        canGoNext: effectivePage < pageCount - 1,
+                        onPrevious: { currentPage = max(effectivePage - 1, 0) },
+                        onNext: { currentPage = min(effectivePage + 1, pageCount - 1) }
+                    )
+
+                    LazyVGrid(columns: albumColumns, spacing: 10) {
+                        ForEach(currentPageAlbums) { album in
+                            NavigationLink(value: HiddenSpaceRoute.fourKHDAlbum(album)) {
+                                FavoriteAlbumTile(album: album)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    HiddenPagedFavoritesControls(
+                        pageText: "第 \(effectivePage + 1) / \(pageCount) 页",
+                        visibleRangeText: "显示 \(visibleRangeText)",
+                        canGoPrevious: effectivePage > 0,
+                        canGoNext: effectivePage < pageCount - 1,
+                        onPrevious: { currentPage = max(effectivePage - 1, 0) },
+                        onNext: { currentPage = min(effectivePage + 1, pageCount - 1) }
+                    )
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
+            }
+        }
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .navigationTitle("喜欢 album")
+        .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: viewModel.favoriteAlbums.count) { _ in
+            currentPage = min(currentPage, max(pageCount - 1, 0))
+        }
+    }
+
+    private var pageCount: Int {
+        max(Int(ceil(Double(viewModel.favoriteAlbums.count) / Double(pageSize))), 1)
+    }
+
+    private var effectivePage: Int {
+        min(max(currentPage, 0), max(pageCount - 1, 0))
+    }
+
+    private var currentRange: Range<Int> {
+        let start = effectivePage * pageSize
+        let end = min(start + pageSize, viewModel.favoriteAlbums.count)
+        return start..<end
+    }
+
+    private var currentPageAlbums: [HiddenAlbum] {
+        Array(viewModel.favoriteAlbums[currentRange])
+    }
+
+    private var visibleRangeText: String {
+        "\(currentRange.lowerBound + 1)-\(currentRange.upperBound) / \(viewModel.favoriteAlbums.count) 个"
+    }
+}
+
+private struct HiddenFavoriteSectionLinkCard: View {
+    let title: String
+    let subtitle: String
+    let countText: String
+    let systemImage: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.primary)
+                .frame(width: 42, height: 42)
+                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(countText)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
+    }
+}
+
+private struct HiddenPagedFavoritesControls: View {
+    let pageText: String
+    let visibleRangeText: String
+    let canGoPrevious: Bool
+    let canGoNext: Bool
+    let onPrevious: () -> Void
+    let onNext: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(pageText)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text(visibleRangeText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button("上一页", action: onPrevious)
+                .buttonStyle(.bordered)
+                .disabled(!canGoPrevious)
+
+            Button("下一页", action: onNext)
+                .buttonStyle(.borderedProminent)
+                .disabled(!canGoNext)
+        }
     }
 }
 
@@ -879,6 +1240,17 @@ enum HiddenRandomMode: String, CaseIterable, Identifiable {
             return "正在抓取随机 9 张..."
         }
     }
+}
+
+private struct HiddenFavoriteImageSelection {
+    let selected: URL
+    let previewPool: [URL]
+    let sourceLabel: String
+}
+
+private enum HiddenFavoriteImageSource {
+    case directImage(URL)
+    case album(HiddenAlbum)
 }
 
 @MainActor
@@ -1052,16 +1424,39 @@ private final class HiddenSpaceViewModel: ObservableObject {
         return favoriteImageURLs.contains(where: { $0.absoluteString == target })
     }
 
-    func fetchRandomFavoriteImageSelection() async throws -> (selected: URL, pool: [URL]) {
-        let pool = await buildFavoriteImagePool()
-        guard let selected = pool.randomElement() else {
-            throw NSError(
-                domain: "HiddenSpaceViewModel",
-                code: -2,
-                userInfo: [NSLocalizedDescriptionKey: "喜欢列表里还没有可用图片"]
-            )
+    func fetchRandomFavoriteImageSelection() async throws -> HiddenFavoriteImageSelection {
+        let directImages = deduplicatedImageURLs(favoriteImageURLs)
+        var candidates: [HiddenFavoriteImageSource] = directImages.map(HiddenFavoriteImageSource.directImage)
+        candidates.append(contentsOf: favoriteAlbums.map(HiddenFavoriteImageSource.album))
+
+        guard !candidates.isEmpty else {
+            throw emptyFavoriteImageError()
         }
-        return (selected, pool)
+
+        for source in candidates.shuffled() {
+            switch source {
+            case let .directImage(imageURL):
+                return HiddenFavoriteImageSelection(
+                    selected: imageURL,
+                    previewPool: directImages,
+                    sourceLabel: "来自喜欢的图片"
+                )
+            case let .album(album):
+                do {
+                    let albumImages = try await favoriteImages(for: album)
+                    guard let selected = albumImages.randomElement() else { continue }
+                    return HiddenFavoriteImageSelection(
+                        selected: selected,
+                        previewPool: albumImages,
+                        sourceLabel: "来自 album：\(album.title)"
+                    )
+                } catch {
+                    continue
+                }
+            }
+        }
+
+        throw emptyFavoriteImageError()
     }
 
     func prefetchImages(_ imageURLs: [URL]) {
@@ -1110,33 +1505,41 @@ private final class HiddenSpaceViewModel: ObservableObject {
         Hidden4KHDLocalStore.saveFavoriteImages(favoriteImageURLs)
     }
 
-    private func buildFavoriteImagePool() async -> [URL] {
-        var combined = favoriteImageURLs.map(HiddenSpaceAPI.normalizeImageURL)
-
-        for album in favoriteAlbums {
-            if let cached = favoriteAlbumImageCache[album.id] {
-                combined.append(contentsOf: cached)
-                continue
-            }
-
-            do {
-                let fetched = try await HiddenSpaceAPI.fetchAlbumImageURLs(albumURL: album.url)
-                    .map(HiddenSpaceAPI.normalizeImageURL)
-                favoriteAlbumImageCache[album.id] = fetched
-                combined.append(contentsOf: fetched)
-            } catch {
-                favoriteAlbumImageCache[album.id] = []
-            }
+    private func favoriteImages(for album: HiddenAlbum) async throws -> [URL] {
+        if let cached = favoriteAlbumImageCache[album.id] {
+            return cached
         }
 
+        do {
+            let fetched = try await HiddenSpaceAPI.fetchAlbumImageURLs(albumURL: album.url)
+                .map(HiddenSpaceAPI.normalizeImageURL)
+            let deduplicated = deduplicatedImageURLs(fetched)
+            favoriteAlbumImageCache[album.id] = deduplicated
+            return deduplicated
+        } catch {
+            favoriteAlbumImageCache[album.id] = []
+            throw error
+        }
+    }
+
+    private func deduplicatedImageURLs(_ imageURLs: [URL]) -> [URL] {
         var deduped: [URL] = []
         var seen = Set<String>()
-        for url in combined {
-            if seen.insert(url.absoluteString).inserted {
-                deduped.append(url)
+        for imageURL in imageURLs {
+            let normalized = HiddenSpaceAPI.normalizeImageURL(imageURL)
+            if seen.insert(normalized.absoluteString).inserted {
+                deduped.append(normalized)
             }
         }
         return deduped
+    }
+
+    private func emptyFavoriteImageError() -> NSError {
+        NSError(
+            domain: "HiddenSpaceViewModel",
+            code: -2,
+            userInfo: [NSLocalizedDescriptionKey: "喜欢列表里还没有可用图片"]
+        )
     }
 
     private func handleCloudMutationError(_ error: Error) {
@@ -1158,22 +1561,39 @@ private struct HiddenAlbumDetailView: View {
     @State private var imageAspectRatios: [String: CGFloat] = [:]
     @State private var lastPreviewedIndex: Int?
     @State private var pendingScrollIndex: Int?
+    @State private var visibleImageFrames: [Int: CGRect] = [:]
+    @State private var scrollViewportFrame: CGRect = .zero
 
     private let columnCount = 2
     private let columnSpacing: CGFloat = 10
     private let itemSpacing: CGFloat = 8
+    private let returnScrollViewportPadding: CGFloat = 72
 
     var body: some View {
         ScrollViewReader { scrollProxy in
-            GeometryReader { proxy in
+            GeometryReader { containerProxy in
                 ScrollView {
-                    content(availableWidth: max(proxy.size.width - 24, 0))
+                    content(availableWidth: max(containerProxy.size.width - 24, 0))
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 12)
+                .background(
+                    GeometryReader { viewportProxy in
+                        Color.clear.preference(
+                            key: HiddenAlbumDetailViewportPreferenceKey.self,
+                            value: viewportProxy.frame(in: .global)
+                        )
+                    }
+                )
                 .onChange(of: pendingScrollIndex) { index in
                     guard let index else { return }
                     scrollToImage(index, using: scrollProxy)
+                }
+                .onPreferenceChange(HiddenAlbumDetailImageFramePreferenceKey.self) { frames in
+                    visibleImageFrames = frames
+                }
+                .onPreferenceChange(HiddenAlbumDetailViewportPreferenceKey.self) { frame in
+                    scrollViewportFrame = frame
                 }
             }
         }
@@ -1273,6 +1693,14 @@ private struct HiddenAlbumDetailView: View {
                                     updateAspectRatio(ratio, for: item.url)
                                 }
                             )
+                            .background(
+                                GeometryReader { imageProxy in
+                                    Color.clear.preference(
+                                        key: HiddenAlbumDetailImageFramePreferenceKey.self,
+                                        value: [item.index: imageProxy.frame(in: .global)]
+                                    )
+                                }
+                            )
                             .id(item.index)
                         }
                     }
@@ -1285,9 +1713,37 @@ private struct HiddenAlbumDetailView: View {
 
     private func scrollToImage(_ index: Int, using scrollProxy: ScrollViewProxy) {
         DispatchQueue.main.async {
-            scrollProxy.scrollTo(index, anchor: .center)
+            let comfortableViewport = scrollViewportFrame.insetBy(dx: 0, dy: returnScrollViewportPadding)
+            if let targetFrame = visibleImageFrames[index],
+               comfortableViewport.intersects(targetFrame) {
+                pendingScrollIndex = nil
+                return
+            }
+
+            let anchor = preferredReturnAnchor(for: index)
+            withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.9, blendDuration: 0.12)) {
+                scrollProxy.scrollTo(index, anchor: anchor)
+            }
             pendingScrollIndex = nil
         }
+    }
+
+    private func preferredReturnAnchor(for index: Int) -> UnitPoint {
+        let visibleIndexes = visibleImageFrames.keys.sorted()
+
+        if let firstVisibleIndex = visibleIndexes.first, index < firstVisibleIndex {
+            return UnitPoint(x: 0.5, y: 0.16)
+        }
+
+        if let lastVisibleIndex = visibleIndexes.last, index > lastVisibleIndex {
+            return UnitPoint(x: 0.5, y: 0.84)
+        }
+
+        if let targetFrame = visibleImageFrames[index], targetFrame.midY < scrollViewportFrame.midY {
+            return UnitPoint(x: 0.5, y: 0.16)
+        }
+
+        return UnitPoint(x: 0.5, y: 0.84)
     }
 
     private func loadImages(force: Bool) async {
@@ -2036,6 +2492,22 @@ private struct AlbumGridImageTile: View {
 private struct HiddenWaterfallLayout {
     let columns: [[HiddenWaterfallItem]]
     let columnWidth: CGFloat
+}
+
+private struct HiddenAlbumDetailImageFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [Int: CGRect] = [:]
+
+    static func reduce(value: inout [Int: CGRect], nextValue: () -> [Int: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+private struct HiddenAlbumDetailViewportPreferenceKey: PreferenceKey {
+    static var defaultValue: CGRect = .zero
+
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        value = nextValue()
+    }
 }
 
 private struct HiddenWaterfallItem: Identifiable {
@@ -3178,13 +3650,40 @@ private struct HiddenJavDBFavoriteMoviesView: View {
         .navigationTitle("喜欢影片")
         .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(item: inAppPlayerItemBinding) { item in
-            HiddenInAppVideoPlayerView(
+            HiddenSharedVideoPlayerView(
                 item: item,
-                onSaveFavoritePlayback: { playback in
-                    viewModel.saveFavoritePlayback(playback)
+                onSavePlaybackPosition: { item, position in
+                    guard let movie = favoriteMovie(for: item) else {
+                        return HiddenPlaybackSaveResult(
+                            savedPositionSeconds: position,
+                            markerPositions: item.markerPositions,
+                            undo: { item.markerPositions }
+                        )
+                    }
+                    let playback = HiddenJavDBFavoritePlayback(
+                        movie: movie,
+                        sourceName: item.sourceName,
+                        streamURL: item.streamURL,
+                        refererURL: item.refererURL,
+                        positionSeconds: position
+                    )
+                    let context = viewModel.saveFavoritePlayback(playback)
+                    return HiddenPlaybackSaveResult(
+                        savedPositionSeconds: context.savedPlayback.positionSeconds,
+                        markerPositions: context.markerPositions,
+                        undo: { viewModel.undoFavoritePlaybackSave(context) }
+                    )
                 },
-                onUndoFavoritePlaybackSave: { context in
-                    viewModel.undoFavoritePlaybackSave(context)
+                onPlaybackClosed: { item, position in
+                    guard let movie = favoriteMovie(for: item) else { return }
+                    let playback = HiddenJavDBFavoritePlayback(
+                        movie: movie,
+                        sourceName: item.sourceName,
+                        streamURL: item.streamURL,
+                        refererURL: item.refererURL,
+                        positionSeconds: position
+                    )
+                    _ = viewModel.saveFavoritePlayback(playback)
                 }
             )
         }
@@ -3212,8 +3711,11 @@ private struct HiddenJavDBFavoriteMoviesView: View {
 
             do {
                 if let resolvedPlayback = try await resolvePreferredPlayback(for: movie) {
-                    inAppPlayerItem = HiddenInAppPlayerItem(
-                        movie: movie,
+                    inAppPlayerItem = HiddenSharedPlayerItem(
+                        resourceID: movie.id,
+                        title: movie.displayTitle,
+                        code: movie.code,
+                        coverURL: movie.coverURL,
                         sourceName: resolvedPlayback.sourceName,
                         streamURL: resolvedPlayback.streamURL,
                         refererURL: resolvedPlayback.refererURL,
@@ -3227,8 +3729,11 @@ private struct HiddenJavDBFavoriteMoviesView: View {
             }
 
             if let savedPlayback = viewModel.favoritePlaybacks(for: movie).first {
-                inAppPlayerItem = HiddenInAppPlayerItem(
-                    movie: movie,
+                inAppPlayerItem = HiddenSharedPlayerItem(
+                    resourceID: movie.id,
+                    title: movie.displayTitle,
+                    code: movie.code,
+                    coverURL: movie.coverURL,
                     sourceName: savedPlayback.sourceName,
                     streamURL: savedPlayback.streamURL,
                     refererURL: savedPlayback.refererURL,
@@ -3265,7 +3770,13 @@ private struct HiddenJavDBFavoriteMoviesView: View {
         return nil
     }
 
-    private var inAppPlayerItem: HiddenInAppPlayerItem? {
+    private func favoriteMovie(for item: HiddenSharedPlayerItem) -> HiddenJavDBMovie? {
+        viewModel.favoriteMovies.first {
+            $0.id == item.resourceID || $0.code.caseInsensitiveCompare(item.code) == .orderedSame
+        }
+    }
+
+    private var inAppPlayerItem: HiddenSharedPlayerItem? {
         get {
             guard case let .javDBFavoritesPlayer(item) = presentationState.modal else { return nil }
             return item
@@ -3275,7 +3786,7 @@ private struct HiddenJavDBFavoriteMoviesView: View {
         }
     }
 
-    private var inAppPlayerItemBinding: Binding<HiddenInAppPlayerItem?> {
+    private var inAppPlayerItemBinding: Binding<HiddenSharedPlayerItem?> {
         Binding(
             get: { inAppPlayerItem },
             set: { inAppPlayerItem = $0 }
@@ -3383,18 +3894,37 @@ private struct HiddenJavDBMovieDetailView: View {
             HiddenJavDBImagePreviewView(imageURLs: preview.urls, initialIndex: preview.index)
         }
         .fullScreenCover(item: inAppPlayerItemBinding) { item in
-            HiddenInAppVideoPlayerView(
+            HiddenSharedVideoPlayerView(
                 item: item,
-                onSaveFavoritePlayback: { playback in
-                    viewModel.saveFavoritePlayback(playback)
+                onSavePlaybackPosition: { item, position in
+                    let playback = HiddenJavDBFavoritePlayback(
+                        movie: movie,
+                        sourceName: item.sourceName,
+                        streamURL: item.streamURL,
+                        refererURL: item.refererURL,
+                        positionSeconds: position
+                    )
+                    let context = viewModel.saveFavoritePlayback(playback)
+                    return HiddenPlaybackSaveResult(
+                        savedPositionSeconds: context.savedPlayback.positionSeconds,
+                        markerPositions: context.markerPositions,
+                        undo: { viewModel.undoFavoritePlaybackSave(context) }
+                    )
                 },
-                onUndoFavoritePlaybackSave: { context in
-                    viewModel.undoFavoritePlaybackSave(context)
+                onPlaybackClosed: { item, position in
+                    let playback = HiddenJavDBFavoritePlayback(
+                        movie: movie,
+                        sourceName: item.sourceName,
+                        streamURL: item.streamURL,
+                        refererURL: item.refererURL,
+                        positionSeconds: position
+                    )
+                    _ = viewModel.saveFavoritePlayback(playback)
                 }
             )
         }
         .fullScreenCover(item: inAppWebPageItemBinding) { item in
-            HiddenInAppWebPageView(item: item)
+            HiddenSharedWebPageView(item: item)
         }
         .onReceive(NotificationCenter.default.publisher(for: .hiddenSpaceSettingsDidChange)) { _ in
             let settings = HiddenSpaceSettingsStore.shared.load()
@@ -3700,7 +4230,7 @@ private struct HiddenJavDBMovieDetailView: View {
                     startPositionSeconds: 0
                 )
             case let .webPage(webURL):
-                inAppWebPageItem = HiddenInAppWebPageItem(
+                inAppWebPageItem = HiddenSharedWebPageItem(
                     title: "\(site.name) · \(movie.code)",
                     url: webURL
                 )
@@ -3725,9 +4255,12 @@ private struct HiddenJavDBMovieDetailView: View {
         streamURL: URL,
         refererURL: URL,
         startPositionSeconds: Double
-    ) -> HiddenInAppPlayerItem {
-        HiddenInAppPlayerItem(
-            movie: movie,
+    ) -> HiddenSharedPlayerItem {
+        HiddenSharedPlayerItem(
+            resourceID: movie.id,
+            title: movie.displayTitle,
+            code: movie.code,
+            coverURL: movie.coverURL,
             sourceName: sourceName,
             streamURL: streamURL,
             refererURL: refererURL,
@@ -3747,7 +4280,7 @@ private struct HiddenJavDBMovieDetailView: View {
         }
     }
 
-    private var inAppPlayerItem: HiddenInAppPlayerItem? {
+    private var inAppPlayerItem: HiddenSharedPlayerItem? {
         get {
             guard case let .javDBMoviePlayer(movieID, item) = presentationState.modal,
                   movieID == movie.id else { return nil }
@@ -3758,7 +4291,7 @@ private struct HiddenJavDBMovieDetailView: View {
         }
     }
 
-    private var inAppWebPageItem: HiddenInAppWebPageItem? {
+    private var inAppWebPageItem: HiddenSharedWebPageItem? {
         get {
             guard case let .javDBMovieWebPage(movieID, item) = presentationState.modal,
                   movieID == movie.id else { return nil }
@@ -3776,14 +4309,14 @@ private struct HiddenJavDBMovieDetailView: View {
         )
     }
 
-    private var inAppPlayerItemBinding: Binding<HiddenInAppPlayerItem?> {
+    private var inAppPlayerItemBinding: Binding<HiddenSharedPlayerItem?> {
         Binding(
             get: { inAppPlayerItem },
             set: { inAppPlayerItem = $0 }
         )
     }
 
-    private var inAppWebPageItemBinding: Binding<HiddenInAppWebPageItem?> {
+    private var inAppWebPageItemBinding: Binding<HiddenSharedWebPageItem?> {
         Binding(
             get: { inAppWebPageItem },
             set: { inAppWebPageItem = $0 }
@@ -4319,7 +4852,6 @@ private struct HiddenJavDBWatchSite: Identifiable, Hashable {
     private static func normalizedCode(_ rawCode: String) -> String {
         rawCode
             .trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "_", with: "-")
             .uppercased()
     }
 
@@ -4355,13 +4887,18 @@ private struct HiddenInAppWebPageItem: Identifiable, Hashable {
 }
 
 private struct HiddenInAppVideoPlayerView: View {
+    private enum SurfaceInteractionMode {
+        case undecided
+        case brightnessAdjusting
+    }
+
     let item: HiddenInAppPlayerItem
     let onSaveFavoritePlayback: (HiddenJavDBFavoritePlayback) -> HiddenJavDBFavoritePlaybackSaveContext
     let onUndoFavoritePlaybackSave: (HiddenJavDBFavoritePlaybackSaveContext) -> [Double]
 
     @Environment(\.dismiss) private var dismiss
     @State private var player: AVPlayer
-    @State private var playbackRate: Float = 1.0
+    @State private var appliedPlaybackRate: Float = 1.0
     @State private var isMuted = true
     @State private var showUnmuteConfirm = false
     @State private var isPlaying = true
@@ -4377,11 +4914,26 @@ private struct HiddenInAppVideoPlayerView: View {
     @State private var recentlySavedPlaybackContext: HiddenJavDBFavoritePlaybackSaveContext?
     @State private var recentlySavedPosition: Double?
     @State private var favoriteUndoCountdown = 0
-    @State private var activeHoldPlaybackRate: Float?
+    @State private var isTemporaryBoostActive = false
+    @State private var playbackRateRampTask: Task<Void, Never>?
+    @State private var pendingBoostActivationTask: Task<Void, Never>?
+    @State private var activeTouchStartedAt: Date?
+    @State private var activeTouchStartLocation: CGPoint?
+    @State private var didActivateTouchBoost = false
+    @State private var surfaceInteractionMode: SurfaceInteractionMode = .undecided
+    @State private var touchStartBrightness: CGFloat?
+    @State private var displayedBrightness: CGFloat?
     @State private var didApplyInitialStartPosition = false
     @State private var markerPositions: [Double]
 
-    private let temporaryBoostRate: Float = 3.0
+    private let normalPlaybackRate: Float = 1.0
+    private let temporaryBoostRate: Float = 2.0
+    private let boostActivationDelay: TimeInterval = 0.18
+    private let boostActivationMaximumDistance: CGFloat = 36
+    private let tapMaximumDistance: CGFloat = 12
+    private let playbackRateRampDuration: TimeInterval = 0.28
+    private let brightnessGestureLeadingRegionRatio: CGFloat = 0.42
+    private let brightnessActivationMinimumDistance: CGFloat = 14
 
     init(
         item: HiddenInAppPlayerItem,
@@ -4416,9 +4968,14 @@ private struct HiddenInAppVideoPlayerView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
-                .onTapGesture {
-                    toggleControlsVisibility()
-                }
+
+            GeometryReader { proxy in
+                Color.clear
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .gesture(videoSurfaceGesture(in: proxy.size))
+            }
+            .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 topOverlay
@@ -4430,14 +4987,26 @@ private struct HiddenInAppVideoPlayerView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .opacity(controlsVisible ? 1 : 0)
             .allowsHitTesting(controlsVisible)
+
+            if shouldShowPlaybackRateHUD {
+                playbackRateHUD
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
+
+            if shouldShowBrightnessHUD {
+                brightnessHUD
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
         }
+        .animation(.easeInOut(duration: 0.18), value: shouldShowPlaybackRateHUD)
+        .animation(.easeInOut(duration: 0.18), value: shouldShowBrightnessHUD)
         .preferredColorScheme(.dark)
         .statusBarHidden(true)
         .onAppear {
             configureAudioSession()
             player.isMuted = true
-            player.defaultRate = effectivePlaybackRate
-            player.playImmediately(atRate: effectivePlaybackRate)
+            applyPlayerRateImmediately(normalPlaybackRate)
+            player.playImmediately(atRate: appliedPlaybackRate)
             syncPlaybackState()
             scheduleControlsAutoHide()
         }
@@ -4445,7 +5014,10 @@ private struct HiddenInAppVideoPlayerView: View {
             seekTask?.cancel()
             controlsAutoHideTask?.cancel()
             favoriteSaveResetTask?.cancel()
-            activeHoldPlaybackRate = nil
+            pendingBoostActivationTask?.cancel()
+            playbackRateRampTask?.cancel()
+            isTemporaryBoostActive = false
+            displayedBrightness = nil
             player.pause()
         }
         .task(id: item.id) {
@@ -4496,7 +5068,7 @@ private struct HiddenInAppVideoPlayerView: View {
                         HStack(spacing: 8) {
                             playerBadge(text: item.sourceName)
                             playerBadge(text: item.movie.code)
-                            playerBadge(text: formattedRate(effectivePlaybackRate))
+                            playerBadge(text: formattedRate(appliedPlaybackRate))
                             if !markerPositions.isEmpty {
                                 playerBadge(text: "\(markerPositions.count) 个点")
                             }
@@ -4613,24 +5185,12 @@ private struct HiddenInAppVideoPlayerView: View {
                                 .background(Color.white.opacity(0.12), in: Capsule())
                         }
                         .buttonStyle(.plain)
-
-                        Menu {
-                            speedButton(rate: 0.5, title: "0.5x")
-                            speedButton(rate: 1.0, title: "1x")
-                            speedButton(rate: 2.0, title: "2x")
-                            speedButton(rate: 4.0, title: "4x")
-                            speedButton(rate: 10.0, title: "10x")
-                        } label: {
-                            Label("倍速 \(formattedRate(playbackRate))", systemImage: "speedometer")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 10)
-                                .background(Color.white.opacity(0.12), in: Capsule())
-                        }
-
-                        holdSpeedButton
                     }
+
+                    Text("左侧上下滑动调亮度，长按画面可临时 2x 播放。")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.72))
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
                     if let recentlySavedPosition, recentlySavedPlaybackContext != nil {
                         HStack(spacing: 10) {
@@ -4684,33 +5244,75 @@ private struct HiddenInAppVideoPlayerView: View {
         .buttonStyle(.plain)
     }
 
-    private var holdSpeedButton: some View {
-        Text(activeHoldPlaybackRate == nil ? "按住 3x" : "3x 加速中")
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                Capsule()
-                    .fill(activeHoldPlaybackRate == nil ? Color.white.opacity(0.12) : Color.orange.opacity(0.72))
-            )
-            .contentShape(Capsule())
-            .onLongPressGesture(minimumDuration: 0.08, maximumDistance: 36, pressing: handleTemporaryBoostPressingChanged) {}
+    private var shouldShowPlaybackRateHUD: Bool {
+        abs(appliedPlaybackRate - normalPlaybackRate) > 0.05
     }
 
-    @ViewBuilder
-    private func speedButton(rate: Float, title: String) -> some View {
-        Button {
-            playbackRate = rate
-            applyPlaybackRate()
-        } label: {
-            HStack {
-                Text(title)
-                if abs(playbackRate - rate) < 0.001 {
-                    Image(systemName: "checkmark")
-                }
-            }
+    private var playbackRateHUD: some View {
+        VStack {
+            Text(formattedRate(appliedPlaybackRate))
+                .font(.subheadline.monospacedDigit().weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule()
+                        .fill(isTemporaryBoostActive ? Color.orange.opacity(0.86) : Color.black.opacity(0.56))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                )
+            Spacer()
         }
+        .padding(.top, controlsVisible ? 94 : 54)
+        .allowsHitTesting(false)
+    }
+
+    private var shouldShowBrightnessHUD: Bool {
+        displayedBrightness != nil
+    }
+
+    private var brightnessHUD: some View {
+        VStack {
+            Spacer()
+
+            HStack {
+                VStack(spacing: 10) {
+                    Image(systemName: "sun.max.fill")
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(.white)
+
+                    Text(formattedBrightness(displayedBrightness ?? UIScreen.main.brightness))
+                        .font(.caption.monospacedDigit().weight(.semibold))
+                        .foregroundStyle(.white)
+
+                    GeometryReader { proxy in
+                        ZStack(alignment: .bottom) {
+                            Capsule()
+                                .fill(Color.white.opacity(0.14))
+
+                            Capsule()
+                                .fill(Color.white)
+                                .frame(height: max(12, proxy.size.height * (displayedBrightness ?? UIScreen.main.brightness)))
+                        }
+                    }
+                    .frame(width: 8, height: 88)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 16)
+                .background(Color.black.opacity(0.58), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                )
+
+                Spacer()
+            }
+            .padding(.leading, 18)
+            .padding(.bottom, controlsVisible ? 168 : 84)
+        }
+        .allowsHitTesting(false)
     }
 
     @ViewBuilder
@@ -4741,7 +5343,7 @@ private struct HiddenInAppVideoPlayerView: View {
             isPlaying = false
             controlsAutoHideTask?.cancel()
         } else {
-            player.playImmediately(atRate: effectivePlaybackRate)
+            player.playImmediately(atRate: appliedPlaybackRate)
             isPlaying = true
             scheduleControlsAutoHide()
         }
@@ -4771,16 +5373,16 @@ private struct HiddenInAppVideoPlayerView: View {
         showControlsTemporarily()
     }
 
-    private func applyPlaybackRate() {
-        setPlayerRate(effectivePlaybackRate)
-        showControlsTemporarily()
+    private func formattedRate(_ value: Float) -> String {
+        let roundedValue = round(value)
+        if abs(value - roundedValue) < 0.05 {
+            return "\(Int(roundedValue))x"
+        }
+        return String(format: "%.1fx", value)
     }
 
-    private func formattedRate(_ value: Float) -> String {
-        if abs(value - round(value)) < 0.001 {
-            return "\(Int(round(value)))x"
-        }
-        return "\(value)x"
+    private func formattedBrightness(_ value: CGFloat) -> String {
+        "\(Int(round(value * 100)))%"
     }
 
     private func formattedDuration(_ seconds: Double) -> String {
@@ -4900,8 +5502,8 @@ private struct HiddenInAppVideoPlayerView: View {
         showControlsTemporarily()
     }
 
-    private var effectivePlaybackRate: Float {
-        activeHoldPlaybackRate ?? playbackRate
+    private var targetPlaybackRate: Float {
+        isTemporaryBoostActive ? temporaryBoostRate : normalPlaybackRate
     }
 
     private var resolvedCurrentPlaybackTime: Double {
@@ -4930,7 +5532,7 @@ private struct HiddenInAppVideoPlayerView: View {
 
         let targetTime = CMTime(seconds: target, preferredTimescale: 600)
         let resumePlayback = isPlaying
-        let rateAfterSeek = effectivePlaybackRate
+        let rateAfterSeek = appliedPlaybackRate
 
         seekTask = Task { @MainActor in
             await player.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
@@ -4946,33 +5548,169 @@ private struct HiddenInAppVideoPlayerView: View {
         }
     }
 
-    private func setPlayerRate(_ rate: Float) {
-        player.defaultRate = rate
+    private func videoSurfaceGesture(in size: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+            .onChanged { value in
+                handleVideoSurfaceTouchChanged(value, in: size)
+            }
+            .onEnded { value in
+                handleVideoSurfaceTouchEnded(value)
+            }
+    }
+
+    private func applyPlayerRateImmediately(_ rate: Float) {
+        let normalizedRate = max(0.25, rate)
+        appliedPlaybackRate = normalizedRate
+        player.defaultRate = normalizedRate
         if player.timeControlStatus == .playing {
-            player.rate = rate
+            player.rate = normalizedRate
         }
     }
 
-    private func handleTemporaryBoostPressingChanged(_ isPressing: Bool) {
-        if isPressing {
-            beginTemporarySpeedBoost()
-        } else {
-            endTemporarySpeedBoostIfNeeded()
+    private func rampPlaybackRate(to targetRate: Float) {
+        playbackRateRampTask?.cancel()
+
+        let clampedTargetRate = max(0.25, targetRate)
+        let startRate = appliedPlaybackRate
+        guard abs(startRate - clampedTargetRate) >= 0.02 else {
+            applyPlayerRateImmediately(clampedTargetRate)
+            return
+        }
+
+        playbackRateRampTask = Task { @MainActor in
+            let startedAt = Date()
+
+            while !Task.isCancelled {
+                let progress = min(Date().timeIntervalSince(startedAt) / playbackRateRampDuration, 1)
+                let easedProgress = 1 - pow(1 - progress, 3)
+                let nextRate = startRate + (clampedTargetRate - startRate) * Float(easedProgress)
+                applyPlayerRateImmediately(nextRate)
+
+                if progress >= 1 {
+                    break
+                }
+
+                try? await Task.sleep(nanoseconds: 16_000_000)
+            }
+
+            guard !Task.isCancelled else { return }
+            applyPlayerRateImmediately(clampedTargetRate)
         }
     }
 
     private func beginTemporarySpeedBoost() {
-        guard activeHoldPlaybackRate == nil else { return }
-        activeHoldPlaybackRate = max(playbackRate, temporaryBoostRate)
-        setPlayerRate(effectivePlaybackRate)
-        showControlsTemporarily()
+        guard !isTemporaryBoostActive else { return }
+        isTemporaryBoostActive = true
+        rampPlaybackRate(to: targetPlaybackRate)
     }
 
     private func endTemporarySpeedBoostIfNeeded() {
-        guard activeHoldPlaybackRate != nil else { return }
-        activeHoldPlaybackRate = nil
-        setPlayerRate(playbackRate)
-        showControlsTemporarily()
+        guard isTemporaryBoostActive else { return }
+        isTemporaryBoostActive = false
+        rampPlaybackRate(to: targetPlaybackRate)
+    }
+
+    private func handleVideoSurfaceTouchChanged(_ value: DragGesture.Value, in size: CGSize) {
+        if activeTouchStartedAt == nil {
+            activeTouchStartedAt = Date()
+            activeTouchStartLocation = value.startLocation
+            surfaceInteractionMode = .undecided
+            touchStartBrightness = UIScreen.main.brightness
+            displayedBrightness = nil
+            didActivateTouchBoost = false
+            schedulePendingBoostActivation()
+            return
+        }
+
+        guard let touchStartLocation = activeTouchStartLocation else { return }
+        let horizontalDistance = abs(value.location.x - touchStartLocation.x)
+        let verticalDistance = abs(value.location.y - touchStartLocation.y)
+
+        if shouldBeginBrightnessAdjustment(
+            from: touchStartLocation,
+            in: size,
+            horizontalDistance: horizontalDistance,
+            verticalDistance: verticalDistance
+        ) {
+            beginBrightnessAdjustment()
+        }
+
+        if surfaceInteractionMode == .brightnessAdjusting {
+            updateBrightness(with: value, in: size)
+            return
+        }
+
+        let travelDistance = distanceBetween(value.location, and: touchStartLocation)
+
+        if travelDistance > boostActivationMaximumDistance {
+            pendingBoostActivationTask?.cancel()
+            if isTemporaryBoostActive {
+                endTemporarySpeedBoostIfNeeded()
+            }
+        }
+    }
+
+    private func handleVideoSurfaceTouchEnded(_ value: DragGesture.Value) {
+        let touchStartedAt = activeTouchStartedAt
+        let touchStartLocation = activeTouchStartLocation ?? value.startLocation
+        let pressDuration = touchStartedAt.map { Date().timeIntervalSince($0) } ?? 0
+        let travelDistance = distanceBetween(value.location, and: touchStartLocation)
+        let shouldToggleControls = surfaceInteractionMode == .undecided && !didActivateTouchBoost && pressDuration < boostActivationDelay && travelDistance <= tapMaximumDistance
+
+        pendingBoostActivationTask?.cancel()
+        activeTouchStartedAt = nil
+        activeTouchStartLocation = nil
+        touchStartBrightness = nil
+        displayedBrightness = nil
+        surfaceInteractionMode = .undecided
+        didActivateTouchBoost = false
+
+        endTemporarySpeedBoostIfNeeded()
+
+        if shouldToggleControls {
+            toggleControlsVisibility()
+        }
+    }
+
+    private func schedulePendingBoostActivation() {
+        pendingBoostActivationTask?.cancel()
+        pendingBoostActivationTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: UInt64(boostActivationDelay * 1_000_000_000))
+            guard !Task.isCancelled, activeTouchStartedAt != nil, !didActivateTouchBoost else { return }
+            didActivateTouchBoost = true
+            beginTemporarySpeedBoost()
+        }
+    }
+
+    private func distanceBetween(_ lhs: CGPoint, and rhs: CGPoint) -> CGFloat {
+        hypot(lhs.x - rhs.x, lhs.y - rhs.y)
+    }
+
+    private func shouldBeginBrightnessAdjustment(
+        from startLocation: CGPoint,
+        in size: CGSize,
+        horizontalDistance: CGFloat,
+        verticalDistance: CGFloat
+    ) -> Bool {
+        guard surfaceInteractionMode == .undecided else { return false }
+        guard startLocation.x <= size.width * brightnessGestureLeadingRegionRatio else { return false }
+        guard verticalDistance >= brightnessActivationMinimumDistance else { return false }
+        return verticalDistance > horizontalDistance * 1.2
+    }
+
+    private func beginBrightnessAdjustment() {
+        pendingBoostActivationTask?.cancel()
+        endTemporarySpeedBoostIfNeeded()
+        surfaceInteractionMode = .brightnessAdjusting
+    }
+
+    private func updateBrightness(with value: DragGesture.Value, in size: CGSize) {
+        guard let startLocation = activeTouchStartLocation, let startBrightness = touchStartBrightness else { return }
+        let height = max(size.height, 1)
+        let delta = (startLocation.y - value.location.y) / height
+        let nextBrightness = min(max(startBrightness + delta, 0), 1)
+        UIScreen.main.brightness = nextBrightness
+        displayedBrightness = nextBrightness
     }
 
     private func scheduleFavoriteUndoCountdown() {
@@ -5394,7 +6132,8 @@ final class HiddenSpaceSettingsStore {
     private let fourKHDRandomModeKey = "hiddenSpace.4khd.randomMode"
     private let javDBRandomModeKey = "hiddenSpace.javdb.randomMode"
     private let showJavDBDetailsByDefaultKey = "hiddenSpace.javdb.showDetailsByDefault"
-    private let missAVDomainKey = "hiddenSpace.javdb.missDomain"
+    private let missAVDomainKey = "hiddenSpace.missav.domain"
+    private let legacyMissAVDomainKey = "hiddenSpace.javdb.missDomain"
 
     init(
         userDefaults: UserDefaults = .standard,
@@ -5407,12 +6146,13 @@ final class HiddenSpaceSettingsStore {
     func load() -> HiddenSpaceSettings {
         let fourKHDRawValue = userDefaults.string(forKey: fourKHDRandomModeKey)
         let javDBRawValue = userDefaults.string(forKey: javDBRandomModeKey)
+        let missAVDomain = migratedMissAVDomain()
 
         return HiddenSpaceSettings(
             fourKHDRandomMode: fourKHDRawValue.flatMap(HiddenRandomMode.init(rawValue:)) ?? .single,
             javDBRandomMode: javDBRawValue.flatMap(HiddenJavDBRandomMode.init(rawValue:)) ?? .single,
             showJavDBDetailsByDefault: userDefaults.object(forKey: showJavDBDetailsByDefaultKey) as? Bool ?? false,
-            missAVDomain: userDefaults.string(forKey: missAVDomainKey) ?? ""
+            missAVDomain: missAVDomain
         )
     }
 
@@ -5421,12 +6161,27 @@ final class HiddenSpaceSettingsStore {
         userDefaults.set(settings.javDBRandomMode.rawValue, forKey: javDBRandomModeKey)
         userDefaults.set(settings.showJavDBDetailsByDefault, forKey: showJavDBDetailsByDefaultKey)
         userDefaults.set(settings.missAVDomain, forKey: missAVDomainKey)
+        userDefaults.removeObject(forKey: legacyMissAVDomainKey)
         notificationCenter.post(name: .hiddenSpaceSettingsDidChange, object: nil)
+    }
+
+    private func migratedMissAVDomain() -> String {
+        if let currentValue = userDefaults.string(forKey: missAVDomainKey) {
+            return currentValue
+        }
+
+        guard let legacyValue = userDefaults.string(forKey: legacyMissAVDomainKey) else {
+            return ""
+        }
+
+        userDefaults.set(legacyValue, forKey: missAVDomainKey)
+        userDefaults.removeObject(forKey: legacyMissAVDomainKey)
+        return legacyValue
     }
 }
 
 enum HiddenMissAVDomainConfiguration {
-    static let defaultHost = "missav.ws"
+    static let defaultHost = "missav.ai"
 
     static func currentHost() -> String {
         resolvedHost(from: HiddenSpaceSettingsStore.shared.load().missAVDomain)
@@ -5437,7 +6192,7 @@ enum HiddenMissAVDomainConfiguration {
     }
 
     static func currentMovieTemplate() -> String {
-        "\(currentBaseURL().absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/{{code}}/"
+        "\(currentBaseURL().absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/cn/{{code}}"
     }
 
     static func resolvedHost(from rawValue: String?) -> String {
@@ -6148,10 +6903,21 @@ private enum HiddenJavDBAPI {
         for site in preferredPlayableSites(for: playback) {
             guard site.name == HiddenJavDBWatchSite.missAV.name,
                   let pageURL = site.url(for: playback.movie.code),
-                  let configuration = try? await fetchMissAVSeekThumbnailConfiguration(pageURL: pageURL) else {
+                  let configuration = await HiddenMissAVPlaybackResolver.resolveSeekThumbnailConfiguration(pageURL: pageURL) else {
                 continue
             }
-            return configuration
+            return HiddenJavDBSeekThumbnailConfiguration(
+                pageURL: configuration.pageURL,
+                durationSeconds: configuration.durationSeconds,
+                picNum: configuration.picNum,
+                width: configuration.width,
+                height: configuration.height,
+                col: configuration.col,
+                row: configuration.row,
+                offsetX: configuration.offsetX,
+                offsetY: configuration.offsetY,
+                urls: configuration.urls
+            )
         }
 
         return nil
@@ -6215,22 +6981,27 @@ private enum HiddenJavDBAPI {
     }
 
     static func fetchMissAVPrimaryStreamURL(pageURL: URL) async throws -> URL {
-        let html = try await fetchHTML(from: pageURL)
-        guard let streamURL = extractMissAVStreamURL(from: html) else {
-            throw NSError(
-                domain: "HiddenJavDBAPI",
-                code: -30,
-                userInfo: [NSLocalizedDescriptionKey: "未解析到 MISSAV 视频流"]
-            )
-        }
-        return streamURL
+        try await HiddenMissAVPlaybackResolver.resolvePrimaryStreamURL(pageURL: pageURL)
     }
 
     private static func fetchMissAVSeekThumbnailConfiguration(
         pageURL: URL
     ) async throws -> HiddenJavDBSeekThumbnailConfiguration? {
-        let html = try await fetchHTML(from: pageURL)
-        return extractMissAVSeekThumbnailConfiguration(from: html, pageURL: pageURL)
+        guard let configuration = await HiddenMissAVPlaybackResolver.resolveSeekThumbnailConfiguration(pageURL: pageURL) else {
+            return nil
+        }
+        return HiddenJavDBSeekThumbnailConfiguration(
+            pageURL: configuration.pageURL,
+            durationSeconds: configuration.durationSeconds,
+            picNum: configuration.picNum,
+            width: configuration.width,
+            height: configuration.height,
+            col: configuration.col,
+            row: configuration.row,
+            offsetX: configuration.offsetX,
+            offsetY: configuration.offsetY,
+            urls: configuration.urls
+        )
     }
 
     static func resolveWatchPlaybackTarget(for site: HiddenJavDBWatchSite, pageURL: URL) async throws -> HiddenJavDBWatchPlaybackTarget {
@@ -6238,7 +7009,11 @@ private enum HiddenJavDBAPI {
         case .nativeStream:
             switch site.name {
             case "MISSAV":
-                return .stream(try await fetchMissAVPrimaryStreamURL(pageURL: pageURL), pageURL)
+                let target = try await HiddenMissAVPlaybackResolver.resolvePlaybackTarget(pageURL: pageURL)
+                switch target {
+                case let .stream(streamURL, refererURL):
+                    return .stream(streamURL, refererURL)
+                }
             default:
                 throw NSError(
                     domain: "HiddenJavDBAPI",
@@ -7598,7 +8373,7 @@ private enum HiddenJavDBAPI {
 }
 
 @MainActor
-private final class HiddenJavDBWebHTMLFetcher: NSObject, WKNavigationDelegate {
+final class HiddenJavDBWebHTMLFetcher: NSObject, WKNavigationDelegate {
     static let shared = HiddenJavDBWebHTMLFetcher()
 
     private let webView: WKWebView
@@ -7735,7 +8510,7 @@ private final class HiddenJavDBWebHTMLFetcher: NSObject, WKNavigationDelegate {
     }
 }
 
-private extension String {
+extension String {
     var nonEmpty: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed

@@ -49,6 +49,19 @@ enum HiddenCloudMerge {
         return merged
     }
 
+    static func missAVMovies(primary: [HiddenMissAVMovie], secondary: [HiddenMissAVMovie]) -> [HiddenMissAVMovie] {
+        var seen = Set<String>()
+        var merged: [HiddenMissAVMovie] = []
+
+        for movie in primary + secondary {
+            if seen.insert(movie.cloudMovieID).inserted {
+                merged.append(movie)
+            }
+        }
+
+        return merged
+    }
+
     static func playbacks(
         primary: [HiddenJavDBFavoritePlayback],
         secondary: [HiddenJavDBFavoritePlayback]
@@ -72,6 +85,29 @@ enum HiddenCloudMerge {
         if merged.count > 120 {
             return Array(merged.prefix(120))
         }
+        return merged
+    }
+
+    static func missAVFavoriteMarkers(
+        primary: [HiddenMissAVFavoriteMarker],
+        secondary: [HiddenMissAVFavoriteMarker]
+    ) -> [HiddenMissAVFavoriteMarker] {
+        let candidates = (primary + secondary).sorted { $0.createdAt > $1.createdAt }
+        var merged: [HiddenMissAVFavoriteMarker] = []
+        var seenIDs = Set<String>()
+
+        for marker in candidates {
+            if !seenIDs.insert(marker.id).inserted {
+                continue
+            }
+
+            if merged.contains(where: { $0.matchesSameMarker(as: marker) }) {
+                continue
+            }
+
+            merged.append(marker)
+        }
+
         return merged
     }
 
@@ -511,6 +547,100 @@ private struct HiddenSupabasePlaybackPayload: Encodable {
         referer_url = playback.refererURL.absoluteString
         position_seconds = playback.positionSeconds
         created_at = HiddenSupabaseDateFormatter.string(from: playback.createdAt)
+    }
+}
+
+private struct HiddenSupabaseMissAVFavoriteRow: Decodable {
+    let movie_id: String
+    let movie_url: String
+    let code: String
+    let title: String
+    let cover_url: String
+    let preview_video_url: String?
+    let duration_text: String?
+    let has_chinese_subtitle: Bool
+    let has_english_subtitle: Bool
+    let is_uncensored: Bool
+
+    func asMovie() -> HiddenMissAVMovie? {
+        guard
+            let fallbackMovieURL = URL(string: movie_url),
+            let coverURL = URL(string: cover_url)
+        else {
+            return nil
+        }
+
+        let movieURL = HiddenMissAVDomainConfiguration.currentMovieURL(forCode: code) ?? fallbackMovieURL
+        return HiddenMissAVMovie(
+            url: movieURL,
+            code: code,
+            title: title,
+            coverURL: coverURL,
+            previewVideoURL: preview_video_url.flatMap(URL.init(string:)),
+            durationText: duration_text,
+            hasChineseSubtitle: has_chinese_subtitle,
+            hasEnglishSubtitle: has_english_subtitle,
+            isUncensored: is_uncensored
+        )
+    }
+}
+
+private struct HiddenSupabaseMissAVFavoritePayload: Encodable {
+    let movie_id: String
+    let movie_url: String
+    let code: String
+    let title: String
+    let cover_url: String
+    let preview_video_url: String?
+    let duration_text: String?
+    let has_chinese_subtitle: Bool
+    let has_english_subtitle: Bool
+    let is_uncensored: Bool
+
+    init(movie: HiddenMissAVMovie) {
+        movie_id = movie.cloudMovieID
+        movie_url = movie.url.absoluteString
+        code = movie.code
+        title = movie.title
+        cover_url = movie.coverURL.absoluteString
+        preview_video_url = movie.previewVideoURL?.absoluteString
+        duration_text = movie.durationText
+        has_chinese_subtitle = movie.hasChineseSubtitle
+        has_english_subtitle = movie.hasEnglishSubtitle
+        is_uncensored = movie.isUncensored
+    }
+}
+
+private struct HiddenSupabaseMissAVFavoriteMarkerRow: Decodable {
+    let marker_id: String
+    let movie_code: String
+    let position_seconds: Double
+    let created_at: String
+
+    func asMarker() -> HiddenMissAVFavoriteMarker? {
+        guard let createdAt = HiddenSupabaseDateFormatter.date(from: created_at) else {
+            return nil
+        }
+
+        return HiddenMissAVFavoriteMarker(
+            movieCode: movie_code,
+            positionSeconds: max(0, position_seconds),
+            createdAt: createdAt
+        )
+    }
+}
+
+private struct HiddenSupabaseMissAVFavoriteMarkerPayload: Encodable {
+    let marker_id: String
+    let movie_code: String
+    let position_seconds: Double
+    let created_at: String
+
+    init(marker: HiddenMissAVFavoriteMarker) {
+        marker_id = marker.id
+        movie_code = marker.movieCode
+        position_seconds = marker.positionSeconds
+        created_at = HiddenSupabaseDateFormatter.string(from: marker.createdAt)
     }
 }
 
@@ -978,6 +1108,80 @@ actor HiddenSupabaseService {
         _ = try await performDataRequest(request)
     }
 
+    func fetchMissAVFavorites() async throws -> [HiddenMissAVMovie] {
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/missav_favorites",
+            method: "GET",
+            queryItems: [
+                URLQueryItem(name: "select", value: "*"),
+                URLQueryItem(name: "order", value: "created_at.desc")
+            ]
+        )
+
+        let data = try await performDataRequest(request)
+        let rows = try JSONDecoder().decode([HiddenSupabaseMissAVFavoriteRow].self, from: data)
+        return rows.compactMap { $0.asMovie() }
+    }
+
+    func upsertMissAVFavorites(_ movies: [HiddenMissAVMovie]) async throws {
+        guard !movies.isEmpty else { return }
+        let payload = movies.map(HiddenSupabaseMissAVFavoritePayload.init(movie:))
+        try await upsertMissAVFavoritesPayload(payload)
+    }
+
+    func upsertMissAVFavorite(_ movie: HiddenMissAVMovie) async throws {
+        try await upsertMissAVFavoritesPayload([HiddenSupabaseMissAVFavoritePayload(movie: movie)])
+    }
+
+    func deleteMissAVFavorite(movieID: String) async throws {
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/missav_favorites",
+            method: "DELETE",
+            queryItems: [
+                URLQueryItem(name: "movie_id", value: "eq.\(movieID)")
+            ]
+        )
+
+        _ = try await performDataRequest(request)
+    }
+
+    func fetchMissAVFavoriteMarkers() async throws -> [HiddenMissAVFavoriteMarker] {
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/missav_favorite_markers",
+            method: "GET",
+            queryItems: [
+                URLQueryItem(name: "select", value: "*"),
+                URLQueryItem(name: "order", value: "created_at.desc")
+            ]
+        )
+
+        let data = try await performDataRequest(request)
+        let rows = try JSONDecoder().decode([HiddenSupabaseMissAVFavoriteMarkerRow].self, from: data)
+        return rows.compactMap { $0.asMarker() }
+    }
+
+    func upsertMissAVFavoriteMarkers(_ markers: [HiddenMissAVFavoriteMarker]) async throws {
+        guard !markers.isEmpty else { return }
+        let payload = markers.map(HiddenSupabaseMissAVFavoriteMarkerPayload.init(marker:))
+        try await upsertMissAVFavoriteMarkersPayload(payload)
+    }
+
+    func upsertMissAVFavoriteMarker(_ marker: HiddenMissAVFavoriteMarker) async throws {
+        try await upsertMissAVFavoriteMarkersPayload([HiddenSupabaseMissAVFavoriteMarkerPayload(marker: marker)])
+    }
+
+    func deleteMissAVFavoriteMarker(markerID: String) async throws {
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/missav_favorite_markers",
+            method: "DELETE",
+            queryItems: [
+                URLQueryItem(name: "marker_id", value: "eq.\(markerID)")
+            ]
+        )
+
+        _ = try await performDataRequest(request)
+    }
+
     func fetch4KHDAlbums() async throws -> [HiddenAlbum] {
         let request = try await authorizedRESTRequest(
             path: "/rest/v1/fourkhd_favorite_albums",
@@ -1182,6 +1386,36 @@ actor HiddenSupabaseService {
             method: "POST",
             queryItems: [
                 URLQueryItem(name: "on_conflict", value: "id")
+            ],
+            body: body,
+            prefer: "resolution=merge-duplicates,missing=default,return=minimal"
+        )
+
+        _ = try await performDataRequest(request)
+    }
+
+    private func upsertMissAVFavoritesPayload(_ payload: [HiddenSupabaseMissAVFavoritePayload]) async throws {
+        let body = try JSONEncoder().encode(payload)
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/missav_favorites",
+            method: "POST",
+            queryItems: [
+                URLQueryItem(name: "on_conflict", value: "user_id,movie_id")
+            ],
+            body: body,
+            prefer: "resolution=merge-duplicates,missing=default,return=minimal"
+        )
+
+        _ = try await performDataRequest(request)
+    }
+
+    private func upsertMissAVFavoriteMarkersPayload(_ payload: [HiddenSupabaseMissAVFavoriteMarkerPayload]) async throws {
+        let body = try JSONEncoder().encode(payload)
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/missav_favorite_markers",
+            method: "POST",
+            queryItems: [
+                URLQueryItem(name: "on_conflict", value: "user_id,marker_id")
             ],
             body: body,
             prefer: "resolution=merge-duplicates,missing=default,return=minimal"
@@ -1602,6 +1836,50 @@ final class HiddenCloudSyncViewModel: ObservableObject {
         }
     }
 
+    func syncMissAVFavoriteUpsertIfPossible(_ movie: HiddenMissAVMovie) async {
+        guard await prepareForMutationIfNeeded() else { return }
+
+        do {
+            try await cloudService.upsertMissAVFavorite(movie)
+            cloudStatusMessage = "已同步 MissAV 收藏到云端"
+        } catch {
+            handleCloudMutationError(error, fallbackMessage: "MissAV 收藏同步失败")
+        }
+    }
+
+    func syncMissAVFavoriteDeletionIfPossible(_ movie: HiddenMissAVMovie) async {
+        guard await prepareForMutationIfNeeded() else { return }
+
+        do {
+            try await cloudService.deleteMissAVFavorite(movieID: movie.cloudMovieID)
+            cloudStatusMessage = "已从云端移除 MissAV 收藏"
+        } catch {
+            handleCloudMutationError(error, fallbackMessage: "MissAV 收藏删除失败")
+        }
+    }
+
+    func syncMissAVFavoriteMarkerUpsertIfPossible(_ marker: HiddenMissAVFavoriteMarker) async {
+        guard await prepareForMutationIfNeeded() else { return }
+
+        do {
+            try await cloudService.upsertMissAVFavoriteMarker(marker)
+            cloudStatusMessage = "已同步 MissAV 喜欢点到云端"
+        } catch {
+            handleCloudMutationError(error, fallbackMessage: "MissAV 喜欢点同步失败")
+        }
+    }
+
+    func syncMissAVFavoriteMarkerDeletionIfPossible(_ marker: HiddenMissAVFavoriteMarker) async {
+        guard await prepareForMutationIfNeeded() else { return }
+
+        do {
+            try await cloudService.deleteMissAVFavoriteMarker(markerID: marker.id)
+            cloudStatusMessage = "已从云端移除 MissAV 喜欢点"
+        } catch {
+            handleCloudMutationError(error, fallbackMessage: "MissAV 喜欢点删除失败")
+        }
+    }
+
     func syncUTEntryDeletionIfPossible(_ entry: UTEntry) async {
         guard await prepareForMutationIfNeeded() else { return }
 
@@ -1711,6 +1989,24 @@ final class HiddenCloudSyncViewModel: ObservableObject {
                 saveLocal: HiddenJavDBLocalStore.saveFavoritePlaybacks,
                 upsertRemote: { try await self.cloudService.upsertPlaybacks($0) },
                 merge: HiddenCloudMerge.playbacks
+            ).eraseToAnyCollection(),
+            CloudSyncCollection(
+                label: "MissAV 收藏",
+                unit: "部",
+                loadLocal: HiddenMissAVLocalStore.loadFavoriteMovies,
+                fetchRemote: { try await self.cloudService.fetchMissAVFavorites() },
+                saveLocal: HiddenMissAVLocalStore.saveFavoriteMovies,
+                upsertRemote: { try await self.cloudService.upsertMissAVFavorites($0) },
+                merge: HiddenCloudMerge.missAVMovies
+            ).eraseToAnyCollection(),
+            CloudSyncCollection(
+                label: "MissAV 喜欢点",
+                unit: "个",
+                loadLocal: HiddenMissAVLocalStore.loadFavoriteMarkers,
+                fetchRemote: { try await self.cloudService.fetchMissAVFavoriteMarkers() },
+                saveLocal: HiddenMissAVLocalStore.saveFavoriteMarkers,
+                upsertRemote: { try await self.cloudService.upsertMissAVFavoriteMarkers($0) },
+                merge: HiddenCloudMerge.missAVFavoriteMarkers
             ).eraseToAnyCollection(),
             CloudSyncCollection(
                 label: "4khd album",
