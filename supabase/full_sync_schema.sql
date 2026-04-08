@@ -5,6 +5,9 @@ grant select, insert, update, delete on all tables in schema easysearch to authe
 alter default privileges in schema easysearch
     grant select, insert, update, delete on tables to authenticated;
 
+drop table if exists easysearch.missav_favorite_markers;
+drop table if exists easysearch.missav_favorites;
+
 create table if not exists easysearch.jav_favorites (
     user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
     movie_id text not null,
@@ -90,91 +93,6 @@ create policy "jav_playbacks_update_own"
 drop policy if exists "jav_playbacks_delete_own" on easysearch.jav_playbacks;
 create policy "jav_playbacks_delete_own"
     on easysearch.jav_playbacks
-    for delete
-    using (auth.uid() = user_id);
-
-create table if not exists easysearch.missav_favorites (
-    user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
-    movie_id text not null,
-    movie_url text not null,
-    code text not null,
-    title text not null,
-    cover_url text not null,
-    preview_video_url text,
-    duration_text text,
-    has_chinese_subtitle boolean not null default false,
-    has_english_subtitle boolean not null default false,
-    is_uncensored boolean not null default false,
-    created_at timestamptz not null default timezone('utc', now()),
-    primary key (user_id, movie_id)
-);
-
-create index if not exists missav_favorites_user_created_at_idx
-    on easysearch.missav_favorites (user_id, created_at desc);
-
-alter table easysearch.missav_favorites enable row level security;
-
-drop policy if exists "missav_favorites_select_own" on easysearch.missav_favorites;
-create policy "missav_favorites_select_own"
-    on easysearch.missav_favorites
-    for select
-    using (auth.uid() = user_id);
-
-drop policy if exists "missav_favorites_insert_own" on easysearch.missav_favorites;
-create policy "missav_favorites_insert_own"
-    on easysearch.missav_favorites
-    for insert
-    with check (auth.uid() = user_id);
-
-drop policy if exists "missav_favorites_update_own" on easysearch.missav_favorites;
-create policy "missav_favorites_update_own"
-    on easysearch.missav_favorites
-    for update
-    using (auth.uid() = user_id)
-    with check (auth.uid() = user_id);
-
-drop policy if exists "missav_favorites_delete_own" on easysearch.missav_favorites;
-create policy "missav_favorites_delete_own"
-    on easysearch.missav_favorites
-    for delete
-    using (auth.uid() = user_id);
-
-create table if not exists easysearch.missav_favorite_markers (
-    user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
-    marker_id text not null,
-    movie_code text not null,
-    position_seconds double precision not null check (position_seconds >= 0),
-    created_at timestamptz not null default timezone('utc', now()),
-    primary key (user_id, marker_id)
-);
-
-create index if not exists missav_favorite_markers_user_created_at_idx
-    on easysearch.missav_favorite_markers (user_id, created_at desc);
-
-alter table easysearch.missav_favorite_markers enable row level security;
-
-drop policy if exists "missav_favorite_markers_select_own" on easysearch.missav_favorite_markers;
-create policy "missav_favorite_markers_select_own"
-    on easysearch.missav_favorite_markers
-    for select
-    using (auth.uid() = user_id);
-
-drop policy if exists "missav_favorite_markers_insert_own" on easysearch.missav_favorite_markers;
-create policy "missav_favorite_markers_insert_own"
-    on easysearch.missav_favorite_markers
-    for insert
-    with check (auth.uid() = user_id);
-
-drop policy if exists "missav_favorite_markers_update_own" on easysearch.missav_favorite_markers;
-create policy "missav_favorite_markers_update_own"
-    on easysearch.missav_favorite_markers
-    for update
-    using (auth.uid() = user_id)
-    with check (auth.uid() = user_id);
-
-drop policy if exists "missav_favorite_markers_delete_own" on easysearch.missav_favorite_markers;
-create policy "missav_favorite_markers_delete_own"
-    on easysearch.missav_favorite_markers
     for delete
     using (auth.uid() = user_id);
 

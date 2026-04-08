@@ -38,9 +38,7 @@
 		D2A000000000000000000001 /* CloudSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000101 /* CloudSyncCoordinator.swift */; };
 		D2A000000000000000000002 /* HiddenSyncModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000102 /* HiddenSyncModels.swift */; };
 		D2A000000000000000000003 /* HiddenCloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000103 /* HiddenCloudSync.swift */; };
-		D2A000000000000000000004 /* HiddenMissAVModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000104 /* HiddenMissAVModels.swift */; };
 		D2A000000000000000000005 /* HiddenSharedPlayback.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000105 /* HiddenSharedPlayback.swift */; };
-		D2A000000000000000000006 /* HiddenMissAVFeatureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000106 /* HiddenMissAVFeatureView.swift */; };
 		D300000000000000000000001 /* GitHubUpdatesFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000101 /* GitHubUpdatesFeature.swift */; };
 		D300000000000000000000002 /* GitHubUpdatesCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */; };
 		D300000000000000000000003 /* GitHubWatchedRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000103 /* GitHubWatchedRepository.swift */; };
@@ -122,9 +120,7 @@
 		D2A000000000000000000101 /* CloudSyncCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncCoordinator.swift; path = EasySearch/Core/CloudSync/CloudSyncCoordinator.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000102 /* HiddenSyncModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSyncModels.swift; path = EasySearch/Features/Dashboard/Models/HiddenSyncModels.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000103 /* HiddenCloudSync.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenCloudSync.swift; path = EasySearch/Features/Dashboard/Sync/HiddenCloudSync.swift; sourceTree = SOURCE_ROOT; };
-		D2A000000000000000000104 /* HiddenMissAVModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenMissAVModels.swift; path = EasySearch/Features/Dashboard/Models/HiddenMissAVModels.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000105 /* HiddenSharedPlayback.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSharedPlayback.swift; path = EasySearch/Features/Dashboard/Views/HiddenSharedPlayback.swift; sourceTree = SOURCE_ROOT; };
-		D2A000000000000000000106 /* HiddenMissAVFeatureView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenMissAVFeatureView.swift; path = EasySearch/Features/Dashboard/Views/HiddenMissAVFeatureView.swift; sourceTree = SOURCE_ROOT; };
 		D300000000000000000000101 /* GitHubUpdatesFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesFeature.swift; path = EasySearch/Features/GitHubUpdates/GitHubUpdatesFeature.swift; sourceTree = SOURCE_ROOT; };
 		D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesCoordinator.swift; path = EasySearch/Features/GitHubUpdates/GitHubUpdatesCoordinator.swift; sourceTree = SOURCE_ROOT; };
 		D300000000000000000000103 /* GitHubWatchedRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubWatchedRepository.swift; path = EasySearch/Features/GitHubUpdates/Models/GitHubWatchedRepository.swift; sourceTree = SOURCE_ROOT; };
@@ -361,7 +357,6 @@
 			children = (
 				0F142A2111DC88139890E4CC /* DashboardView.swift */,
 				D2A000000000000000000105 /* HiddenSharedPlayback.swift */,
-				D2A000000000000000000106 /* HiddenMissAVFeatureView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -450,7 +445,6 @@
 			isa = PBXGroup;
 			children = (
 				D2A000000000000000000102 /* HiddenSyncModels.swift */,
-				D2A000000000000000000104 /* HiddenMissAVModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -819,9 +813,7 @@
 				683A685A33F3D4FF8465BC10 /* DashboardView.swift in Sources */,
 				D2A000000000000000000002 /* HiddenSyncModels.swift in Sources */,
 				D2A000000000000000000003 /* HiddenCloudSync.swift in Sources */,
-				D2A000000000000000000004 /* HiddenMissAVModels.swift in Sources */,
 				D2A000000000000000000005 /* HiddenSharedPlayback.swift in Sources */,
-				D2A000000000000000000006 /* HiddenMissAVFeatureView.swift in Sources */,
 				D1A000000000000000000001 /* UTEntry.swift in Sources */,
 				D1A000000000000000000006 /* UTTrackerEntryStore.swift in Sources */,
 				D1A000000000000000000002 /* UTTrackerViewModel.swift in Sources */,

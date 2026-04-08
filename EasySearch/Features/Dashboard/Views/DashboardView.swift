@@ -10,7 +10,6 @@ public struct DashboardView: View {
     private let isTabActive: Bool
     @StateObject private var hidden4KHDViewModel = HiddenSpaceViewModel()
     @StateObject private var hiddenJavDBViewModel = HiddenJavDBViewModel()
-    @StateObject private var hiddenMissAVViewModel = HiddenMissAVViewModel()
     @StateObject private var hiddenPresentationState = HiddenSpacePresentationState()
     @State private var path = NavigationPath()
     @State private var savedHiddenSpacePath = NavigationPath()
@@ -211,16 +210,6 @@ public struct DashboardView: View {
             HiddenJavDBFavoriteMoviesView(viewModel: hiddenJavDBViewModel, presentationState: hiddenPresentationState)
         case let .javDBMovie(movie):
             HiddenJavDBMovieDetailView(movie: movie, viewModel: hiddenJavDBViewModel, presentationState: hiddenPresentationState)
-        case .missAV:
-            HiddenMissAVFeatureView(viewModel: hiddenMissAVViewModel)
-        case let .missAVSection(title, url):
-            HiddenMissAVSectionPageView(title: title, url: url, viewModel: hiddenMissAVViewModel)
-        case .missAVFavorites:
-            HiddenMissAVFavoritesView(viewModel: hiddenMissAVViewModel)
-        case .missAVHistory:
-            HiddenMissAVFeatureView(viewModel: hiddenMissAVViewModel)
-        case let .missAVMovie(movie):
-            HiddenMissAVMovieDetailView(movie: movie, viewModel: hiddenMissAVViewModel)
         }
     }
 
@@ -260,11 +249,6 @@ enum HiddenSpaceRoute: Hashable {
     case javDB
     case javDBFavorites
     case javDBMovie(HiddenJavDBMovie)
-    case missAV
-    case missAVSection(title: String, url: URL)
-    case missAVFavorites
-    case missAVHistory
-    case missAVMovie(HiddenMissAVMovie)
 }
 
 private enum HiddenSpacePresentedModal: Hashable {
@@ -295,10 +279,6 @@ struct HiddenSpaceView: View {
                 }
                 .buttonStyle(.plain)
 
-                NavigationLink(value: HiddenSpaceRoute.missAV) {
-                    missAVFeatureCard
-                }
-                .buttonStyle(.plain)
             }
             .padding(16)
             .padding(.bottom, 18)
@@ -381,38 +361,6 @@ struct HiddenSpaceView: View {
         )
     }
 
-    private var missAVFeatureCard: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(.tertiarySystemFill))
-                    .frame(width: 54, height: 54)
-                Image(systemName: "play.tv")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.primary)
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("MissAV")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                Text("首页分区、搜索、详情、原生播放、收藏、历史")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.tertiary)
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
-    }
 }
 
 private struct Hidden4KHDFeatureView: View {

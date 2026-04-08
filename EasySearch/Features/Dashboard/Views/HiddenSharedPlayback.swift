@@ -501,7 +501,6 @@ struct HiddenSharedVideoPlayerView: View {
     @State private var recentlySavedPosition: Double?
     @State private var favoriteUndoCountdown = 0
     @State private var isTemporaryBoostActive = false
-    @State private var playbackRateRampTask: Task<Void, Never>?
     @State private var pendingBoostActivationTask: Task<Void, Never>?
     @State private var activeTouchStartedAt: Date?
     @State private var activeTouchStartLocation: CGPoint?
@@ -513,11 +512,10 @@ struct HiddenSharedVideoPlayerView: View {
     @State private var markerPositions: [Double]
 
     private let normalPlaybackRate: Float = 1.0
-    private let temporaryBoostRate: Float = 3.0
-    private let boostActivationDelay: TimeInterval = 0.18
+    private let temporaryBoostRate: Float = 2.0
+    private let boostActivationDelay: TimeInterval = 1.0
     private let boostActivationMaximumDistance: CGFloat = 36
     private let tapMaximumDistance: CGFloat = 12
-    private let playbackRateRampDuration: TimeInterval = 0.28
     private let brightnessGestureLeadingRegionRatio: CGFloat = 0.42
     private let brightnessActivationMinimumDistance: CGFloat = 14
 
@@ -604,7 +602,6 @@ struct HiddenSharedVideoPlayerView: View {
             controlsAutoHideTask?.cancel()
             favoriteSaveResetTask?.cancel()
             pendingBoostActivationTask?.cancel()
-            playbackRateRampTask?.cancel()
             isTemporaryBoostActive = false
             displayedBrightness = nil
             player.pause()
@@ -779,12 +776,6 @@ struct HiddenSharedVideoPlayerView: View {
                         }
                         .buttonStyle(.plain)
                     }
-
-                    Text("左侧上下滑动调亮度，长按画面可临时 3x 播放。")
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.72))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
                     if showsPlaybackSaveControls, let recentlySavedPosition, recentlySavedResult != nil {
                         HStack(spacing: 10) {
                             Text("已记录 \(HiddenSharedPlaybackTimeFormatter.string(from: recentlySavedPosition))，\(max(favoriteUndoCountdown, 1)) 秒内可撤回")
@@ -1152,47 +1143,16 @@ struct HiddenSharedVideoPlayerView: View {
         }
     }
 
-    private func rampPlaybackRate(to targetRate: Float) {
-        playbackRateRampTask?.cancel()
-
-        let clampedTargetRate = max(0.25, targetRate)
-        let startRate = appliedPlaybackRate
-        guard abs(startRate - clampedTargetRate) >= 0.02 else {
-            applyPlayerRateImmediately(clampedTargetRate)
-            return
-        }
-
-        playbackRateRampTask = Task { @MainActor in
-            let startedAt = Date()
-
-            while !Task.isCancelled {
-                let progress = min(Date().timeIntervalSince(startedAt) / playbackRateRampDuration, 1)
-                let easedProgress = 1 - pow(1 - progress, 3)
-                let nextRate = startRate + (clampedTargetRate - startRate) * Float(easedProgress)
-                applyPlayerRateImmediately(nextRate)
-
-                if progress >= 1 {
-                    break
-                }
-
-                try? await Task.sleep(nanoseconds: 16_000_000)
-            }
-
-            guard !Task.isCancelled else { return }
-            applyPlayerRateImmediately(clampedTargetRate)
-        }
-    }
-
     private func beginTemporarySpeedBoost() {
         guard !isTemporaryBoostActive else { return }
         isTemporaryBoostActive = true
-        rampPlaybackRate(to: targetPlaybackRate)
+        applyPlayerRateImmediately(targetPlaybackRate)
     }
 
     private func endTemporarySpeedBoostIfNeeded() {
         guard isTemporaryBoostActive else { return }
         isTemporaryBoostActive = false
-        rampPlaybackRate(to: targetPlaybackRate)
+        applyPlayerRateImmediately(targetPlaybackRate)
     }
 
     private func handleVideoSurfaceTouchChanged(_ value: DragGesture.Value, in size: CGSize) {
