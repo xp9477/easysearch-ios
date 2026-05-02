@@ -38,7 +38,9 @@ final class ExpenseAssistantViewModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.reloadFromStore()
+            Task { @MainActor in
+                self?.reloadFromStore()
+            }
         }
     }
 

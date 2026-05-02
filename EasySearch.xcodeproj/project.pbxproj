@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D2A000000000000000000016 /* HiddenJavDBViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000116 /* HiddenJavDBViewModel.swift */; };
+		D2A000000000000000000015 /* HiddenJavDBSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000115 /* HiddenJavDBSettings.swift */; };
+		D2A000000000000000000014 /* HiddenJavDBPlaybackViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000114 /* HiddenJavDBPlaybackViews.swift */; };
+		D2A000000000000000000013 /* Hidden4KHDViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000113 /* Hidden4KHDViewModel.swift */; };
 		D2A000000000000000000011 /* HiddenImagePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000111 /* HiddenImagePipeline.swift */; };
 		D2A000000000000000000012 /* HiddenPlaybackThumbnailPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000112 /* HiddenPlaybackThumbnailPipeline.swift */; };
 		E200000000000000000000001 /* ImageTranslateViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E200000000000000000000101 /* ImageTranslateViewModelTests.swift */; };
@@ -106,8 +110,12 @@
 		E200000000000000000000103 /* DashboardParserTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DashboardParserTests.swift; sourceTree = "<group>"; };
 		D2A000000000000000000106 /* HiddenSpaceCoreViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSpaceCoreViews.swift; path = EasySearch/Features/Dashboard/Views/HiddenSpaceCoreViews.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000107 /* Hidden4KHDViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Hidden4KHDViews.swift; path = EasySearch/Features/Dashboard/Views/Hidden4KHDViews.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000113 /* Hidden4KHDViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Hidden4KHDViewModel.swift; path = EasySearch/Features/Dashboard/Views/Hidden4KHDViewModel.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000108 /* Hidden4KHDAPI.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Hidden4KHDAPI.swift; path = EasySearch/Features/Dashboard/Views/Hidden4KHDAPI.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000109 /* HiddenJavDBViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenJavDBViews.swift; path = EasySearch/Features/Dashboard/Views/HiddenJavDBViews.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000114 /* HiddenJavDBPlaybackViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenJavDBPlaybackViews.swift; path = EasySearch/Features/Dashboard/Views/HiddenJavDBPlaybackViews.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000115 /* HiddenJavDBSettings.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenJavDBSettings.swift; path = EasySearch/Features/Dashboard/Views/HiddenJavDBSettings.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000116 /* HiddenJavDBViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenJavDBViewModel.swift; path = EasySearch/Features/Dashboard/Views/HiddenJavDBViewModel.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000110 /* HiddenJavDBAPI.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenJavDBAPI.swift; path = EasySearch/Features/Dashboard/Views/HiddenJavDBAPI.swift; sourceTree = SOURCE_ROOT; };
 		015EF0031C7687BCB7F6A2EE /* ImageOCRService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageOCRService.swift; sourceTree = "<group>"; };
 		0F142A2111DC88139890E4CC /* DashboardView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DashboardView.swift; path = EasySearch/Features/Dashboard/Views/DashboardView.swift; sourceTree = SOURCE_ROOT; };
@@ -381,9 +389,13 @@
 				0F142A2111DC88139890E4CC /* DashboardView.swift */,
 				D2A000000000000000000106 /* HiddenSpaceCoreViews.swift */,
 				D2A000000000000000000107 /* Hidden4KHDViews.swift */,
+				D2A000000000000000000113 /* Hidden4KHDViewModel.swift */,
 				D2A000000000000000000108 /* Hidden4KHDAPI.swift */,
 				D2A000000000000000000111 /* HiddenImagePipeline.swift */,
 				D2A000000000000000000109 /* HiddenJavDBViews.swift */,
+				D2A000000000000000000114 /* HiddenJavDBPlaybackViews.swift */,
+				D2A000000000000000000115 /* HiddenJavDBSettings.swift */,
+				D2A000000000000000000116 /* HiddenJavDBViewModel.swift */,
 				D2A000000000000000000110 /* HiddenJavDBAPI.swift */,
 				D2A000000000000000000112 /* HiddenPlaybackThumbnailPipeline.swift */,
 				D2A000000000000000000105 /* HiddenSharedPlayback.swift */,
@@ -846,9 +858,13 @@
 				683A685A33F3D4FF8465BC10 /* DashboardView.swift in Sources */,
 				D2A000000000000000000006 /* HiddenSpaceCoreViews.swift in Sources */,
 				D2A000000000000000000007 /* Hidden4KHDViews.swift in Sources */,
+				D2A000000000000000000013 /* Hidden4KHDViewModel.swift in Sources */,
 				D2A000000000000000000008 /* Hidden4KHDAPI.swift in Sources */,
 				D2A000000000000000000011 /* HiddenImagePipeline.swift in Sources */,
 				D2A000000000000000000009 /* HiddenJavDBViews.swift in Sources */,
+				D2A000000000000000000014 /* HiddenJavDBPlaybackViews.swift in Sources */,
+				D2A000000000000000000015 /* HiddenJavDBSettings.swift in Sources */,
+				D2A000000000000000000016 /* HiddenJavDBViewModel.swift in Sources */,
 				D2A000000000000000000010 /* HiddenJavDBAPI.swift in Sources */,
 				D2A000000000000000000012 /* HiddenPlaybackThumbnailPipeline.swift in Sources */,
 				D2A000000000000000000002 /* HiddenSyncModels.swift in Sources */,
