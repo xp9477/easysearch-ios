@@ -798,6 +798,7 @@ private enum HiddenSupabaseSessionStore {
 
         var insert = query
         insert[kSecValueData as String] = data
+        insert[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         let insertStatus = SecItemAdd(insert as CFDictionary, nil)
         guard insertStatus == errSecSuccess else {
             throw NSError(

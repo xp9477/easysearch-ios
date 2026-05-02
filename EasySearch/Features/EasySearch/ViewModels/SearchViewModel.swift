@@ -1,6 +1,52 @@
 import Foundation
 import SwiftUI
 
+protocol SearchEngineRemoteConfigClient {
+    func fetchLastModified(from url: URL) async throws -> String?
+    func downloadConfig(from url: URL) async throws -> (data: Data, lastModified: String?)
+}
+
+struct URLSessionSearchEngineRemoteConfigClient: SearchEngineRemoteConfigClient {
+    func fetchLastModified(from url: URL) async throws -> String? {
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
+        request.httpMethod = "HEAD"
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw NSError(
+                domain: "SearchViewModel",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "远程配置 HEAD 请求失败"]
+            )
+        }
+
+        return lastModifiedValue(from: httpResponse)
+    }
+
+    func downloadConfig(from url: URL) async throws -> (data: Data, lastModified: String?) {
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
+        request.httpMethod = "GET"
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw NSError(
+                domain: "SearchViewModel",
+                code: -2,
+                userInfo: [NSLocalizedDescriptionKey: "远程配置下载失败"]
+            )
+        }
+
+        return (data, lastModifiedValue(from: httpResponse))
+    }
+
+    private func lastModifiedValue(from response: HTTPURLResponse) -> String? {
+        response.value(forHTTPHeaderField: "Last-Modified")?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 /// 配置管理器 - 负责搜索引擎配置的加载、缓存和刷新
 @MainActor
 class SearchViewModel: ObservableObject {
@@ -15,7 +61,10 @@ class SearchViewModel: ObservableObject {
 
     private let configKey = "cached_search_engines"
     private let remoteLastModifiedKey = "search_engines.remote_last_modified"
-    private let remoteConfigURL = "https://raw.githubusercontent.com/xp9477/easy-search/main/data/search-engines.json"
+    private let userDefaults: UserDefaults
+    private let bundle: Bundle
+    private let remoteConfigURL: URL?
+    private let remoteConfigClient: any SearchEngineRemoteConfigClient
     private var didCheckRemoteConfig = false
 
     // MARK: - Computed Properties
@@ -39,18 +88,24 @@ class SearchViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    init() {
+    init(
+        userDefaults: UserDefaults = .standard,
+        bundle: Bundle = .main,
+        remoteConfigURL: URL? = URL(string: "https://raw.githubusercontent.com/xp9477/easy-search/main/data/search-engines.json"),
+        remoteConfigClient: any SearchEngineRemoteConfigClient = URLSessionSearchEngineRemoteConfigClient()
+    ) {
+        self.userDefaults = userDefaults
+        self.bundle = bundle
+        self.remoteConfigURL = remoteConfigURL
+        self.remoteConfigClient = remoteConfigClient
         loadConfig()
-        Task {
-            await refreshConfigIfNeededOnLaunch()
-        }
     }
 
     // MARK: - Config Loading
 
     /// 加载配置：优先从 UserDefaults 读取，否则使用 Bundle 内置默认配置
     func loadConfig() {
-        if let cachedData = UserDefaults.standard.data(forKey: configKey),
+        if let cachedData = userDefaults.data(forKey: configKey),
            let engines = try? JSONDecoder().decode([SearchEngine].self, from: cachedData) {
             self.searchEngines = engines
             print("✅ 从本地缓存加载了 \(engines.count) 个搜索引擎")
@@ -61,7 +116,7 @@ class SearchViewModel: ObservableObject {
 
     /// 从 Bundle 内置 JSON 文件加载默认配置
     private func loadDefaultConfig() {
-        guard let url = Bundle.main.url(forResource: "search-engines", withExtension: "json"),
+        guard let url = bundle.url(forResource: "search-engines", withExtension: "json"),
               let data = try? Data(contentsOf: url),
               let engines = try? JSONDecoder().decode([SearchEngine].self, from: data) else {
             print("❌ 无法加载默认配置文件")
@@ -120,17 +175,17 @@ class SearchViewModel: ObservableObject {
     // MARK: - Private Helpers
 
     private func saveToCache(data: Data) {
-        UserDefaults.standard.set(data, forKey: configKey)
+        userDefaults.set(data, forKey: configKey)
     }
 
     private func refreshRemoteConfigIfNeeded() async {
-        guard let url = URL(string: remoteConfigURL) else {
+        guard let url = remoteConfigURL else {
             return
         }
 
         do {
-            let remoteLastModified = try await fetchRemoteLastModified(from: url)
-            let cachedLastModified = UserDefaults.standard.string(forKey: remoteLastModifiedKey)
+            let remoteLastModified = try await remoteConfigClient.fetchLastModified(from: url)
+            let cachedLastModified = userDefaults.string(forKey: remoteLastModifiedKey)
 
             if let remoteLastModified, remoteLastModified == cachedLastModified {
                 print("ℹ️ 远程配置没有变化，继续使用本地缓存")
@@ -143,36 +198,9 @@ class SearchViewModel: ObservableObject {
         }
     }
 
-    private func fetchRemoteLastModified(from url: URL) async throws -> String? {
-        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
-        request.httpMethod = "HEAD"
-
-        let (_, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            throw NSError(
-                domain: "SearchViewModel",
-                code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "远程配置 HEAD 请求失败"]
-            )
-        }
-
-        return lastModifiedValue(from: httpResponse)
-    }
-
     private func downloadAndApplyRemoteConfig(from url: URL, remoteLastModified: String?) async throws {
-        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
-        request.httpMethod = "GET"
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            throw NSError(
-                domain: "SearchViewModel",
-                code: -2,
-                userInfo: [NSLocalizedDescriptionKey: "远程配置下载失败"]
-            )
-        }
+        let response = try await remoteConfigClient.downloadConfig(from: url)
+        let data = response.data
 
         let engines = try JSONDecoder().decode([SearchEngine].self, from: data)
         if engines != searchEngines {
@@ -183,13 +211,8 @@ class SearchViewModel: ObservableObject {
         }
 
         saveToCache(data: data)
-        if let lastModified = remoteLastModified ?? lastModifiedValue(from: httpResponse) {
-            UserDefaults.standard.set(lastModified, forKey: remoteLastModifiedKey)
+        if let lastModified = remoteLastModified ?? response.lastModified {
+            userDefaults.set(lastModified, forKey: remoteLastModifiedKey)
         }
-    }
-
-    private func lastModifiedValue(from response: HTTPURLResponse) -> String? {
-        response.value(forHTTPHeaderField: "Last-Modified")?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

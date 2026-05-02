@@ -154,16 +154,14 @@ final class ImageTranslateViewModel: ObservableObject {
     func prepare() async {
         guard !hasPrepared else {
             await reloadConfiguration(applyDefaultTargetLanguage: false)
-            history = []
-            store.saveHistory([])
+            history = store.loadHistory()
             return
         }
 
         hasPrepared = true
         await reloadConfiguration(applyDefaultTargetLanguage: true)
         restorePersistedStateIfNeeded()
-        history = []
-        store.saveHistory([])
+        history = store.loadHistory()
     }
 
     func updateTargetLanguage(_ targetLanguage: ImageTranslateTargetLanguage) async {

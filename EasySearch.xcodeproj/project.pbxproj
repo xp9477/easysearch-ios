@@ -7,6 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D2A000000000000000000011 /* HiddenImagePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000111 /* HiddenImagePipeline.swift */; };
+		D2A000000000000000000012 /* HiddenPlaybackThumbnailPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000112 /* HiddenPlaybackThumbnailPipeline.swift */; };
+		E200000000000000000000001 /* ImageTranslateViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E200000000000000000000101 /* ImageTranslateViewModelTests.swift */; };
+		E200000000000000000000002 /* SearchViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E200000000000000000000102 /* SearchViewModelTests.swift */; };
+		E200000000000000000000003 /* DashboardParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E200000000000000000000103 /* DashboardParserTests.swift */; };
+		D2A000000000000000000006 /* HiddenSpaceCoreViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000106 /* HiddenSpaceCoreViews.swift */; };
+		D2A000000000000000000007 /* Hidden4KHDViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000107 /* Hidden4KHDViews.swift */; };
+		D2A000000000000000000008 /* Hidden4KHDAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000108 /* Hidden4KHDAPI.swift */; };
+		D2A000000000000000000009 /* HiddenJavDBViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000109 /* HiddenJavDBViews.swift */; };
+		D2A000000000000000000010 /* HiddenJavDBAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000110 /* HiddenJavDBAPI.swift */; };
 		079FA5536E042C37ED839E7D /* UtilitiesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10881B6CB925A5285200D50B /* UtilitiesView.swift */; };
 		08F64AB6A4B3B085A9FDDA21 /* AppFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7776F48C8127AD4F470DB7EF /* AppFeature.swift */; };
 		0FEC531B128C7323644248F0 /* UtilitiesFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5905F9F946A778C37D0F7CCD /* UtilitiesFeature.swift */; };
@@ -89,6 +99,16 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		D2A000000000000000000111 /* HiddenImagePipeline.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenImagePipeline.swift; path = EasySearch/Features/Dashboard/Views/HiddenImagePipeline.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000112 /* HiddenPlaybackThumbnailPipeline.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenPlaybackThumbnailPipeline.swift; path = EasySearch/Features/Dashboard/Views/HiddenPlaybackThumbnailPipeline.swift; sourceTree = SOURCE_ROOT; };
+		E200000000000000000000101 /* ImageTranslateViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageTranslateViewModelTests.swift; sourceTree = "<group>"; };
+		E200000000000000000000102 /* SearchViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SearchViewModelTests.swift; sourceTree = "<group>"; };
+		E200000000000000000000103 /* DashboardParserTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DashboardParserTests.swift; sourceTree = "<group>"; };
+		D2A000000000000000000106 /* HiddenSpaceCoreViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSpaceCoreViews.swift; path = EasySearch/Features/Dashboard/Views/HiddenSpaceCoreViews.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000107 /* Hidden4KHDViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Hidden4KHDViews.swift; path = EasySearch/Features/Dashboard/Views/Hidden4KHDViews.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000108 /* Hidden4KHDAPI.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Hidden4KHDAPI.swift; path = EasySearch/Features/Dashboard/Views/Hidden4KHDAPI.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000109 /* HiddenJavDBViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenJavDBViews.swift; path = EasySearch/Features/Dashboard/Views/HiddenJavDBViews.swift; sourceTree = SOURCE_ROOT; };
+		D2A000000000000000000110 /* HiddenJavDBAPI.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenJavDBAPI.swift; path = EasySearch/Features/Dashboard/Views/HiddenJavDBAPI.swift; sourceTree = SOURCE_ROOT; };
 		015EF0031C7687BCB7F6A2EE /* ImageOCRService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageOCRService.swift; sourceTree = "<group>"; };
 		0F142A2111DC88139890E4CC /* DashboardView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DashboardView.swift; path = EasySearch/Features/Dashboard/Views/DashboardView.swift; sourceTree = SOURCE_ROOT; };
 		10881B6CB925A5285200D50B /* UtilitiesView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UtilitiesView.swift; path = EasySearch/Features/Utilities/Views/UtilitiesView.swift; sourceTree = SOURCE_ROOT; };
@@ -347,6 +367,9 @@
 				84A9CB8EA30ED3CE55AC2A70 /* ImageTranslateTextAlignmentTests.swift */,
 				AED5424721AE4AFD4354443F /* ImageTranslateHistoryReducerTests.swift */,
 				3195DD59E264422624CF152A /* ImageTranslateFileStoreTests.swift */,
+				E200000000000000000000101 /* ImageTranslateViewModelTests.swift */,
+				E200000000000000000000102 /* SearchViewModelTests.swift */,
+				E200000000000000000000103 /* DashboardParserTests.swift */,
 			);
 			name = EasySearchTests;
 			path = EasySearchTests;
@@ -356,6 +379,13 @@
 			isa = PBXGroup;
 			children = (
 				0F142A2111DC88139890E4CC /* DashboardView.swift */,
+				D2A000000000000000000106 /* HiddenSpaceCoreViews.swift */,
+				D2A000000000000000000107 /* Hidden4KHDViews.swift */,
+				D2A000000000000000000108 /* Hidden4KHDAPI.swift */,
+				D2A000000000000000000111 /* HiddenImagePipeline.swift */,
+				D2A000000000000000000109 /* HiddenJavDBViews.swift */,
+				D2A000000000000000000110 /* HiddenJavDBAPI.swift */,
+				D2A000000000000000000112 /* HiddenPlaybackThumbnailPipeline.swift */,
 				D2A000000000000000000105 /* HiddenSharedPlayback.swift */,
 			);
 			path = Views;
@@ -790,6 +820,9 @@
 				DC00DBD3D1788263EDDB8459 /* ImageTranslateTextAlignmentTests.swift in Sources */,
 				36B9C9E9DE2EAFB91FE29C76 /* ImageTranslateHistoryReducerTests.swift in Sources */,
 				385A49DB482D3D46438A8BBE /* ImageTranslateFileStoreTests.swift in Sources */,
+				E200000000000000000000001 /* ImageTranslateViewModelTests.swift in Sources */,
+				E200000000000000000000002 /* SearchViewModelTests.swift in Sources */,
+				E200000000000000000000003 /* DashboardParserTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -811,6 +844,13 @@
 				45B8F0995303899D66B4CFFF /* EasySearchView.swift in Sources */,
 				D2A000000000000000000001 /* CloudSyncCoordinator.swift in Sources */,
 				683A685A33F3D4FF8465BC10 /* DashboardView.swift in Sources */,
+				D2A000000000000000000006 /* HiddenSpaceCoreViews.swift in Sources */,
+				D2A000000000000000000007 /* Hidden4KHDViews.swift in Sources */,
+				D2A000000000000000000008 /* Hidden4KHDAPI.swift in Sources */,
+				D2A000000000000000000011 /* HiddenImagePipeline.swift in Sources */,
+				D2A000000000000000000009 /* HiddenJavDBViews.swift in Sources */,
+				D2A000000000000000000010 /* HiddenJavDBAPI.swift in Sources */,
+				D2A000000000000000000012 /* HiddenPlaybackThumbnailPipeline.swift in Sources */,
 				D2A000000000000000000002 /* HiddenSyncModels.swift in Sources */,
 				D2A000000000000000000003 /* HiddenCloudSync.swift in Sources */,
 				D2A000000000000000000005 /* HiddenSharedPlayback.swift in Sources */,

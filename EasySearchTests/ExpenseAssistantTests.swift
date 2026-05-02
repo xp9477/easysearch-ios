@@ -122,7 +122,7 @@ final class ExpenseAssistantTests: XCTestCase {
             calendar: calendar
         )
 
-        XCTAssertEqual(overdueClaims.map(\.resolvedTitle(calendar:)), ["上海出差", "杭州出差"])
+        XCTAssertEqual(overdueClaims.map { $0.resolvedTitle(calendar: calendar) }, ["上海出差", "杭州出差"])
     }
 
     func testReminderContentSummarizesMonthlyAndTravelClaims() {
