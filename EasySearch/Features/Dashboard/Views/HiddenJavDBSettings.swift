@@ -102,7 +102,15 @@ final class HiddenSpaceSettingsStore {
 }
 
 enum HiddenMissAVDomainConfiguration {
-    static let defaultHost = "missav.ai"
+    static let defaultHost = "missav.ws"
+    static let fallbackHosts = [
+        "missav.ws",
+        "missav.live",
+        "missav123.com",
+        "missav888.com",
+        "missav.ai"
+    ]
+    private static let legacyDefaultHosts: Set<String> = ["missav.ai"]
 
     static func currentHost() -> String {
         resolvedHost(from: HiddenSpaceSettingsStore.shared.load().missAVDomain)
@@ -116,8 +124,22 @@ enum HiddenMissAVDomainConfiguration {
         "\(currentBaseURL().absoluteString.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/cn/{{code}}"
     }
 
+    static func playbackCandidateURLs(for url: URL) -> [URL] {
+        let hosts = deduplicatedHosts([
+            url.host,
+            currentHost(),
+            defaultHost
+        ] + fallbackHosts.map(Optional.some))
+
+        let candidates = hosts.compactMap { replacingHost(of: url, with: $0) }
+        return candidates.isEmpty ? [url] : candidates
+    }
+
     static func resolvedHost(from rawValue: String?) -> String {
-        normalizedHost(from: rawValue) ?? defaultHost
+        guard let host = normalizedHost(from: rawValue) else {
+            return defaultHost
+        }
+        return legacyDefaultHosts.contains(host) ? defaultHost : host
     }
 
     static func normalizedHost(from rawValue: String?) -> String? {
@@ -138,5 +160,36 @@ enum HiddenMissAVDomainConfiguration {
         }
 
         return host.lowercased()
+    }
+
+    private static func deduplicatedHosts(_ hosts: [String?]) -> [String] {
+        var deduplicated: [String] = []
+        var seen = Set<String>()
+
+        for host in hosts {
+            guard let normalized = normalizedHost(from: host),
+                  seen.insert(normalized).inserted else {
+                continue
+            }
+            deduplicated.append(normalized)
+        }
+
+        return deduplicated
+    }
+
+    private static func replacingHost(of url: URL, with host: String) -> URL? {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+
+        let parts = host.split(separator: ":", maxSplits: 1).map(String.init)
+        guard let hostname = parts.first, !hostname.isEmpty else {
+            return nil
+        }
+
+        components.scheme = components.scheme ?? "https"
+        components.host = hostname
+        components.port = parts.dropFirst().first.flatMap(Int.init)
+        return components.url
     }
 }

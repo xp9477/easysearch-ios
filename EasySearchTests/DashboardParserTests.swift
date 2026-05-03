@@ -85,4 +85,22 @@ final class DashboardParserTests: XCTestCase {
             "https://javdb.com/v/abc123"
         )
     }
+
+    func testMissAVDefaultHostUsesReachableMirror() {
+        XCTAssertEqual(HiddenMissAVDomainConfiguration.defaultHost, "missav.ws")
+        XCTAssertEqual(HiddenMissAVDomainConfiguration.resolvedHost(from: nil), "missav.ws")
+        XCTAssertEqual(HiddenMissAVDomainConfiguration.resolvedHost(from: "https://missav.ai/cn"), "missav.ws")
+        XCTAssertEqual(HiddenMissAVDomainConfiguration.resolvedHost(from: "https://missav.live/cn"), "missav.live")
+    }
+
+    func testMissAVPlaybackCandidatesKeepOriginalURLAndAddFallbackHosts() throws {
+        let url = try XCTUnwrap(URL(string: "https://missav.ai/cn/abc-123"))
+
+        let candidates = HiddenMissAVDomainConfiguration.playbackCandidateURLs(for: url)
+        let candidateStrings = candidates.map(\.absoluteString)
+
+        XCTAssertEqual(candidateStrings.first, "https://missav.ai/cn/abc-123")
+        XCTAssertTrue(candidateStrings.contains("https://missav.ws/cn/abc-123"))
+        XCTAssertTrue(candidateStrings.contains("https://missav.live/cn/abc-123"))
+    }
 }

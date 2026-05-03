@@ -208,26 +208,23 @@ enum HiddenMissAVPlaybackResolver {
     }()
 
     static func resolvePlaybackTarget(pageURL: URL) async throws -> HiddenMissAVPlaybackTarget {
-        .stream(try await resolvePrimaryStreamURL(pageURL: pageURL), pageURL)
+        let resolvedStream = try await resolvePrimaryStream(pageURL: pageURL)
+        return .stream(resolvedStream.streamURL, resolvedStream.refererURL)
     }
 
     static func resolvePrimaryStreamURL(pageURL: URL) async throws -> URL {
-        let html = try await fetchHTML(from: pageURL)
-        guard let streamURL = extractPrimaryStreamURL(from: html, pageURL: pageURL) else {
-            throw NSError(
-                domain: "HiddenMissAVPlaybackResolver",
-                code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "未解析到 MISSAV 视频流"]
-            )
-        }
-        return streamURL
+        try await resolvePrimaryStream(pageURL: pageURL).streamURL
     }
 
     static func resolveSeekThumbnailConfiguration(pageURL: URL) async -> HiddenSharedSeekThumbnailConfiguration? {
-        guard let html = try? await fetchHTML(from: pageURL) else {
-            return nil
+        for candidateURL in HiddenMissAVDomainConfiguration.playbackCandidateURLs(for: pageURL) {
+            guard let html = try? await fetchHTML(from: candidateURL),
+                  let configuration = extractSeekThumbnailConfiguration(from: html, pageURL: candidateURL) else {
+                continue
+            }
+            return configuration
         }
-        return extractSeekThumbnailConfiguration(from: html, pageURL: pageURL)
+        return nil
     }
 
     static func fetchHTML(from url: URL) async throws -> String {
@@ -251,7 +248,10 @@ enum HiddenMissAVPlaybackResolver {
             throw NSError(
                 domain: "HiddenMissAVPlaybackResolver",
                 code: -3,
-                userInfo: [NSLocalizedDescriptionKey: "页面请求失败（\(httpResponse.statusCode)）"]
+                userInfo: [
+                    NSLocalizedDescriptionKey: missAVRequestErrorMessage(for: httpResponse.statusCode),
+                    "HTTPStatusCode": httpResponse.statusCode
+                ]
             )
         }
 
@@ -267,6 +267,40 @@ enum HiddenMissAVPlaybackResolver {
         }
 
         return html
+    }
+
+    private static func resolvePrimaryStream(pageURL: URL) async throws -> (streamURL: URL, refererURL: URL) {
+        var lastError: Error?
+
+        for candidateURL in HiddenMissAVDomainConfiguration.playbackCandidateURLs(for: pageURL) {
+            do {
+                let html = try await fetchHTML(from: candidateURL)
+                if let streamURL = extractPrimaryStreamURL(from: html, pageURL: candidateURL) {
+                    return (streamURL, candidateURL)
+                }
+
+                lastError = NSError(
+                    domain: "HiddenMissAVPlaybackResolver",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: "未解析到 MISSAV 视频流"]
+                )
+            } catch {
+                lastError = error
+            }
+        }
+
+        throw lastError ?? NSError(
+            domain: "HiddenMissAVPlaybackResolver",
+            code: -5,
+            userInfo: [NSLocalizedDescriptionKey: "MISSAV 页面请求失败"]
+        )
+    }
+
+    private static func missAVRequestErrorMessage(for statusCode: Int) -> String {
+        if statusCode == 451 {
+            return "当前 MISSAV 域名不可用（451），已尝试备用域名"
+        }
+        return "页面请求失败（\(statusCode)）"
     }
 
     private static func extractSeekThumbnailConfiguration(

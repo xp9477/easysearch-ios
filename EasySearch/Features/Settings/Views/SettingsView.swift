@@ -936,7 +936,7 @@ struct HiddenSpaceSettingsDetailView: View {
                     Text("当前生效：\(HiddenMissAVDomainConfiguration.resolvedHost(from: missAVDomain))")
                 }
             ) {
-                TextField("miss 域名，例如 missav.ai", text: $missAVDomain)
+                TextField("miss 域名，例如 missav.ws", text: $missAVDomain)
                     .textInputAutocapitalization(.never)
                     .disableAutocorrection(true)
                     .keyboardType(.URL)

@@ -1,15 +1,14 @@
-import SwiftUI
-import WebKit
-import AVKit
-@preconcurrency import AVFoundation
+import Foundation
+import ImageIO
 import UIKit
 
-@MainActor
 final class HiddenImagePipeline {
     static let shared = HiddenImagePipeline()
 
+    private let lock = NSLock()
     private let cache = NSCache<NSURL, UIImage>()
     private var inFlightTasks: [NSURL: Task<UIImage, Error>] = [:]
+    private let maxDecodedPixelDimension: CGFloat = 3_200
 
     private init() {
         cache.countLimit = 240
@@ -19,42 +18,25 @@ final class HiddenImagePipeline {
     func image(for url: URL) async throws -> UIImage {
         let normalizedURL = HiddenSpaceAPI.normalizeImageURL(url)
         let key = normalizedURL as NSURL
+        let decoderMaxPixelDimension = maxDecodedPixelDimension
 
         if let cached = cache.object(forKey: key) {
             return cached
         }
 
-        if let existingTask = inFlightTasks[key] {
-            return try await existingTask.value
-        }
-
-        let task = Task<UIImage, Error> {
-            var request = URLRequest(url: normalizedURL, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 30)
-            request.setValue("image/*", forHTTPHeaderField: "Accept")
-
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode),
-                  let image = UIImage(data: data) else {
-                throw NSError(
-                    domain: "HiddenImagePipeline",
-                    code: -1,
-                    userInfo: [NSLocalizedDescriptionKey: "图片加载失败"]
-                )
-            }
-
-            return image
-        }
-
-        inFlightTasks[key] = task
+        let task = task(
+            for: key,
+            normalizedURL: normalizedURL,
+            maxPixelDimension: decoderMaxPixelDimension
+        )
 
         do {
             let image = try await task.value
             cache.setObject(image, forKey: key, cost: image.hiddenCacheCost)
-            inFlightTasks[key] = nil
+            removeInFlightTask(for: key)
             return image
         } catch {
-            inFlightTasks[key] = nil
+            removeInFlightTask(for: key)
             throw error
         }
     }
@@ -78,6 +60,91 @@ final class HiddenImagePipeline {
             return nil
         }
         return image.hiddenAspectRatio
+    }
+
+    private func removeInFlightTask(for key: NSURL) {
+        lock.lock()
+        inFlightTasks[key] = nil
+        lock.unlock()
+    }
+
+    private func task(
+        for key: NSURL,
+        normalizedURL: URL,
+        maxPixelDimension: CGFloat
+    ) -> Task<UIImage, Error> {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if let existingTask = inFlightTasks[key] {
+            return existingTask
+        }
+
+        let task = Self.makeImageTask(
+            normalizedURL: normalizedURL,
+            maxPixelDimension: maxPixelDimension
+        )
+        inFlightTasks[key] = task
+        return task
+    }
+
+    private static func makeImageTask(
+        normalizedURL: URL,
+        maxPixelDimension: CGFloat
+    ) -> Task<UIImage, Error> {
+        Task.detached(priority: .utility) {
+            var request = URLRequest(url: normalizedURL, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 30)
+            request.setValue("image/*", forHTTPHeaderField: "Accept")
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode) else {
+                throw NSError(
+                    domain: "HiddenImagePipeline",
+                    code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: "图片加载失败"]
+                )
+            }
+
+            return try decodedImage(from: data, maxPixelDimension: maxPixelDimension)
+        }
+    }
+
+    private static func decodedImage(from data: Data, maxPixelDimension: CGFloat) throws -> UIImage {
+        let sourceOptions = [
+            kCGImageSourceShouldCache: false
+        ] as CFDictionary
+
+        guard let imageSource = CGImageSourceCreateWithData(data as CFData, sourceOptions) else {
+            throw decodeError()
+        }
+
+        let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any]
+        let pixelWidth = (properties?[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue ?? Double(maxPixelDimension)
+        let pixelHeight = (properties?[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue ?? Double(maxPixelDimension)
+        let sourceMaxPixel = max(pixelWidth, pixelHeight, 1)
+        let thumbnailMaxPixel = Int(min(sourceMaxPixel, Double(maxPixelDimension)))
+
+        let thumbnailOptions = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: thumbnailMaxPixel
+        ] as CFDictionary
+
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, thumbnailOptions) else {
+            throw decodeError()
+        }
+
+        return UIImage(cgImage: cgImage)
+    }
+
+    private static func decodeError() -> NSError {
+        NSError(
+            domain: "HiddenImagePipeline",
+            code: -2,
+            userInfo: [NSLocalizedDescriptionKey: "图片解码失败"]
+        )
     }
 }
 

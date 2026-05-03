@@ -1674,20 +1674,15 @@ struct AsyncCoverImage: View {
         ZStack {
             Rectangle().fill(Color(.tertiarySystemFill))
 
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case let .success(image):
-                    image
-                        .resizable()
-                        .modifier(CoverScaleModifier(fitToContainer: fitToContainer))
-                case .empty:
-                    ProgressView()
-                case .failure:
-                    Image(systemName: "photo")
-                        .foregroundStyle(.secondary)
-                @unknown default:
-                    EmptyView()
-                }
+            HiddenCachedImage(url: url) { image in
+                Image(uiImage: image)
+                    .resizable()
+                    .modifier(CoverScaleModifier(fitToContainer: fitToContainer))
+            } placeholder: {
+                ProgressView()
+            } failure: {
+                Image(systemName: "photo")
+                    .foregroundStyle(.secondary)
             }
         }
         .clipped()
