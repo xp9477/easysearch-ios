@@ -152,13 +152,20 @@ final class DashboardParserTests: XCTestCase {
 
     func testPlaybackIssuePresentationHandlesMissAV451() {
         let issue = HiddenPlaybackIssuePresentation(
-            message: "页面请求失败（451）",
+            message: "当前 MISSAV 域名不可用（451）",
             userInfo: ["HTTPStatusCode": 451]
         )
 
         XCTAssertEqual(issue.kind, .missAVUnavailable)
         XCTAssertEqual(issue.primaryActionTitle, "重试")
         XCTAssertEqual(issue.secondaryActionTitle, "修改域名")
+    }
+
+    func testPlaybackIssuePresentationDoesNotTreatJavDB451AsMissAV() {
+        let issue = HiddenPlaybackIssuePresentation(message: "页面请求失败（451）")
+
+        XCTAssertEqual(issue.kind, .network)
+        XCTAssertNil(issue.secondaryActionTitle)
     }
 
     func testPlaybackIssuePresentationHandlesMissAVFallbackFailure() {

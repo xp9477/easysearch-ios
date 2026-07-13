@@ -85,7 +85,8 @@ struct HiddenPlaybackIssuePresentation: Equatable {
             secondaryActionTitle = "打开确认页"
             systemImage = "checkmark.shield"
             tone = .accent
-        } else if statusCode == 451 || normalized.contains("451") || normalized.contains("MISSAV 页面请求失败") {
+        } else if normalized.contains("MISSAV"),
+                  statusCode == 451 || normalized.contains("451") || normalized.contains("页面请求失败") {
             kind = .missAVUnavailable
             title = "当前域名不可用"
             self.message = "已尝试备用域名。仍失败时可切换 MissAV 域名后重试。"
