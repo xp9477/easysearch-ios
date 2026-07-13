@@ -330,11 +330,11 @@ private struct UTModuleProgressIcon: View {
     @State private var summary = UTTrackerSnapshot.currentMonthSummary()
 
     private var progress: Double {
-        min(max(summary.fullMonthProgress, 0), 1)
+        min(max(summary.elapsedMonthProgress, 0), 1)
     }
 
     private var percentValue: Int {
-        Int((summary.fullMonthProgress * 100).rounded())
+        Int((summary.elapsedMonthProgress * 100).rounded())
     }
 
     private var ringColor: Color {

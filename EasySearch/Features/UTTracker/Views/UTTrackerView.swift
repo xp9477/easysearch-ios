@@ -47,7 +47,7 @@ public struct UTTrackerView: View {
 
                 Spacer()
 
-                Text(percentText(for: summary.fullMonthProgress))
+                Text(percentText(for: summary.elapsedMonthProgress))
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
             }

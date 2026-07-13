@@ -7,10 +7,6 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array>
-		<string>com.easysearch.github.refresh</string>
-	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>用于直接拍照识别并翻译图片中的文字。</string>
 	<key>NSPhotoLibraryUsageDescription</key>
@@ -41,9 +37,5 @@
 	</dict>
 	<key>UILaunchScreen</key>
 	<dict/>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>fetch</string>
-	</array>
 </dict>
 </plist>

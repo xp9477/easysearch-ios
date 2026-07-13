@@ -7,7 +7,6 @@ struct SettingsView: View {
     @StateObject private var cloudViewModel = HiddenCloudSyncViewModel.shared
     @StateObject private var utNotificationManager = UTNotificationManager.shared
     @StateObject private var expenseAssistantNotificationManager = ExpenseAssistantNotificationManager.shared
-    @StateObject private var gitHubNotificationManager = GitHubUpdatesNotificationManager.shared
     @State private var path = NavigationPath()
     @State private var deepSeekConfiguration = ImageTranslateConfiguration(
         baseURL: DeepSeekClientConfiguration.defaultBaseURL,
@@ -16,7 +15,6 @@ struct SettingsView: View {
         targetLanguage: .simplifiedChinese
     )
     @State private var qingLongProfile: QingLongPanelProfile?
-    @State private var gitHubRepositoryCount = 0
 
     private var appVersionText: String {
         let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
@@ -83,7 +81,6 @@ struct SettingsView: View {
                 await cloudViewModel.prepareIfNeeded()
                 await utNotificationManager.configure()
                 await expenseAssistantNotificationManager.configure()
-                await gitHubNotificationManager.configure()
                 refreshSummaryState()
                 handlePendingRouteIfNeeded()
             }
@@ -91,9 +88,6 @@ struct SettingsView: View {
                 refreshSummaryState()
             }
             .onReceive(NotificationCenter.default.publisher(for: .qingLongPanelDidChange)) { _ in
-                refreshSummaryState()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .gitHubWatchedRepositoriesDidChange)) { _ in
                 refreshSummaryState()
             }
             .onChange(of: navigationState.pendingSettingsRoute) { _ in
@@ -168,8 +162,6 @@ struct SettingsView: View {
             UTTrackerSettingsDetailView()
         case .expenseAssistant:
             ExpenseAssistantSettingsDetailView()
-        case .gitHubUpdates:
-            GitHubUpdatesSettingsDetailView()
         case .imageTranslate:
             AISettingsDetailView(entry: .imageTranslate)
         case .emailAssistant:
@@ -182,7 +174,6 @@ struct SettingsView: View {
     private func refreshSummaryState() {
         deepSeekConfiguration = ImageTranslateConfigurationStore.shared.loadConfiguration()
         qingLongProfile = QingLongPanelLocalStore().loadProfile()
-        gitHubRepositoryCount = GitHubWatchedRepositoryLocalStore().loadRepositories().count
     }
 
     private func handlePendingRouteIfNeeded() {
@@ -209,15 +200,6 @@ struct SettingsView: View {
                 status: expenseAssistantNotificationManager.statusText,
                 systemImage: feature.iconName,
                 route: .expenseAssistant
-            )
-        case "github-updates":
-            let repositoryText = gitHubRepositoryCount > 0 ? " · \(gitHubRepositoryCount) 个仓库" : ""
-            return ModuleSettingsItem(
-                id: feature.id,
-                title: feature.title,
-                status: gitHubNotificationManager.statusText + repositoryText,
-                systemImage: feature.iconName,
-                route: .gitHubUpdates
             )
         case "qinglong-management":
             return ModuleSettingsItem(
@@ -553,65 +535,6 @@ private struct ExpenseAssistantSettingsDetailView: View {
         .task {
             await notificationManager.configure()
         }
-    }
-}
-
-private struct GitHubUpdatesSettingsDetailView: View {
-    @StateObject private var notificationManager = GitHubUpdatesNotificationManager.shared
-    @Environment(\.openURL) private var openURL
-    @State private var repositoryCount = 0
-
-    var body: some View {
-        List {
-            Section {
-                SettingsValueRow(title: "状态", value: notificationManager.statusText)
-                SettingsValueRow(title: "仓库", value: "\(repositoryCount) 个")
-
-                switch notificationManager.authorizationStatus {
-                case .notDetermined:
-                    Button {
-                        Task {
-                            await notificationManager.requestAuthorization()
-                        }
-                    } label: {
-                        Label("开启通知", systemImage: "bell.badge")
-                    }
-
-                case .denied:
-                    Button {
-                        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
-                        openURL(settingsURL)
-                    } label: {
-                        Label("前往系统设置", systemImage: "gearshape")
-                    }
-
-                case .authorized, .provisional, .ephemeral:
-                    Button {
-                        Task {
-                            await notificationManager.refreshAuthorizationStatus()
-                        }
-                    } label: {
-                        Label("刷新状态", systemImage: "arrow.clockwise")
-                    }
-
-                @unknown default:
-                    EmptyView()
-                }
-            }
-        }
-        .navigationTitle("GitHub 更新")
-        .navigationBarTitleDisplayMode(.inline)
-        .task {
-            await notificationManager.configure()
-            reloadRepositoryCount()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .gitHubWatchedRepositoriesDidChange)) { _ in
-            reloadRepositoryCount()
-        }
-    }
-
-    private func reloadRepositoryCount() {
-        repositoryCount = GitHubWatchedRepositoryLocalStore().loadRepositories().count
     }
 }
 

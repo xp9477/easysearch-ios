@@ -87,10 +87,10 @@ final class DashboardParserTests: XCTestCase {
     }
 
     func testMissAVDefaultHostUsesReachableMirror() {
-        XCTAssertEqual(HiddenMissAVDomainConfiguration.defaultHost, "missav.ws")
-        XCTAssertEqual(HiddenMissAVDomainConfiguration.resolvedHost(from: nil), "missav.ws")
-        XCTAssertEqual(HiddenMissAVDomainConfiguration.resolvedHost(from: "https://missav.ai/cn"), "missav.ws")
-        XCTAssertEqual(HiddenMissAVDomainConfiguration.resolvedHost(from: "https://missav.live/cn"), "missav.live")
+        XCTAssertEqual(HiddenMissAVDomainConfiguration.defaultHost, "missav123.com")
+        XCTAssertEqual(HiddenMissAVDomainConfiguration.resolvedHost(from: nil), "missav123.com")
+        XCTAssertEqual(HiddenMissAVDomainConfiguration.resolvedHost(from: "https://missav.ai/cn"), "missav123.com")
+        XCTAssertEqual(HiddenMissAVDomainConfiguration.resolvedHost(from: "https://missav.live/cn"), "missav123.com")
     }
 
     func testMissAVPlaybackCandidatesKeepOriginalURLAndAddFallbackHosts() throws {
@@ -99,9 +99,25 @@ final class DashboardParserTests: XCTestCase {
         let candidates = HiddenMissAVDomainConfiguration.playbackCandidateURLs(for: url)
         let candidateStrings = candidates.map(\.absoluteString)
 
-        XCTAssertEqual(candidateStrings.first, "https://missav.ai/cn/abc-123")
-        XCTAssertTrue(candidateStrings.contains("https://missav.ws/cn/abc-123"))
-        XCTAssertTrue(candidateStrings.contains("https://missav.live/cn/abc-123"))
+        XCTAssertEqual(candidateStrings.first, "https://missav123.com/cn/abc-123")
+        XCTAssertTrue(candidateStrings.contains("https://missav888.com/cn/abc-123"))
+        XCTAssertFalse(candidateStrings.contains("https://missav.ai/cn/abc-123"))
+    }
+
+    func testMissAVPackedScriptExtractsPrimaryStream() throws {
+        let html = #"""
+        <script>
+        eval(function(p,a,c,k,e,d){e=function(c){return c.toString(36)};if(!''.replace(/^/,String)){while(c--){d[c.toString(a)]=k[c]||c.toString(a)}k=[function(e){return d[e]}];e=function(){return'\\w+'};c=1};while(c--){if(k[c]){p=p.replace(new RegExp('\\b'+e(c)+'\\b','g'),k[c])}}return p}('f=\'8://7.6/5-4-3-2-1/e.0\';',16,16,'m3u8|d20308920041|9c38|411c|45a1|0c73d32d|com|surrit|https|video|1280x720|source1280|842x480|source842|playlist|source'.split('|'),0,{}))
+        </script>
+        """#
+        let pageURL = try XCTUnwrap(URL(string: "https://missav123.com/cn/ssis-001"))
+
+        let streamURL = HiddenMissAVPlaybackResolver.extractPrimaryStreamURL(from: html, pageURL: pageURL)
+
+        XCTAssertEqual(
+            streamURL?.absoluteString,
+            "https://surrit.com/0c73d32d-45a1-411c-9c38-d20308920041/playlist.m3u8"
+        )
     }
 
     func testPlaybackIssuePresentationHandlesAgeConfirmation() {

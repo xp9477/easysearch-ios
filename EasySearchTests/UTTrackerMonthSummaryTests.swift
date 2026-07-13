@@ -60,6 +60,7 @@ final class UTTrackerMonthSummaryTests: XCTestCase {
 
         XCTAssertLessThan(summary.elapsedWorkingDays, summary.totalWorkingDays)
         XCTAssertEqual(summary.targetHours, Double(summary.elapsedWorkingDays) * 8 * UTTrackerMetrics.targetRatio, accuracy: 0.001)
+        XCTAssertEqual(summary.elapsedMonthProgress, summary.totalHours / summary.elapsedMonthHours, accuracy: 0.001)
     }
 
     private func makeUserDefaults() -> UserDefaults {

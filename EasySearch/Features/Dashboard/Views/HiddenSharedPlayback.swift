@@ -345,6 +345,7 @@ enum HiddenMissAVPlaybackResolver {
 
     private static func resolvePrimaryStream(pageURL: URL) async throws -> (streamURL: URL, refererURL: URL) {
         var lastError: Error?
+        var parsingError: Error?
 
         for candidateURL in HiddenMissAVDomainConfiguration.playbackCandidateURLs(for: pageURL) {
             do {
@@ -353,7 +354,7 @@ enum HiddenMissAVPlaybackResolver {
                     return (streamURL, candidateURL)
                 }
 
-                lastError = NSError(
+                parsingError = NSError(
                     domain: "HiddenMissAVPlaybackResolver",
                     code: -1,
                     userInfo: [NSLocalizedDescriptionKey: "未解析到 MISSAV 视频流"]
@@ -363,7 +364,7 @@ enum HiddenMissAVPlaybackResolver {
             }
         }
 
-        throw lastError ?? NSError(
+        throw parsingError ?? lastError ?? NSError(
             domain: "HiddenMissAVPlaybackResolver",
             code: -5,
             userInfo: [NSLocalizedDescriptionKey: "MISSAV 页面请求失败"]
@@ -452,7 +453,7 @@ enum HiddenMissAVPlaybackResolver {
         )
     }
 
-    private static func extractPrimaryStreamURL(from html: String, pageURL: URL) -> URL? {
+    static func extractPrimaryStreamURL(from html: String, pageURL: URL) -> URL? {
         var candidates: [String] = []
 
         let direct = HiddenMissAVHTMLParser.regexCaptureAll(

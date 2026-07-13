@@ -55,12 +55,6 @@
 		D2A000000000000000000002 /* HiddenSyncModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000102 /* HiddenSyncModels.swift */; };
 		D2A000000000000000000003 /* HiddenCloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000103 /* HiddenCloudSync.swift */; };
 		D2A000000000000000000005 /* HiddenSharedPlayback.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000105 /* HiddenSharedPlayback.swift */; };
-		D300000000000000000000001 /* GitHubUpdatesFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000101 /* GitHubUpdatesFeature.swift */; };
-		D300000000000000000000002 /* GitHubUpdatesCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */; };
-		D300000000000000000000003 /* GitHubWatchedRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000103 /* GitHubWatchedRepository.swift */; };
-		D300000000000000000000004 /* GitHubWatchedRepositoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000104 /* GitHubWatchedRepositoryStore.swift */; };
-		D300000000000000000000005 /* GitHubUpdatesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000105 /* GitHubUpdatesViewModel.swift */; };
-		D300000000000000000000006 /* GitHubUpdatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000106 /* GitHubUpdatesView.swift */; };
 		D400000000000000000000001 /* QingLongFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000101 /* QingLongFeature.swift */; };
 		D400000000000000000000002 /* QingLongPanelProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000102 /* QingLongPanelProfile.swift */; };
 		D400000000000000000000003 /* QingLongPanelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000103 /* QingLongPanelStore.swift */; };
@@ -153,12 +147,6 @@
 		D2A000000000000000000102 /* HiddenSyncModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSyncModels.swift; path = EasySearch/Features/Dashboard/Models/HiddenSyncModels.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000103 /* HiddenCloudSync.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenCloudSync.swift; path = EasySearch/Features/Dashboard/Sync/HiddenCloudSync.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000105 /* HiddenSharedPlayback.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSharedPlayback.swift; path = EasySearch/Features/Dashboard/Views/HiddenSharedPlayback.swift; sourceTree = SOURCE_ROOT; };
-		D300000000000000000000101 /* GitHubUpdatesFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesFeature.swift; path = EasySearch/Features/GitHubUpdates/GitHubUpdatesFeature.swift; sourceTree = SOURCE_ROOT; };
-		D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesCoordinator.swift; path = EasySearch/Features/GitHubUpdates/GitHubUpdatesCoordinator.swift; sourceTree = SOURCE_ROOT; };
-		D300000000000000000000103 /* GitHubWatchedRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubWatchedRepository.swift; path = EasySearch/Features/GitHubUpdates/Models/GitHubWatchedRepository.swift; sourceTree = SOURCE_ROOT; };
-		D300000000000000000000104 /* GitHubWatchedRepositoryStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubWatchedRepositoryStore.swift; path = EasySearch/Features/GitHubUpdates/Models/GitHubWatchedRepositoryStore.swift; sourceTree = SOURCE_ROOT; };
-		D300000000000000000000105 /* GitHubUpdatesViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesViewModel.swift; path = EasySearch/Features/GitHubUpdates/ViewModels/GitHubUpdatesViewModel.swift; sourceTree = SOURCE_ROOT; };
-		D300000000000000000000106 /* GitHubUpdatesView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesView.swift; path = EasySearch/Features/GitHubUpdates/Views/GitHubUpdatesView.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000101 /* QingLongFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongFeature.swift; path = EasySearch/Features/QingLong/QingLongFeature.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000102 /* QingLongPanelProfile.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongPanelProfile.swift; path = EasySearch/Features/QingLong/Models/QingLongPanelProfile.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000103 /* QingLongPanelStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongPanelStore.swift; path = EasySearch/Features/QingLong/Models/QingLongPanelStore.swift; sourceTree = SOURCE_ROOT; };
@@ -424,7 +412,6 @@
 				E100000000000000000000201 /* ExpenseAssistant */,
 				6454E79B9B44E6FA2F45817D /* Settings */,
 				D1A000000000000000000201 /* UTTracker */,
-				D300000000000000000000201 /* GitHubUpdates */,
 				D400000000000000000000201 /* QingLong */,
 				D500000000000000000000201 /* ImageTranslate */,
 				D600000000000000000000201 /* EmailAssistant */,
@@ -502,43 +489,6 @@
 				D2A000000000000000000103 /* HiddenCloudSync.swift */,
 			);
 			path = Sync;
-			sourceTree = "<group>";
-		};
-		D300000000000000000000201 /* GitHubUpdates */ = {
-			isa = PBXGroup;
-			children = (
-				D300000000000000000000202 /* Models */,
-				D300000000000000000000203 /* ViewModels */,
-				D300000000000000000000204 /* Views */,
-				D300000000000000000000101 /* GitHubUpdatesFeature.swift */,
-				D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */,
-			);
-			path = GitHubUpdates;
-			sourceTree = "<group>";
-		};
-		D300000000000000000000202 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				D300000000000000000000103 /* GitHubWatchedRepository.swift */,
-				D300000000000000000000104 /* GitHubWatchedRepositoryStore.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		D300000000000000000000203 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				D300000000000000000000105 /* GitHubUpdatesViewModel.swift */,
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
-		D300000000000000000000204 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				D300000000000000000000106 /* GitHubUpdatesView.swift */,
-			);
-			path = Views;
 			sourceTree = "<group>";
 		};
 		D400000000000000000000201 /* QingLong */ = {
@@ -884,18 +834,12 @@
 				D1A000000000000000000003 /* UTTrackerView.swift in Sources */,
 				D1A000000000000000000004 /* UTTrackerFeature.swift in Sources */,
 				D1A000000000000000000005 /* UTNotificationManager.swift in Sources */,
-				D300000000000000000000003 /* GitHubWatchedRepository.swift in Sources */,
-				D300000000000000000000004 /* GitHubWatchedRepositoryStore.swift in Sources */,
-				D300000000000000000000001 /* GitHubUpdatesFeature.swift in Sources */,
-				D300000000000000000000002 /* GitHubUpdatesCoordinator.swift in Sources */,
 				E100000000000000000000001 /* ExpenseAssistantFeature.swift in Sources */,
 				E100000000000000000000002 /* ExpenseAssistantModels.swift in Sources */,
 				E100000000000000000000003 /* ExpenseAssistantStore.swift in Sources */,
 				E100000000000000000000004 /* ExpenseAssistantNotificationManager.swift in Sources */,
 				E100000000000000000000005 /* ExpenseAssistantViewModel.swift in Sources */,
 				E100000000000000000000006 /* ExpenseAssistantView.swift in Sources */,
-				D300000000000000000000005 /* GitHubUpdatesViewModel.swift in Sources */,
-				D300000000000000000000006 /* GitHubUpdatesView.swift in Sources */,
 				D400000000000000000000001 /* QingLongFeature.swift in Sources */,
 				D400000000000000000000002 /* QingLongPanelProfile.swift in Sources */,
 				D400000000000000000000003 /* QingLongPanelStore.swift in Sources */,

@@ -1,4 +1,3 @@
-import BackgroundTasks
 import SwiftUI
 
 enum AppTab: Hashable {
@@ -11,7 +10,6 @@ enum SettingsRoute: Hashable {
     case cloudSync
     case utTracker
     case expenseAssistant
-    case gitHubUpdates
     case imageTranslate
     case emailAssistant
     case qingLong
@@ -43,30 +41,16 @@ struct EasySearchApp: App {
                     await UTNotificationManager.shared.refreshSchedulesIfAuthorized()
                     await ExpenseAssistantNotificationManager.shared.configure()
                     await ExpenseAssistantNotificationManager.shared.refreshSchedulesIfAuthorized()
-                    await GitHubUpdatesNotificationManager.shared.configure()
                     await HiddenCloudSyncViewModel.shared.prepareIfNeeded()
-                    await GitHubUpdatesBackgroundRefreshManager.scheduleNextRefresh()
                 }
                 .onChange(of: scenePhase) { phase in
                     guard phase == .active else { return }
                     Task {
                         await UTNotificationManager.shared.refreshStateAndSchedules()
                         await ExpenseAssistantNotificationManager.shared.refreshStateAndSchedules()
-                        await GitHubUpdatesNotificationManager.shared.refreshAuthorizationStatus()
-                        let summary = await GitHubUpdatesService.shared.refreshRepositories(trigger: .foreground)
-                        if summary.didPersistChanges {
-                            let repositories = await GitHubUpdatesService.shared.loadRepositories()
-                            if !repositories.isEmpty {
-                                await HiddenCloudSyncViewModel.shared.syncGitHubRepoWatchesIfPossible(repositories)
-                            }
-                        }
                         await HiddenCloudSyncViewModel.shared.syncIfPossible()
-                        await GitHubUpdatesBackgroundRefreshManager.scheduleNextRefresh()
                     }
                 }
-        }
-        .backgroundTask(.appRefresh(GitHubUpdatesBackgroundRefreshManager.taskIdentifier)) {
-            await GitHubUpdatesBackgroundRefreshManager.handleBackgroundRefresh()
         }
     }
 }

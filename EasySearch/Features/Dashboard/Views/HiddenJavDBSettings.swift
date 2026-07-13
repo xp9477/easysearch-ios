@@ -102,15 +102,16 @@ final class HiddenSpaceSettingsStore {
 }
 
 enum HiddenMissAVDomainConfiguration {
-    static let defaultHost = "missav.ws"
+    static let defaultHost = "missav123.com"
     static let fallbackHosts = [
+        "missav123.com",
+        "missav888.com"
+    ]
+    private static let legacyDefaultHosts: Set<String> = [
         "missav.ws",
         "missav.live",
-        "missav123.com",
-        "missav888.com",
         "missav.ai"
     ]
-    private static let legacyDefaultHosts: Set<String> = ["missav.ai"]
 
     static func currentHost() -> String {
         resolvedHost(from: HiddenSpaceSettingsStore.shared.load().missAVDomain)
@@ -126,7 +127,7 @@ enum HiddenMissAVDomainConfiguration {
 
     static func playbackCandidateURLs(for url: URL) -> [URL] {
         let hosts = deduplicatedHosts([
-            url.host,
+            resolvedHost(from: url.host),
             currentHost(),
             defaultHost
         ] + fallbackHosts.map(Optional.some))

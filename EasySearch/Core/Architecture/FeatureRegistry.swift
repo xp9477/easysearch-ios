@@ -28,7 +28,6 @@ public class FeatureRegistry: ObservableObject {
         features.append(EasySearchFeature())
         features.append(UTTrackerFeature())
         features.append(ExpenseAssistantFeature())
-        features.append(GitHubUpdatesFeature())
         features.append(QingLongFeature())
         features.append(ImageTranslateFeature())
         features.append(EmailAssistantFeature())
