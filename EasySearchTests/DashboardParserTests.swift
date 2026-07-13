@@ -173,20 +173,20 @@ final class DashboardParserTests: XCTestCase {
 
         XCTAssertEqual(
             streamURL?.absoluteString,
-            "https://surrit.com/0c73d32d-45a1-411c-9c38-d20308920041/842x480/video.m3u8"
+            "https://surrit.com/0c73d32d-45a1-411c-9c38-d20308920041/1280x720/video.m3u8"
         )
     }
 
-    func testSavedMissAVMasterPlaylistUsesStableQualityStream() throws {
+    func testSavedMissAVMasterPlaylistUsesHighestQualityStream() throws {
         let savedURL = try XCTUnwrap(
             URL(string: "https://surrit.com/example/playlist.m3u8")
         )
 
-        let stableURL = HiddenMissAVPlaybackResolver.preferredStableStreamURL(for: savedURL)
+        let highestQualityURL = HiddenMissAVPlaybackResolver.preferredHighestQualityStreamURL(for: savedURL)
 
         XCTAssertEqual(
-            stableURL.absoluteString,
-            "https://surrit.com/example/842x480/video.m3u8"
+            highestQualityURL.absoluteString,
+            "https://surrit.com/example/1280x720/video.m3u8"
         )
     }
 

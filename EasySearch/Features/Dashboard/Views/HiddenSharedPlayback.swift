@@ -478,14 +478,14 @@ enum HiddenMissAVPlaybackResolver {
         return prioritizedStreamCandidates(normalized).first
     }
 
-    static func preferredStableStreamURL(for url: URL) -> URL {
+    static func preferredHighestQualityStreamURL(for url: URL) -> URL {
         guard url.host?.lowercased().contains("surrit.com") == true,
               url.path.lowercased().hasSuffix("/playlist.m3u8"),
               var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return url
         }
 
-        components.path = String(components.path.dropLast("playlist.m3u8".count)) + "842x480/video.m3u8"
+        components.path = String(components.path.dropLast("playlist.m3u8".count)) + "1280x720/video.m3u8"
         return components.url ?? url
     }
 
@@ -565,22 +565,22 @@ enum HiddenMissAVPlaybackResolver {
             return host.contains("surrit.com") || path.contains("/playlist")
         }
 
-        let stableQualityFirst = filtered.sorted { lhs, rhs in
+        let highestQualityFirst = filtered.sorted { lhs, rhs in
             let lhsPath = lhs.path.lowercased()
             let rhsPath = rhs.path.lowercased()
-            let lhsScore = streamStabilityScore(for: lhsPath)
-            let rhsScore = streamStabilityScore(for: rhsPath)
+            let lhsScore = streamQualityScore(for: lhsPath)
+            let rhsScore = streamQualityScore(for: rhsPath)
             return lhsScore > rhsScore
         }
 
-        return stableQualityFirst.isEmpty ? unique : stableQualityFirst
+        return highestQualityFirst.isEmpty ? unique : highestQualityFirst
     }
 
-    private static func streamStabilityScore(for path: String) -> Int {
-        if path.contains("/842x480/") { return 4 }
-        if path.contains("/640x360/") { return 3 }
-        if path.contains("/playlist") { return 2 }
-        if path.contains("/1280x720/") { return 1 }
+    private static func streamQualityScore(for path: String) -> Int {
+        if path.contains("/1280x720/") { return 4 }
+        if path.contains("/playlist") { return 3 }
+        if path.contains("/842x480/") { return 2 }
+        if path.contains("/640x360/") { return 1 }
         return 0
     }
 }
@@ -663,7 +663,7 @@ struct HiddenSharedVideoPlayerView: View {
             "User-Agent": HiddenMissAVPlaybackResolver.userAgent
         ]
         let asset = AVURLAsset(
-            url: HiddenMissAVPlaybackResolver.preferredStableStreamURL(for: item.streamURL),
+            url: HiddenMissAVPlaybackResolver.preferredHighestQualityStreamURL(for: item.streamURL),
             options: [
                 "AVURLAssetHTTPHeaderFieldsKey": headers
             ]
