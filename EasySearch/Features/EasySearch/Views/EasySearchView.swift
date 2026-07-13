@@ -7,12 +7,14 @@ struct EasySearchView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    searchCommandCard
-                    engineSection
+                VStack(alignment: .leading, spacing: 18) {
+                    searchWorkspace
+                    platformSection
                 }
+                .frame(maxWidth: 760)
                 .padding(.horizontal, ESUI.screenHorizontalPadding)
-                .padding(.top, 14)
+                .padding(.top, 12)
+                .frame(maxWidth: .infinity)
             }
             .esBottomTabPadding()
             .esScreenBackground()
@@ -22,37 +24,55 @@ struct EasySearchView: View {
         }
     }
 
-    private var searchCommandCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            ESSectionHeader(
-                title: "搜索内容",
-                trailing: viewModel.selectedCategory.displayName
-            )
-
-            SearchBar(text: $viewModel.searchQuery, isFocused: $isSearchFieldFocused) {
-                if viewModel.performDefaultSearch() {
-                    isSearchFieldFocused = false
-                } else {
-                    isSearchFieldFocused = true
+    private var searchWorkspace: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 10) {
+                SearchBar(text: $viewModel.searchQuery, isFocused: $isSearchFieldFocused) {
+                    performDefaultSearch()
                 }
+
+                Button {
+                    performDefaultSearch()
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(viewModel.hasValidQuery ? Color.white : Color.secondary)
+                        .frame(width: 52, height: 52)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(viewModel.hasValidQuery ? Color.accentColor : Color(.tertiarySystemFill))
+                        )
+                }
+                .buttonStyle(ESCardButtonStyle())
+                .disabled(!viewModel.hasValidQuery)
+                .accessibilityLabel("使用默认平台搜索")
             }
 
-            Picker("分类", selection: $viewModel.selectedCategory) {
-                ForEach(SearchCategory.allCases, id: \.self) { category in
-                    Text(category.displayName).tag(category)
-                }
-            }
-            .pickerStyle(.segmented)
+            CategoryTabBar(selectedCategory: $viewModel.selectedCategory)
         }
-        .esCard()
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .fill(ESUI.elevatedBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .stroke(Color.primary.opacity(0.05), lineWidth: 1)
+        )
     }
 
-    private var engineSection: some View {
+    private var platformSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ESSectionHeader(
-                title: "平台入口",
-                trailing: "\(viewModel.filteredEngines.count)"
-            )
+            HStack(alignment: .firstTextBaseline) {
+                Text(viewModel.selectedCategory.displayName)
+                    .font(.title3.weight(.bold))
+
+                Spacer(minLength: 8)
+
+                Text("\(viewModel.filteredEngines.count) 个平台")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
 
             EngineGridView(
                 engines: viewModel.filteredEngines
@@ -63,6 +83,14 @@ struct EasySearchView: View {
                     isSearchFieldFocused = true
                 }
             }
+        }
+    }
+
+    private func performDefaultSearch() {
+        if viewModel.performDefaultSearch() {
+            isSearchFieldFocused = false
+        } else {
+            isSearchFieldFocused = true
         }
     }
 }

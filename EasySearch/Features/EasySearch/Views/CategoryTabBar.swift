@@ -1,11 +1,10 @@
 import SwiftUI
 
-/// 分类标签栏组件
 struct CategoryTabBar: View {
     @Binding var selectedCategory: SearchCategory
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 4) {
             ForEach(SearchCategory.allCases, id: \.self) { category in
                 CategoryTab(
                     category: category,
@@ -17,11 +16,14 @@ struct CategoryTabBar: View {
                 }
             }
         }
-        .padding(.horizontal, 4)
+        .padding(4)
+        .background(
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .fill(Color(.tertiarySystemFill))
+        )
     }
 }
 
-/// 单个分类 Tab
 struct CategoryTab: View {
     let category: SearchCategory
     let isSelected: Bool
@@ -29,25 +31,29 @@ struct CategoryTab: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: category.icon)
-                        .font(.system(size: 13, weight: .medium))
-                    Text(category.displayName)
-                        .font(.system(size: 15, weight: .medium))
-                }
-                .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+            HStack(spacing: 5) {
+                Image(systemName: category.icon)
+                    .font(.system(size: 12, weight: .semibold))
 
-                // 选中指示器
-                RoundedRectangle(cornerRadius: 1.5)
-                    .fill(isSelected ? Color.accentColor : .clear)
-                    .frame(height: 3)
-                    .padding(.horizontal, 8)
+                Text(category.displayName)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
             }
+            .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+            .frame(maxWidth: .infinity, minHeight: 38)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor.opacity(0.16) : Color.clear, lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

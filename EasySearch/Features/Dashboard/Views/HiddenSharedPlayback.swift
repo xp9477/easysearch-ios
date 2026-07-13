@@ -478,17 +478,6 @@ enum HiddenMissAVPlaybackResolver {
         return prioritizedStreamCandidates(normalized).first
     }
 
-    static func preferredHighestQualityStreamURL(for url: URL) -> URL {
-        guard url.host?.lowercased().contains("surrit.com") == true,
-              url.path.lowercased().hasSuffix("/playlist.m3u8"),
-              var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return url
-        }
-
-        components.path = String(components.path.dropLast("playlist.m3u8".count)) + "1280x720/video.m3u8"
-        return components.url ?? url
-    }
-
     private static func decodeEvalBlocks(from html: String) -> [String] {
         let payloads = HiddenMissAVHTMLParser.regexFirstGroups(
             pattern: #"eval\(function\(p,a,c,k,e,d\)\{.*?\}\('(.+?)',(\d+),(\d+),'(.+?)'\.split\('\|'\),0,\{\}\)\)"#,
@@ -577,10 +566,17 @@ enum HiddenMissAVPlaybackResolver {
     }
 
     private static func streamQualityScore(for path: String) -> Int {
-        if path.contains("/1280x720/") { return 4 }
-        if path.contains("/playlist") { return 3 }
-        if path.contains("/842x480/") { return 2 }
-        if path.contains("/640x360/") { return 1 }
+        if let groups = HiddenMissAVHTMLParser.regexFirstGroups(
+            pattern: #"/(\d{3,5})x(\d{3,5})/"#,
+            in: path,
+            dotMatchesLine: false
+        ), groups.count == 2,
+           let width = Int(groups[0]),
+           let height = Int(groups[1]) {
+            return width * height
+        }
+
+        if path.contains("/playlist") { return 1 }
         return 0
     }
 }
@@ -663,7 +659,7 @@ struct HiddenSharedVideoPlayerView: View {
             "User-Agent": HiddenMissAVPlaybackResolver.userAgent
         ]
         let asset = AVURLAsset(
-            url: HiddenMissAVPlaybackResolver.preferredHighestQualityStreamURL(for: item.streamURL),
+            url: item.streamURL,
             options: [
                 "AVURLAssetHTTPHeaderFieldsKey": headers
             ]
