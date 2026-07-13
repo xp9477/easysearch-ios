@@ -449,17 +449,6 @@ struct HiddenJavDBFavoriteMoviesView: View {
                         markerPositions: context.markerPositions,
                         undo: { viewModel.undoFavoritePlaybackSave(context) }
                     )
-                },
-                onPlaybackClosed: { item, position in
-                    guard let movie = favoriteMovie(for: item) else { return }
-                    let playback = HiddenJavDBFavoritePlayback(
-                        movie: movie,
-                        sourceName: item.sourceName,
-                        streamURL: item.streamURL,
-                        refererURL: item.refererURL,
-                        positionSeconds: position
-                    )
-                    _ = viewModel.saveFavoritePlayback(playback)
                 }
             )
         }
@@ -686,16 +675,6 @@ struct HiddenJavDBMovieDetailView: View {
                         markerPositions: context.markerPositions,
                         undo: { viewModel.undoFavoritePlaybackSave(context) }
                     )
-                },
-                onPlaybackClosed: { item, position in
-                    let playback = HiddenJavDBFavoritePlayback(
-                        movie: movie,
-                        sourceName: item.sourceName,
-                        streamURL: item.streamURL,
-                        refererURL: item.refererURL,
-                        positionSeconds: position
-                    )
-                    _ = viewModel.saveFavoritePlayback(playback)
                 }
             )
         }

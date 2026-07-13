@@ -589,7 +589,6 @@ struct HiddenSharedVideoPlayerView: View {
 
     let item: HiddenSharedPlayerItem
     let onSavePlaybackPosition: (HiddenSharedPlayerItem, Double) -> HiddenPlaybackSaveResult
-    var onPlaybackClosed: ((HiddenSharedPlayerItem, Double) -> Void)? = nil
     var showsPlaybackSaveControls = true
 
     @Environment(\.dismiss) private var dismiss
@@ -632,12 +631,10 @@ struct HiddenSharedVideoPlayerView: View {
     init(
         item: HiddenSharedPlayerItem,
         onSavePlaybackPosition: @escaping (HiddenSharedPlayerItem, Double) -> HiddenPlaybackSaveResult,
-        onPlaybackClosed: ((HiddenSharedPlayerItem, Double) -> Void)? = nil,
         showsPlaybackSaveControls: Bool = true
     ) {
         self.item = item
         self.onSavePlaybackPosition = onSavePlaybackPosition
-        self.onPlaybackClosed = onPlaybackClosed
         self.showsPlaybackSaveControls = showsPlaybackSaveControls
 
         let headers: [String: String] = [
@@ -707,7 +704,6 @@ struct HiddenSharedVideoPlayerView: View {
             scheduleControlsAutoHide()
         }
         .onDisappear {
-            onPlaybackClosed?(item, resolvedCurrentPlaybackTime)
             seekTask?.cancel()
             controlsAutoHideTask?.cancel()
             favoriteSaveResetTask?.cancel()
