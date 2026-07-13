@@ -774,7 +774,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/scripts/update_dynamic_build_version.sh\"\n";
+			shellScript = "/bin/sh \"${SRCROOT}/scripts/update_dynamic_build_version.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
