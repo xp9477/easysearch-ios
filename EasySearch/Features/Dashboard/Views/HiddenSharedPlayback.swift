@@ -47,6 +47,80 @@ enum HiddenMissAVPlaybackTarget {
     case stream(URL, URL)
 }
 
+enum HiddenPlaybackIssueKind: Equatable {
+    case javDBAgeConfirmation
+    case missAVUnavailable
+    case parsing
+    case network
+    case unknown
+}
+
+struct HiddenPlaybackIssuePresentation: Equatable {
+    let kind: HiddenPlaybackIssueKind
+    let title: String
+    let message: String
+    let primaryActionTitle: String
+    let secondaryActionTitle: String?
+    let systemImage: String
+    let tone: ESStatusPill.Tone
+
+    init(error: Error) {
+        let nsError = error as NSError
+        self = Self(
+            message: error.localizedDescription,
+            errorCode: nsError.code,
+            userInfo: nsError.userInfo
+        )
+    }
+
+    init(message: String, errorCode: Int? = nil, userInfo: [String: Any] = [:]) {
+        let statusCode = userInfo["HTTPStatusCode"] as? Int
+        let normalized = message.uppercased()
+
+        if errorCode == -35 || message.contains("年龄确认") || message.contains("18+") {
+            kind = .javDBAgeConfirmation
+            title = "需要年龄确认"
+            self.message = "完成网页确认后，返回这里重试即可继续。"
+            primaryActionTitle = "已确认，重试"
+            secondaryActionTitle = "打开确认页"
+            systemImage = "checkmark.shield"
+            tone = .accent
+        } else if statusCode == 451 || normalized.contains("451") || normalized.contains("MISSAV 页面请求失败") {
+            kind = .missAVUnavailable
+            title = "当前域名不可用"
+            self.message = "已尝试备用域名。仍失败时可切换 MissAV 域名后重试。"
+            primaryActionTitle = "重试"
+            secondaryActionTitle = "修改域名"
+            systemImage = "network.slash"
+            tone = .warning
+        } else if message.contains("解析") || message.contains("未解析") {
+            kind = .parsing
+            title = "页面解析失败"
+            self.message = "页面结构可能已变化，请稍后重试。"
+            primaryActionTitle = "重试"
+            secondaryActionTitle = nil
+            systemImage = "doc.text.magnifyingglass"
+            tone = .warning
+        } else if message.contains("网络") || message.contains("请求") || message.contains("连接") || errorCode == NSURLErrorNotConnectedToInternet {
+            kind = .network
+            title = "页面请求失败"
+            self.message = message
+            primaryActionTitle = "重试"
+            secondaryActionTitle = nil
+            systemImage = "wifi.exclamationmark"
+            tone = .warning
+        } else {
+            kind = .unknown
+            title = "播放准备失败"
+            self.message = message
+            primaryActionTitle = "重试"
+            secondaryActionTitle = nil
+            systemImage = "exclamationmark.triangle"
+            tone = .warning
+        }
+    }
+}
+
 extension HiddenMissAVDomainConfiguration {
     static func currentLocalizedBaseURL(locale: String = "cn") -> URL {
         currentBaseURL().appendingPathComponent(locale)

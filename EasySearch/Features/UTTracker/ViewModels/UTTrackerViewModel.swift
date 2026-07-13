@@ -1,21 +1,29 @@
 import Foundation
 
+@MainActor
 final class UTTrackerViewModel: ObservableObject {
     @Published private(set) var entries: [UTEntry] = []
+    @Published private var holidayCalendar: UTHolidayCalendar
 
     private let store: any UTTrackerEntryStore
     private let calendar: Calendar
     private let notificationCenter: NotificationCenter
+    private let holidayStore: UTHolidayCalendarStore
     private var entriesDidChangeObserver: NSObjectProtocol?
 
     init(
         store: any UTTrackerEntryStore = UTTrackerLocalStore(),
         calendar: Calendar = .utTracker,
-        notificationCenter: NotificationCenter = .default
+        notificationCenter: NotificationCenter = .default,
+        holidayCalendar: UTHolidayCalendar? = nil,
+        holidayStore: UTHolidayCalendarStore = UTHolidayCalendarStore()
     ) {
         self.store = store
         self.calendar = calendar
         self.notificationCenter = notificationCenter
+        self.holidayStore = holidayStore
+        self.holidayCalendar = holidayCalendar
+            ?? holidayStore.cachedCalendar(for: Self.relevantHolidayYears(calendar: calendar), calendar: calendar)
         entriesDidChangeObserver = notificationCenter.addObserver(
             forName: .utTrackerEntriesDidChange,
             object: nil,
@@ -24,6 +32,9 @@ final class UTTrackerViewModel: ObservableObject {
             self?.reloadFromStore()
         }
         loadEntries()
+        Task { [weak self] in
+            await self?.refreshHolidayCalendar()
+        }
     }
 
     deinit {
@@ -32,31 +43,31 @@ final class UTTrackerViewModel: ObservableObject {
         }
     }
 
-    var currentWeekSummary: UTWeekSummary {
-        weekSummary(for: Date())
+    var currentMonthSummary: UTMonthSummary {
+        monthSummary(for: Date())
     }
 
-    var currentWeekEntries: [UTEntry] {
-        entries(in: weekInterval(for: Date()))
+    var currentMonthEntries: [UTEntry] {
+        entries(in: monthInterval(for: Date()))
     }
 
-    func summary(for date: Date) -> UTWeekSummary {
-        weekSummary(for: date)
+    func summary(for date: Date) -> UTMonthSummary {
+        monthSummary(for: date)
     }
 
-    func isInCurrentWeek(_ date: Date) -> Bool {
-        weekInterval(for: date).start == weekInterval(for: Date()).start
+    func isInCurrentMonth(_ date: Date) -> Bool {
+        monthInterval(for: date).start == monthInterval(for: Date()).start
     }
 
-    func recentWeekSummaries(limit: Int = 6) -> [UTWeekSummary] {
-        let currentWeekStart = weekInterval(for: Date()).start
+    func recentMonthSummaries(limit: Int = 6) -> [UTMonthSummary] {
+        let currentMonthStart = monthInterval(for: Date()).start
 
         return (0..<limit).compactMap { offset in
-            guard let weekStart = calendar.date(byAdding: .weekOfYear, value: -offset, to: currentWeekStart) else {
+            guard let monthStart = calendar.date(byAdding: .month, value: -offset, to: currentMonthStart) else {
                 return nil
             }
 
-            return weekSummary(weekStartingAt: weekStart)
+            return monthSummary(monthStartingAt: monthStart)
         }
     }
 
@@ -86,27 +97,40 @@ final class UTTrackerViewModel: ObservableObject {
         calendar.isDateInToday(date)
     }
 
-    private func weekSummary(for date: Date) -> UTWeekSummary {
-        weekSummary(weekStartingAt: weekInterval(for: date).start)
+    private func monthSummary(for date: Date) -> UTMonthSummary {
+        monthSummary(monthStartingAt: monthInterval(for: date).start, now: date)
     }
 
-    private func weekSummary(weekStartingAt weekStart: Date) -> UTWeekSummary {
-        let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
-        let intervalEnd = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
-        let interval = DateInterval(start: weekStart, end: intervalEnd)
-        let totalHours = entries(in: interval).reduce(0) { $0 + $1.hours }
+    private func monthSummary(monthStartingAt monthStart: Date, now: Date? = nil) -> UTMonthSummary {
+        let interval = monthInterval(for: monthStart)
+        let monthEnd = calendar.date(byAdding: .day, value: -1, to: interval.end) ?? monthStart
+        let summaryNow = now ?? monthEnd
+        let elapsedEnd = min(interval.end, summaryNow.addingTimeInterval(1))
+        let elapsedInterval = DateInterval(start: interval.start, end: elapsedEnd)
+        let totalWorkingDays = calendar.utWorkingDays(in: interval, holidayCalendar: holidayCalendar)
+        let elapsedWorkingDays = calendar.utWorkingDays(in: elapsedInterval, holidayCalendar: holidayCalendar)
+        let totalHours = entries(in: interval)
+            .filter { calendar.isUTWorkingDay($0.date, holidayCalendar: holidayCalendar) }
+            .reduce(0) { $0 + $1.hours }
 
-        return UTWeekSummary(weekStart: weekStart, weekEnd: weekEnd, totalHours: totalHours)
+        return UTMonthSummary(
+            monthStart: monthStart,
+            monthEnd: monthEnd,
+            totalHours: totalHours,
+            elapsedWorkingDays: elapsedWorkingDays.count,
+            totalWorkingDays: totalWorkingDays.count
+        )
     }
 
-    private func entries(in weekInterval: DateInterval) -> [UTEntry] {
+    private func entries(in interval: DateInterval) -> [UTEntry] {
         entries
-            .filter { weekInterval.contains($0.date) }
+            .filter { interval.contains($0.date) }
             .sorted(by: sortEntries(lhs:rhs:))
     }
 
-    private func weekInterval(for date: Date) -> DateInterval {
-        calendar.dateInterval(of: .weekOfYear, for: date) ?? DateInterval(start: calendar.startOfDay(for: date), duration: 7 * 24 * 60 * 60)
+    private func monthInterval(for date: Date) -> DateInterval {
+        calendar.dateInterval(of: .month, for: date)
+            ?? DateInterval(start: calendar.startOfDay(for: date), duration: 31 * 24 * 60 * 60)
     }
 
     private func sortAndPersistEntries() {
@@ -134,6 +158,18 @@ final class UTTrackerViewModel: ObservableObject {
         let reloaded = store.loadEntries().sorted(by: sortEntries(lhs:rhs:))
         guard reloaded != entries else { return }
         entries = reloaded
+    }
+
+    private func refreshHolidayCalendar() async {
+        holidayCalendar = await holidayStore.refreshCalendar(
+            for: Self.relevantHolidayYears(calendar: calendar),
+            calendar: calendar
+        )
+    }
+
+    private static func relevantHolidayYears(calendar: Calendar, now: Date = Date()) -> Set<Int> {
+        let currentYear = calendar.component(.year, from: now)
+        return [currentYear - 1, currentYear, currentYear + 1]
     }
 }
 

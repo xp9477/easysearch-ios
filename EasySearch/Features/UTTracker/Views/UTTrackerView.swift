@@ -13,11 +13,11 @@ public struct UTTrackerView: View {
             VStack(alignment: .leading, spacing: 20) {
                 overviewCard
                 addEntryCard
-                if !viewModel.currentWeekEntries.isEmpty {
-                    currentWeekEntriesCard
+                if !viewModel.currentMonthEntries.isEmpty {
+                    currentMonthEntriesCard
                 }
                 if !viewModel.entries.isEmpty {
-                    recentWeeksCard
+                    recentMonthsCard
                 }
             }
             .padding(.horizontal, 20)
@@ -30,24 +30,24 @@ public struct UTTrackerView: View {
     }
 
     private var overviewCard: some View {
-        let summary = viewModel.currentWeekSummary
-        let exceededTargetHours = max(0, summary.totalHours - UTTrackerMetrics.targetHours)
+        let summary = viewModel.currentMonthSummary
+        let exceededTargetHours = max(0, summary.totalHours - summary.targetHours)
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("本周")
+                    Text("本月")
                         .font(.system(size: 22, weight: .bold))
                         .foregroundStyle(.primary)
 
-                    Text(weekRangeText(for: summary))
+                    Text(monthRangeText(for: summary))
                         .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
-                Text(percentText(for: summary.fullWeekProgress))
+                Text(percentText(for: summary.fullMonthProgress))
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
             }
@@ -57,7 +57,7 @@ public struct UTTrackerView: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.primary)
 
-                Text("\(hoursText(summary.totalHours)) / \(hoursText(UTTrackerMetrics.targetHours))h")
+                Text("\(hoursText(summary.totalHours)) / \(hoursText(summary.targetHours))h")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
@@ -98,7 +98,7 @@ public struct UTTrackerView: View {
             quickDatePicker
             quickHourPresets
             hoursAdjuster
-            projectedWeekProgressBanner
+            projectedMonthProgressBanner
 
             TextField("备注（可选）", text: $draftNote, axis: .vertical)
                 .lineLimit(3, reservesSpace: false)
@@ -211,19 +211,22 @@ public struct UTTrackerView: View {
         }
     }
 
-    private var projectedWeekProgressBanner: some View {
-        HStack(spacing: 12) {
-            Image(systemName: projectedWeekTotalHours >= UTTrackerMetrics.targetHours ? "checkmark.seal.fill" : "scope")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(projectedWeekTotalHours >= UTTrackerMetrics.targetHours ? .green : .orange)
+    private var projectedMonthProgressBanner: some View {
+        let summary = selectedMonthSummary
+        let isProjectedTargetMet = projectedMonthTotalHours >= summary.targetHours
 
-            Text(projectedWeekLabel)
+        return HStack(spacing: 12) {
+            Image(systemName: isProjectedTargetMet ? "checkmark.seal.fill" : "scope")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(isProjectedTargetMet ? .green : .orange)
+
+            Text(projectedMonthLabel)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
 
             Spacer(minLength: 0)
 
-            Text(projectedWeekSummaryText)
+            Text(projectedMonthSummaryText)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.primary)
         }
@@ -231,19 +234,16 @@ public struct UTTrackerView: View {
         .padding(.vertical, 11)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(
-                    (projectedWeekTotalHours >= UTTrackerMetrics.targetHours ? Color.green : Color.orange)
-                        .opacity(0.12)
-                )
+                .fill((isProjectedTargetMet ? Color.green : Color.orange).opacity(0.12))
         )
     }
 
-    private var currentWeekEntriesCard: some View {
+    private var currentMonthEntriesCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(title: "本周记录", detail: "\(viewModel.currentWeekEntries.count) 条")
+            sectionHeader(title: "本月记录", detail: "\(viewModel.currentMonthEntries.count) 条")
 
             VStack(spacing: 12) {
-                ForEach(viewModel.currentWeekEntries) { entry in
+                ForEach(viewModel.currentMonthEntries) { entry in
                     UTEntryRow(
                         title: entryTitle(for: entry),
                         subtitle: entry.note.isEmpty ? "未填写备注" : entry.note,
@@ -259,16 +259,16 @@ public struct UTTrackerView: View {
         .cardStyle()
     }
 
-    private var recentWeeksCard: some View {
+    private var recentMonthsCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(title: "近 4 周")
+            sectionHeader(title: "近 4 月")
 
             VStack(spacing: 14) {
-                ForEach(viewModel.recentWeekSummaries(limit: 4)) { summary in
+                ForEach(viewModel.recentMonthSummaries(limit: 4)) { summary in
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(alignment: .top, spacing: 12) {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(weekRangeText(for: summary))
+                                Text(monthRangeText(for: summary))
                                     .font(.system(size: 15, weight: .semibold))
                                     .foregroundStyle(.primary)
 
@@ -321,28 +321,28 @@ public struct UTTrackerView: View {
         [4, 6, 8, 10]
     }
 
-    private var selectedWeekSummary: UTWeekSummary {
+    private var selectedMonthSummary: UTMonthSummary {
         viewModel.summary(for: selectedDate)
     }
 
-    private var projectedWeekTotalHours: Double {
-        selectedWeekSummary.totalHours + draftHours
+    private var projectedMonthTotalHours: Double {
+        selectedMonthSummary.totalHours + draftHours
     }
 
     private var remainingSuggestionHours: Double? {
-        let remaining = roundedToHalfHour(selectedWeekSummary.remainingToTarget)
+        let remaining = roundedToHalfHour(selectedMonthSummary.remainingToTarget)
         guard remaining >= 0.5, remaining <= 16, !quickHourOptions.contains(remaining) else {
             return nil
         }
         return remaining
     }
 
-    private var projectedWeekSummaryText: String {
-        "\(hoursText(projectedWeekTotalHours)) / \(hoursText(UTTrackerMetrics.targetHours))h"
+    private var projectedMonthSummaryText: String {
+        "\(hoursText(projectedMonthTotalHours)) / \(hoursText(selectedMonthSummary.targetHours))h"
     }
 
-    private var projectedWeekLabel: String {
-        viewModel.isInCurrentWeek(selectedDate) ? "本周" : "该周"
+    private var projectedMonthLabel: String {
+        viewModel.isInCurrentMonth(selectedDate) ? "本月" : "该月"
     }
 
     private var saveButtonTitle: String {
@@ -435,9 +435,9 @@ public struct UTTrackerView: View {
         draftNote = ""
     }
 
-    private func weekRangeText(for summary: UTWeekSummary) -> String {
-        let start = summary.weekStart.formatted(.dateTime.month().day())
-        let end = summary.weekEnd.formatted(.dateTime.month().day())
+    private func monthRangeText(for summary: UTMonthSummary) -> String {
+        let start = summary.monthStart.formatted(.dateTime.month().day())
+        let end = summary.monthEnd.formatted(.dateTime.month().day())
         return "\(start) - \(end)"
     }
 

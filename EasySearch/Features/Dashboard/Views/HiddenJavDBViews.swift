@@ -9,6 +9,7 @@ struct HiddenJavDBFeatureView: View {
     @State private var randomMode: HiddenJavDBRandomMode
     @State private var showRandomDetails: Bool
     @State private var searchQuery = ""
+    @State private var webPageItem: HiddenSharedWebPageItem?
 
     private let searchColumns = [
         GridItem(.flexible(), spacing: 10),
@@ -49,10 +50,11 @@ struct HiddenJavDBFeatureView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(16)
-            .padding(.bottom, 18)
+            .padding(.horizontal, ESUI.screenHorizontalPadding)
+            .padding(.top, 14)
+            .esBottomTabPadding()
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .esScreenBackground()
         .navigationTitle("javdb")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -75,13 +77,15 @@ struct HiddenJavDBFeatureView: View {
             randomMode = settings.javDBRandomMode
             showRandomDetails = settings.showJavDBDetailsByDefault
         }
+        .fullScreenCover(item: $webPageItem) { item in
+            HiddenSharedWebPageView(item: item)
+        }
     }
 
     @ViewBuilder
     private var searchMovieCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("搜索影片")
-                .font(.headline)
+            ESSectionHeader(title: "搜索影片")
 
             HStack(spacing: 10) {
                 TextField("输入番号或标题", text: $searchQuery)
@@ -111,17 +115,11 @@ struct HiddenJavDBFeatureView: View {
             }
 
             if viewModel.isSearchingMovies {
-                HStack(spacing: 8) {
-                    ProgressView()
-                    Text("正在搜索...")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                ESInfoBanner(title: "正在搜索", systemImage: "magnifyingglass", tone: .accent)
             } else if let searchErrorMessage = viewModel.searchMovieErrorMessage {
-                Text(searchErrorMessage)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                playbackIssueView(message: searchErrorMessage) {
+                    performMovieSearch()
+                }
             } else if let lastQuery = viewModel.lastSearchedMovieQuery, !viewModel.searchedMovies.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("“\(lastQuery)” · \(viewModel.searchedMovies.count) 个结果")
@@ -149,19 +147,14 @@ struct HiddenJavDBFeatureView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .esCard()
     }
 
     @ViewBuilder
     private var randomMovieCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("功能 2 · 随机影片")
-                    .font(.headline)
+                ESSectionHeader(title: "随机影片", trailing: randomMode.title)
                 Spacer()
                 if viewModel.isLoadingRandomMovie {
                     ProgressView()
@@ -177,13 +170,8 @@ struct HiddenJavDBFeatureView: View {
 
             if randomMode == .single {
                 if viewModel.isLoadingRandomMovie {
-                    VStack(spacing: 10) {
-                        ProgressView()
-                        Text(randomMode.loadingText)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 200)
+                    ESMediaPlaceholder(mode: .loading(randomMode.loadingText), systemImage: "film.stack")
+                        .frame(height: 230)
                 } else if let movie = viewModel.randomMovie {
                     NavigationLink(value: HiddenSpaceRoute.javDBMovie(movie)) {
                         VStack(alignment: .leading, spacing: 10) {
@@ -245,22 +233,11 @@ struct HiddenJavDBFeatureView: View {
                         }
                     }
                 } else {
-                    VStack(spacing: 10) {
-                        Image(systemName: "film")
-                            .font(.system(size: 28, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                        Text(viewModel.randomErrorMessage ?? "暂时没有拿到影片")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                        Button("重试") {
-                            Task {
-                                await viewModel.loadRandomMovies(mode: randomMode)
-                            }
+                    playbackIssueView(message: viewModel.randomErrorMessage ?? "暂时没有拿到影片") {
+                        Task {
+                            await viewModel.loadRandomMovies(mode: randomMode)
                         }
-                        .buttonStyle(.bordered)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 200)
                 }
             } else {
                 if !viewModel.randomMovies.isEmpty {
@@ -295,38 +272,48 @@ struct HiddenJavDBFeatureView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(viewModel.isLoadingRandomMovie)
                 } else if viewModel.isLoadingRandomMovie {
-                    VStack(spacing: 10) {
-                        ProgressView()
-                        Text(randomMode.loadingText)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 200)
+                    ESMediaPlaceholder(mode: .loading(randomMode.loadingText), systemImage: "film.stack")
+                        .frame(height: 230)
                 } else {
-                    VStack(spacing: 10) {
-                        Image(systemName: "film")
-                            .font(.system(size: 28, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                        Text(viewModel.randomErrorMessage ?? "暂时没有拿到影片")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                        Button("重试") {
-                            Task {
-                                await viewModel.loadRandomMovies(mode: randomMode)
-                            }
+                    playbackIssueView(message: viewModel.randomErrorMessage ?? "暂时没有拿到影片") {
+                        Task {
+                            await viewModel.loadRandomMovies(mode: randomMode)
                         }
-                        .buttonStyle(.bordered)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 200)
                 }
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .esCard()
+    }
+
+    private func playbackIssueView(message: String, retry: @escaping () -> Void) -> some View {
+        let issue = HiddenPlaybackIssuePresentation(message: message)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            ESInfoBanner(
+                title: issue.title,
+                message: issue.message,
+                systemImage: issue.systemImage,
+                tone: issue.tone
+            )
+
+            HStack(spacing: 10) {
+                Button(issue.primaryActionTitle) {
+                    retry()
+                }
+                .buttonStyle(.borderedProminent)
+
+                if issue.kind == .javDBAgeConfirmation {
+                    Button(issue.secondaryActionTitle ?? "打开确认页") {
+                        webPageItem = HiddenSharedWebPageItem(
+                            title: "javdb",
+                            url: URL(string: "https://javdb.com/")!
+                        )
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+        }
     }
 
     private var normalizedSearchQuery: String {
@@ -724,13 +711,7 @@ struct HiddenJavDBMovieDetailView: View {
 
     private var watchSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("播放")
-                .font(.headline)
-
-            Text("仅保留 miss 入口，直接拉起当前影片播放。")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            ESSectionHeader(title: "播放", trailing: missAVDomainDisplay)
 
             if let url = HiddenJavDBWatchSite.missAV.url(for: movie.code) {
                 Button {
@@ -775,20 +756,54 @@ struct HiddenJavDBMovieDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isResolvingWatchPlayback)
-            }
 
-            if let watchPlaybackErrorMessage {
-                Text(watchPlaybackErrorMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                if let watchPlaybackErrorMessage {
+                    watchPlaybackIssueView(message: watchPlaybackErrorMessage, pageURL: url)
+                }
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .esCard(cornerRadius: ESUI.compactCornerRadius)
+    }
+
+    private func watchPlaybackIssueView(message: String, pageURL: URL) -> some View {
+        let issue = HiddenPlaybackIssuePresentation(message: message)
+
+        return VStack(alignment: .leading, spacing: 12) {
+            ESInfoBanner(
+                title: issue.title,
+                message: issue.message,
+                systemImage: issue.systemImage,
+                tone: issue.tone
+            )
+
+            HStack(spacing: 10) {
+                Button(issue.primaryActionTitle) {
+                    Task {
+                        await openWatchSite(site: .missAV, pageURL: pageURL)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isResolvingWatchPlayback)
+
+                switch issue.kind {
+                case .javDBAgeConfirmation:
+                    Button(issue.secondaryActionTitle ?? "打开确认页") {
+                        inAppWebPageItem = HiddenSharedWebPageItem(
+                            title: "javdb · \(movie.code)",
+                            url: pageURL
+                        )
+                    }
+                    .buttonStyle(.bordered)
+                case .missAVUnavailable:
+                    NavigationLink(value: HiddenSpaceRoute.settings) {
+                        Text(issue.secondaryActionTitle ?? "修改域名")
+                    }
+                    .buttonStyle(.bordered)
+                default:
+                    EmptyView()
+                }
+            }
+        }
     }
 
     @ViewBuilder

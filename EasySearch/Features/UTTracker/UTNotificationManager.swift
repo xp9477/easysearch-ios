@@ -10,14 +10,21 @@ final class UTNotificationManager: NSObject, ObservableObject {
     private let center: UNUserNotificationCenter
     private let userDefaults: UserDefaults
     private let calendar: Calendar
-    private let dailyReminderPrefix = "ut.daily."
-    private let weeklyReminderIdentifier = "ut.weekly.threshold"
-    private let schedulingWindowDays = 30
+    private let holidayStore: UTHolidayCalendarStore
+    private var holidayCalendar: UTHolidayCalendar
+    private let thresholdReminderPrefix = "ut.threshold."
+    private let schedulingWindowDays = 60
 
     private override init() {
         center = .current()
         userDefaults = .standard
         calendar = .utTracker
+        holidayStore = UTHolidayCalendarStore()
+        let currentYear = Calendar.utTracker.component(.year, from: Date())
+        holidayCalendar = holidayStore.cachedCalendar(
+            for: [currentYear, currentYear + 1],
+            calendar: .utTracker
+        )
         super.init()
     }
 
@@ -82,13 +89,14 @@ final class UTNotificationManager: NSObject, ObservableObject {
         }
 
         await removeManagedPendingRequests()
-
-        let entries = loadEntries()
-        await scheduleDailyReminders(using: entries)
-        await scheduleWeeklyThresholdReminder(using: entries)
+        holidayCalendar = await holidayStore.refreshCalendar(
+            for: relevantHolidayYears(),
+            calendar: calendar
+        )
+        await scheduleFridayAndSaturdayReminders(using: loadEntries())
     }
 
-    private func scheduleDailyReminders(using entries: [UTEntry]) async {
+    private func scheduleFridayAndSaturdayReminders(using entries: [UTEntry]) async {
         let now = Date()
         let today = calendar.startOfDay(for: now)
 
@@ -97,12 +105,13 @@ final class UTNotificationManager: NSObject, ObservableObject {
                 continue
             }
 
-            let isWeekend = calendar.isDateInWeekend(day)
-            if isWeekend && !shouldScheduleWeekendReminder(on: day, within: entries) {
+            let weekday = calendar.component(.weekday, from: day)
+            guard weekday == 6 || weekday == 7 else {
                 continue
             }
 
-            guard !hasEntry(on: day, within: entries) else {
+            let summary = monthSummary(for: day, entries: entries)
+            guard !summary.isTargetMet else {
                 continue
             }
 
@@ -115,17 +124,12 @@ final class UTNotificationManager: NSObject, ObservableObject {
             }
 
             let content = UNMutableNotificationContent()
-            if isWeekend {
-                content.title = "本周 UT 还没到 70%"
-                content.body = "这周还没达到 \(targetHoursText)h，周末再确认并补录本周 UT。"
-            } else {
-                content.title = "填写今天的 UT"
-                content.body = "今天的工作 UT 还没确认，记得补一下。"
-            }
+            content.title = weekday == 6 ? "周五检查本月 UT" : "周六补录本月 UT"
+            content.body = "截至目前还差 \(hoursText(summary.remainingToTarget))h 达到本月阶段目标。"
             content.sound = .default
 
             let request = UNNotificationRequest(
-                identifier: dailyIdentifier(for: day),
+                identifier: thresholdIdentifier(for: day),
                 content: content,
                 trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             )
@@ -134,65 +138,25 @@ final class UTNotificationManager: NSObject, ObservableObject {
         }
     }
 
-    private func scheduleWeeklyThresholdReminder(using entries: [UTEntry]) async {
-        let now = Date()
-        let nextThursdayAtEight = nextThursdayReminderDate(after: now)
-
-        guard let reminderDate = nextThursdayAtEight else {
-            return
-        }
-
-        let weekInterval = calendar.dateInterval(of: .weekOfYear, for: reminderDate)
-            ?? DateInterval(start: calendar.startOfDay(for: reminderDate), duration: 7 * 24 * 60 * 60)
-
+    private func monthSummary(for date: Date, entries: [UTEntry]) -> UTMonthSummary {
+        let monthInterval = calendar.dateInterval(of: .month, for: date)
+            ?? DateInterval(start: calendar.startOfDay(for: date), duration: 31 * 24 * 60 * 60)
+        let monthStart = monthInterval.start
+        let monthEnd = calendar.date(byAdding: .day, value: -1, to: monthInterval.end) ?? monthStart
+        let elapsedInterval = DateInterval(start: monthStart, end: min(monthInterval.end, date.addingTimeInterval(1)))
+        let totalWorkingDays = calendar.utWorkingDays(in: monthInterval, holidayCalendar: holidayCalendar)
+        let elapsedWorkingDays = calendar.utWorkingDays(in: elapsedInterval, holidayCalendar: holidayCalendar)
         let totalHours = entries
-            .filter { weekInterval.contains($0.date) }
+            .filter { monthInterval.contains($0.date) && calendar.isUTWorkingDay($0.date, holidayCalendar: holidayCalendar) }
             .reduce(0) { $0 + $1.hours }
 
-        guard totalHours < UTTrackerMetrics.weeklyWarningHours else {
-            return
-        }
-
-        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: reminderDate)
-
-        let content = UNMutableNotificationContent()
-        content.title = "本周 UT 还没到 60%"
-        content.body = "现在还没达到 24h，记得检查并补录本周 UT。"
-        content.sound = .default
-
-        let request = UNNotificationRequest(
-            identifier: weeklyReminderIdentifier,
-            content: content,
-            trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        return UTMonthSummary(
+            monthStart: monthStart,
+            monthEnd: monthEnd,
+            totalHours: totalHours,
+            elapsedWorkingDays: elapsedWorkingDays.count,
+            totalWorkingDays: totalWorkingDays.count
         )
-
-        await add(request)
-    }
-
-    private func nextThursdayReminderDate(after now: Date) -> Date? {
-        let components = DateComponents(hour: 20, minute: 0, weekday: 5)
-        return calendar.nextDate(
-            after: now,
-            matching: components,
-            matchingPolicy: .nextTime,
-            direction: .forward
-        )
-    }
-
-    private func hasEntry(on date: Date, within entries: [UTEntry]) -> Bool {
-        entries.contains { calendar.isDate($0.date, inSameDayAs: date) }
-    }
-
-    private func shouldScheduleWeekendReminder(on date: Date, within entries: [UTEntry]) -> Bool {
-        guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: date) else {
-            return true
-        }
-
-        let totalHours = entries
-            .filter { weekInterval.contains($0.date) }
-            .reduce(0) { $0 + $1.hours }
-
-        return totalHours < UTTrackerMetrics.targetHours
     }
 
     private func loadEntries() -> [UTEntry] {
@@ -204,28 +168,28 @@ final class UTNotificationManager: NSObject, ObservableObject {
         return storedEntries
     }
 
-    private func dailyIdentifier(for date: Date) -> String {
+    private func thresholdIdentifier(for date: Date) -> String {
         let components = calendar.dateComponents([.year, .month, .day], from: date)
         let year = components.year ?? 0
         let month = components.month ?? 0
         let day = components.day ?? 0
-        return "\(dailyReminderPrefix)\(year)-\(month)-\(day)"
+        return thresholdReminderPrefix + "\(year)-\(month)-\(day)"
     }
 
-    private var targetHoursText: String {
-        let hours = UTTrackerMetrics.targetHours
-        if hours.rounded() == hours {
-            return String(Int(hours))
-        }
+    private func hoursText(_ hours: Double) -> String {
+        hours.formatted(.number.precision(.fractionLength(0 ... 1)))
+    }
 
-        return String(format: "%.1f", hours)
+    private func relevantHolidayYears(now: Date = Date()) -> Set<Int> {
+        let currentYear = calendar.component(.year, from: now)
+        return [currentYear, currentYear + 1]
     }
 
     private func removeManagedPendingRequests() async {
         let pendingRequests = await pendingNotificationRequests()
         let managedIdentifiers = pendingRequests
             .map(\.identifier)
-            .filter { $0.hasPrefix(dailyReminderPrefix) || $0 == weeklyReminderIdentifier }
+            .filter { $0.hasPrefix(thresholdReminderPrefix) }
 
         guard !managedIdentifiers.isEmpty else { return }
         center.removePendingNotificationRequests(withIdentifiers: managedIdentifiers)

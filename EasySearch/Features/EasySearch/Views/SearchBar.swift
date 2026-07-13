@@ -10,7 +10,7 @@ struct SearchBar: View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
                 .font(.body.weight(.semibold))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isFocused.wrappedValue ? Color.accentColor : .secondary)
 
             TextField("输入要搜索的内容", text: $text)
                 .font(.body)
@@ -33,15 +33,16 @@ struct SearchBar: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .frame(minHeight: 54)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .fill(Color(.tertiarySystemGroupedBackground))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(isFocused.wrappedValue ? Color.accentColor.opacity(0.35) : Color(.separator).opacity(0.12), lineWidth: 1)
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .stroke(isFocused.wrappedValue ? Color.accentColor.opacity(0.45) : Color.primary.opacity(0.06), lineWidth: 1)
         )
+        .shadow(color: isFocused.wrappedValue ? Color.accentColor.opacity(0.08) : .clear, radius: 12, x: 0, y: 6)
         .animation(.easeInOut(duration: 0.15), value: isFocused.wrappedValue)
         .animation(.easeInOut(duration: 0.15), value: text.isEmpty)
     }

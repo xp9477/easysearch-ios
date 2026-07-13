@@ -25,36 +25,35 @@ public struct DashboardView: View {
 
     public var body: some View {
         NavigationStack(path: $path) {
-            List {
-                if moduleFeatures.isEmpty && hiddenFeatures.isEmpty {
-                    Section {
-                        Label("暂无模块", systemImage: "square.grid.2x2")
-                            .foregroundStyle(.secondary)
-                    }
-                } else {
-                    if !moduleFeatures.isEmpty {
-                        Section {
-                            ForEach(moduleFeatures, id: \.id) { feature in
-                                featureRow(for: feature)
-                            }
-                            .onMove(perform: moveModuleFeatures)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    if moduleFeatures.isEmpty && hiddenFeatures.isEmpty {
+                        ESEmptyState(
+                            title: "鏆傛棤妯″潡",
+                            message: nil,
+                            systemImage: "square.grid.2x2"
+                        )
+                        .esCard()
+                    } else {
+                        if !moduleFeatures.isEmpty {
+                            moduleWorkbenchSection
                         }
-                    }
 
-                    if !hiddenFeatures.isEmpty {
-                        Section("隐藏空间") {
-                            ForEach(hiddenFeatures, id: \.id) { feature in
-                                featureRow(for: feature)
-                            }
+                        if !hiddenFeatures.isEmpty {
+                            hiddenSpaceSection
                         }
                     }
                 }
+                .padding(.horizontal, ESUI.screenHorizontalPadding)
+                .padding(.top, 14)
             }
-            .navigationTitle("模块")
+            .esBottomTabPadding()
+            .esScreenBackground()
+            .navigationTitle("妯″潡")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("模块")
+                    Text("妯″潡")
                         .font(.headline)
                         .contentShape(Rectangle())
                         .onTapGesture {
@@ -71,7 +70,7 @@ public struct DashboardView: View {
                             saveHiddenSpaceSnapshotIfNeeded()
                         }
                 } else {
-                    Text("模块不存在")
+                    Text("妯″潡涓嶅瓨鍦?)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -121,6 +120,30 @@ public struct DashboardView: View {
 
     private var hiddenFeatureIDs: Set<String> {
         Set(registry.hiddenFeatures.map { $0.id })
+    }
+
+    private var moduleWorkbenchSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ESSectionHeader(title: "妯″潡宸ヤ綔鍙?, trailing: "\(moduleFeatures.count)")
+
+            LazyVStack(spacing: 12) {
+                ForEach(moduleFeatures, id: \.id) { feature in
+                    featureRow(for: feature, locked: false)
+                }
+            }
+        }
+    }
+
+    private var hiddenSpaceSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ESSectionHeader(title: "绉佸瘑绌洪棿", trailing: "宸茶В閿?)
+
+            LazyVStack(spacing: 12) {
+                ForEach(hiddenFeatures, id: \.id) { feature in
+                    featureRow(for: feature, locked: true)
+                }
+            }
+        }
     }
 
     private var hiddenSpaceFeatureID: String {
@@ -219,18 +242,19 @@ public struct DashboardView: View {
     }
 
     @ViewBuilder
-    private func featureRow(for feature: any AppFeature) -> some View {
+    private func featureRow(for feature: any AppFeature, locked: Bool) -> some View {
         if shouldRestoreHiddenSpacePath(for: feature) {
             Button {
                 openFeature(feature)
             } label: {
-                FeatureRow(feature: feature, showsDisclosureIndicator: true)
+                FeatureRow(feature: feature, tone: locked ? .privateSpace : .standard, showsDisclosureIndicator: true)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ESCardButtonStyle())
         } else {
             NavigationLink(value: feature.id) {
-                FeatureRow(feature: feature)
+                FeatureRow(feature: feature, tone: locked ? .privateSpace : .standard)
             }
+            .buttonStyle(ESCardButtonStyle())
         }
     }
 
@@ -240,26 +264,53 @@ public struct DashboardView: View {
 }
 
 private struct FeatureRow: View {
+    enum Tone {
+        case standard
+        case privateSpace
+    }
+
     let feature: any AppFeature
+    var tone: Tone = .standard
     var showsDisclosureIndicator = false
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(alignment: .center, spacing: 14) {
             featureIcon
 
-            Text(feature.title)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 8) {
+                    Text(feature.title)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    if tone == .privateSpace {
+                        ESStatusPill(text: "绉佸瘑", tone: .accent)
+                    }
+                }
+
+                Text(feature.summary)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
             Spacer()
 
-            if showsDisclosureIndicator {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-            }
+            Image(systemName: showsDisclosureIndicator ? "arrow.uturn.forward.circle.fill" : "chevron.right")
+                .font(.system(size: showsDisclosureIndicator ? 20 : 13, weight: .semibold))
+                .foregroundStyle(showsDisclosureIndicator ? Color.accentColor.opacity(0.75) : Color(.tertiaryLabel))
         }
-        .padding(.vertical, 6)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
+                .fill(ESUI.elevatedBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
+                .stroke(tone == .privateSpace ? Color.accentColor.opacity(0.16) : Color.primary.opacity(0.05), lineWidth: 1)
+        )
     }
 
     @ViewBuilder
@@ -267,15 +318,7 @@ private struct FeatureRow: View {
         if feature.id == "uttracker" {
             UTModuleProgressIcon(color: feature.color)
         } else {
-            ZStack {
-                Circle()
-                    .fill(feature.color.opacity(0.12))
-                    .frame(width: 44, height: 44)
-
-                Image(systemName: feature.iconName)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(feature.color)
-            }
+            ESFeatureIcon(systemName: feature.iconName, color: feature.color, size: 48)
         }
     }
 }
@@ -284,14 +327,14 @@ private struct UTModuleProgressIcon: View {
     let color: Color
 
     @Environment(\.scenePhase) private var scenePhase
-    @State private var summary = UTTrackerSnapshot.currentWeekSummary()
+    @State private var summary = UTTrackerSnapshot.currentMonthSummary()
 
     private var progress: Double {
-        min(max(summary.fullWeekProgress, 0), 1)
+        min(max(summary.fullMonthProgress, 0), 1)
     }
 
     private var percentValue: Int {
-        Int((summary.fullWeekProgress * 100).rounded())
+        Int((summary.fullMonthProgress * 100).rounded())
     }
 
     private var ringColor: Color {
@@ -341,12 +384,12 @@ private struct UTModuleProgressIcon: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("UT 本周进度")
-        .accessibilityValue("\(displayText) 百分比")
+        .accessibilityLabel("UT 鏈湀杩涘害")
+        .accessibilityValue("\(displayText) 鐧惧垎姣?)
     }
 
     private func refreshSummary() {
-        summary = UTTrackerSnapshot.currentWeekSummary()
+        summary = UTTrackerSnapshot.currentMonthSummary()
     }
 }
 

@@ -103,4 +103,44 @@ final class DashboardParserTests: XCTestCase {
         XCTAssertTrue(candidateStrings.contains("https://missav.ws/cn/abc-123"))
         XCTAssertTrue(candidateStrings.contains("https://missav.live/cn/abc-123"))
     }
+
+    func testPlaybackIssuePresentationHandlesAgeConfirmation() {
+        let issue = HiddenPlaybackIssuePresentation(
+            message: "需要先完成 18+ 年龄确认，请在网页中确认后重试",
+            errorCode: -35
+        )
+
+        XCTAssertEqual(issue.kind, .javDBAgeConfirmation)
+        XCTAssertEqual(issue.primaryActionTitle, "已确认，重试")
+        XCTAssertEqual(issue.secondaryActionTitle, "打开确认页")
+    }
+
+    func testPlaybackIssuePresentationHandlesMissAV451() {
+        let issue = HiddenPlaybackIssuePresentation(
+            message: "页面请求失败（451）",
+            userInfo: ["HTTPStatusCode": 451]
+        )
+
+        XCTAssertEqual(issue.kind, .missAVUnavailable)
+        XCTAssertEqual(issue.primaryActionTitle, "重试")
+        XCTAssertEqual(issue.secondaryActionTitle, "修改域名")
+    }
+
+    func testPlaybackIssuePresentationHandlesMissAVFallbackFailure() {
+        let issue = HiddenPlaybackIssuePresentation(message: "MISSAV 页面请求失败")
+
+        XCTAssertEqual(issue.kind, .missAVUnavailable)
+    }
+
+    func testPlaybackIssuePresentationHandlesNetworkFailure() {
+        let issue = HiddenPlaybackIssuePresentation(message: "页面请求失败（500）")
+
+        XCTAssertEqual(issue.kind, .network)
+    }
+
+    func testPlaybackIssuePresentationHandlesParsingFailure() {
+        let issue = HiddenPlaybackIssuePresentation(message: "未解析到 MISSAV 视频流")
+
+        XCTAssertEqual(issue.kind, .parsing)
+    }
 }

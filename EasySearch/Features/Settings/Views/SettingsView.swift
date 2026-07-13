@@ -59,40 +59,21 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            List {
-                Section {
-                    NavigationLink(value: SettingsRoute.cloudSync) {
-                        ModuleSettingsRow(
-                            title: "云端同步",
-                            status: cloudSyncStatusText,
-                            systemImage: "icloud"
-                        )
-                    }
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    cloudSyncSection
 
-                if !orderedModuleSettingsItems.isEmpty {
-                    Section("模块设置") {
-                        ForEach(orderedModuleSettingsItems) { item in
-                            NavigationLink(value: item.route) {
-                                ModuleSettingsRow(
-                                    title: item.title,
-                                    status: item.status,
-                                    systemImage: item.systemImage
-                                )
-                            }
-                        }
+                    if !orderedModuleSettingsItems.isEmpty {
+                        moduleSettingsSection
                     }
-                }
 
-                Section("关于") {
-                    HStack {
-                        Text("版本号")
-                        Spacer()
-                        Text(appVersionText)
-                            .foregroundStyle(.secondary)
-                    }
+                    aboutSection
                 }
+                .padding(.horizontal, ESUI.screenHorizontalPadding)
+                .padding(.top, 14)
             }
+            .esBottomTabPadding()
+            .esScreenBackground()
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: SettingsRoute.self) { route in
@@ -118,6 +99,63 @@ struct SettingsView: View {
             .onChange(of: navigationState.pendingSettingsRoute) { _ in
                 handlePendingRouteIfNeeded()
             }
+        }
+    }
+
+    private var cloudSyncSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ESSectionHeader(title: "同步状态")
+
+            NavigationLink(value: SettingsRoute.cloudSync) {
+                ModuleSettingsRow(
+                    title: "云端同步",
+                    status: cloudSyncStatusText,
+                    systemImage: "icloud",
+                    tone: cloudViewModel.isCloudAuthenticated ? .success : .neutral
+                )
+            }
+            .buttonStyle(ESCardButtonStyle())
+        }
+    }
+
+    private var moduleSettingsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ESSectionHeader(title: "模块设置", trailing: "\(orderedModuleSettingsItems.count)")
+
+            VStack(spacing: 10) {
+                ForEach(orderedModuleSettingsItems) { item in
+                    NavigationLink(value: item.route) {
+                        ModuleSettingsRow(
+                            title: item.title,
+                            status: item.status,
+                            systemImage: item.systemImage,
+                            tone: item.tone
+                        )
+                    }
+                    .buttonStyle(ESCardButtonStyle())
+                }
+            }
+        }
+    }
+
+    private var aboutSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ESSectionHeader(title: "关于")
+
+            HStack(spacing: 14) {
+                ESFeatureIcon(systemName: "app.badge", color: .accentColor, size: 46)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("EasySearch")
+                        .font(.subheadline.weight(.semibold))
+                    Text("版本 \(appVersionText)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .esCard()
         }
     }
 
@@ -217,31 +255,71 @@ private struct ModuleSettingsItem: Identifiable {
     let status: String
     let systemImage: String
     let route: SettingsRoute
+
+    var tone: ESStatusPill.Tone {
+        if status.contains("已") || status.contains("@") {
+            return .success
+        }
+        if status.contains("未") || status.contains("尚未") {
+            return .warning
+        }
+        return .neutral
+    }
 }
 
 private struct ModuleSettingsRow: View {
     let title: String
     let status: String
     let systemImage: String
+    var tone: ESStatusPill.Tone = .neutral
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.tint)
-                .frame(width: 20)
+        HStack(spacing: 14) {
+            ESFeatureIcon(systemName: systemImage, color: iconColor, size: 46)
 
-            Text(title)
-                .foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
 
-            Spacer(minLength: 12)
+                Text(status)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
 
-            Text(status)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
+            Spacer(minLength: 10)
+
+            ESStatusPill(text: statusPillText, tone: tone)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color(.tertiaryLabel))
         }
-        .padding(.vertical, 2)
+        .esCard()
+    }
+
+    private var statusPillText: String {
+        if status.contains("@") {
+            return "已登录"
+        }
+        if status.contains("已") {
+            return "已配置"
+        }
+        if status.contains("未") || status.contains("尚未") {
+            return "待配置"
+        }
+        return "本地"
+    }
+
+    private var iconColor: Color {
+        switch tone {
+        case .neutral:
+            return .accentColor
+        default:
+            return tone.color
+        }
     }
 }
 

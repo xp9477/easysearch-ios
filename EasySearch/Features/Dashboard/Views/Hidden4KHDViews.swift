@@ -47,10 +47,11 @@ struct Hidden4KHDFeatureView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(16)
-            .padding(.bottom, 18)
+            .padding(.horizontal, ESUI.screenHorizontalPadding)
+            .padding(.top, 14)
+            .esBottomTabPadding()
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .esScreenBackground()
         .navigationTitle("4khd")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -75,8 +76,7 @@ struct Hidden4KHDFeatureView: View {
     @ViewBuilder
     private var searchAlbumCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("搜索 album")
-                .font(.headline)
+            ESSectionHeader(title: "搜索 album")
 
             HStack(spacing: 10) {
                 TextField("输入标题关键词", text: $searchQuery)
@@ -106,17 +106,9 @@ struct Hidden4KHDFeatureView: View {
             }
 
             if viewModel.isSearchingAlbums {
-                HStack(spacing: 8) {
-                    ProgressView()
-                    Text("正在搜索...")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                ESInfoBanner(title: "正在搜索", systemImage: "magnifyingglass", tone: .accent)
             } else if let searchErrorMessage = viewModel.searchAlbumErrorMessage {
-                Text(searchErrorMessage)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                ESInfoBanner(title: "搜索失败", message: searchErrorMessage, systemImage: "exclamationmark.triangle", tone: .warning)
             } else if let lastQuery = viewModel.lastSearchedAlbumQuery, !viewModel.searchedAlbums.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("“\(lastQuery)” · \(viewModel.searchedAlbums.count) 个结果")
@@ -138,19 +130,14 @@ struct Hidden4KHDFeatureView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .esCard()
     }
 
     @ViewBuilder
     private var randomAlbumCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("功能 1 · 随机封面")
-                    .font(.headline)
+                ESSectionHeader(title: "随机封面", trailing: randomMode.title)
                 Spacer()
                 if viewModel.isLoadingRandomAlbum {
                     ProgressView()
@@ -165,13 +152,8 @@ struct Hidden4KHDFeatureView: View {
             .pickerStyle(.segmented)
 
             if viewModel.isLoadingRandomAlbum {
-                VStack(spacing: 10) {
-                    ProgressView()
-                    Text(randomMode.loadingText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 200)
+                ESMediaPlaceholder(mode: .loading(randomMode.loadingText), systemImage: "photo.stack")
+                    .frame(height: 230)
             } else if !viewModel.randomAlbums.isEmpty {
                 if randomMode == .single, let album = viewModel.randomAlbum {
                     NavigationLink(value: HiddenSpaceRoute.fourKHDAlbum(album)) {
@@ -238,13 +220,8 @@ struct Hidden4KHDFeatureView: View {
                 }
             } else {
                 VStack(spacing: 10) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 28, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Text(viewModel.randomErrorMessage ?? "暂时没有拿到封面")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
+                    ESMediaPlaceholder(mode: .failure(viewModel.randomErrorMessage ?? "暂时没有拿到封面"), systemImage: "photo.stack")
+                        .frame(height: 200)
                     Button("重试") {
                         Task {
                             await viewModel.loadRandomAlbums(mode: randomMode)
@@ -255,11 +232,7 @@ struct Hidden4KHDFeatureView: View {
                 .frame(maxWidth: .infinity, minHeight: 200)
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .esCard()
     }
 
     private var normalizedSearchQuery: String {
@@ -1672,17 +1645,16 @@ struct AsyncCoverImage: View {
 
     var body: some View {
         ZStack {
-            Rectangle().fill(Color(.tertiarySystemFill))
+            ESMediaPlaceholder(mode: .loading(nil), systemImage: "photo")
 
             HiddenCachedImage(url: url) { image in
                 Image(uiImage: image)
                     .resizable()
                     .modifier(CoverScaleModifier(fitToContainer: fitToContainer))
             } placeholder: {
-                ProgressView()
+                ESMediaPlaceholder(mode: .loading(nil), systemImage: "photo")
             } failure: {
-                Image(systemName: "photo")
-                    .foregroundStyle(.secondary)
+                ESMediaPlaceholder(mode: .failure("图片加载失败"), systemImage: "photo")
             }
         }
         .clipped()

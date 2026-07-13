@@ -31,24 +31,36 @@ final class HiddenSpacePresentationState: ObservableObject {
 }
 
 struct HiddenSpaceView: View {
+    @State private var settings = HiddenSpaceSettingsStore.shared.load()
+    @State private var fourKHDFavoritesCount = 0
+    @State private var javDBFavoritesCount = 0
+    @State private var javDBPlaybackCount = 0
+
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 18) {
+                ESInfoBanner(
+                    title: "私密入口已开启",
+                    systemImage: "lock.shield",
+                    tone: .accent
+                )
+
                 NavigationLink(value: HiddenSpaceRoute.fourKHD) {
                     fourKHDFeatureCard
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(ESCardButtonStyle())
 
                 NavigationLink(value: HiddenSpaceRoute.javDB) {
                     javDBFeatureCard
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(ESCardButtonStyle())
 
             }
-            .padding(16)
-            .padding(.bottom, 18)
+            .padding(.horizontal, ESUI.screenHorizontalPadding)
+            .padding(.top, 14)
+            .esBottomTabPadding()
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .esScreenBackground()
         .navigationTitle("隐藏空间")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -58,72 +70,84 @@ struct HiddenSpaceView: View {
                 }
             }
         }
+        .onAppear(perform: refreshSummary)
+        .onReceive(NotificationCenter.default.publisher(for: .hiddenSpaceSettingsDidChange)) { _ in
+            refreshSummary()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            refreshSummary()
+        }
     }
 
     private var fourKHDFeatureCard: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(.tertiarySystemFill))
-                    .frame(width: 54, height: 54)
-                Image(systemName: "photo.stack")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.primary)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 14) {
+                ESFeatureIcon(systemName: "photo.stack", color: .blue, size: 54)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("4khd")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text("随机封面、album 全图、喜欢列表")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.tertiary)
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("4khd")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                Text("随机封面、album 全图、喜欢列表")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                ESStatusPill(text: settings.fourKHDRandomMode.title, tone: .accent)
+                ESStatusPill(text: "\(fourKHDFavoritesCount) 喜欢", tone: fourKHDFavoritesCount > 0 ? .success : .neutral)
             }
-
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.tertiary)
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .esCard()
     }
 
     private var javDBFeatureCard: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(.tertiarySystemFill))
-                    .frame(width: 54, height: 54)
-                Image(systemName: "film.stack")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.primary)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 14) {
+                ESFeatureIcon(systemName: "film.stack", color: .purple, size: 54)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("javdb")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text("随机影片、喜欢影片、详情信息")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.tertiary)
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("javdb")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                Text("随机影片、喜欢影片、详情信息（默认折叠）")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                ESStatusPill(text: settings.javDBRandomMode.title, tone: .accent)
+                ESStatusPill(text: "\(javDBFavoritesCount) 喜欢", tone: javDBFavoritesCount > 0 ? .success : .neutral)
+                ESStatusPill(text: "\(javDBPlaybackCount) 点位", tone: javDBPlaybackCount > 0 ? .success : .neutral)
             }
 
-            Spacer()
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.tertiary)
+            Text("MissAV：\(HiddenMissAVDomainConfiguration.resolvedHost(from: settings.missAVDomain))")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .esCard()
+    }
+
+    private func refreshSummary() {
+        settings = HiddenSpaceSettingsStore.shared.load()
+        fourKHDFavoritesCount = Hidden4KHDLocalStore.loadFavoriteAlbums().count + Hidden4KHDLocalStore.loadFavoriteImages().count
+        javDBFavoritesCount = HiddenJavDBLocalStore.loadFavoriteMovies().count
+        javDBPlaybackCount = HiddenJavDBLocalStore.loadFavoritePlaybacks().count
     }
 
 }

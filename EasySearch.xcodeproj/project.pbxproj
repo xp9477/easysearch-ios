@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E800000000000000000000001 /* EasySearchUIComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E800000000000000000000101 /* EasySearchUIComponents.swift */; };
 		D2A000000000000000000016 /* HiddenJavDBViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000116 /* HiddenJavDBViewModel.swift */; };
 		D2A000000000000000000015 /* HiddenJavDBSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000115 /* HiddenJavDBSettings.swift */; };
 		D2A000000000000000000014 /* HiddenJavDBPlaybackViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000114 /* HiddenJavDBPlaybackViews.swift */; };
@@ -16,6 +17,7 @@
 		E200000000000000000000001 /* ImageTranslateViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E200000000000000000000101 /* ImageTranslateViewModelTests.swift */; };
 		E200000000000000000000002 /* SearchViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E200000000000000000000102 /* SearchViewModelTests.swift */; };
 		E200000000000000000000003 /* DashboardParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E200000000000000000000103 /* DashboardParserTests.swift */; };
+		F200000000000000000000001 /* UTTrackerMonthSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F200000000000000000000101 /* UTTrackerMonthSummaryTests.swift */; };
 		D2A000000000000000000006 /* HiddenSpaceCoreViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000106 /* HiddenSpaceCoreViews.swift */; };
 		D2A000000000000000000007 /* Hidden4KHDViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000107 /* Hidden4KHDViews.swift */; };
 		D2A000000000000000000008 /* Hidden4KHDAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000108 /* Hidden4KHDAPI.swift */; };
@@ -103,11 +105,13 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		E800000000000000000000101 /* EasySearchUIComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EasySearchUIComponents.swift; path = EasySearch/Core/UIComponents/EasySearchUIComponents.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000111 /* HiddenImagePipeline.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenImagePipeline.swift; path = EasySearch/Features/Dashboard/Views/HiddenImagePipeline.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000112 /* HiddenPlaybackThumbnailPipeline.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenPlaybackThumbnailPipeline.swift; path = EasySearch/Features/Dashboard/Views/HiddenPlaybackThumbnailPipeline.swift; sourceTree = SOURCE_ROOT; };
 		E200000000000000000000101 /* ImageTranslateViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageTranslateViewModelTests.swift; sourceTree = "<group>"; };
 		E200000000000000000000102 /* SearchViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SearchViewModelTests.swift; sourceTree = "<group>"; };
 		E200000000000000000000103 /* DashboardParserTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DashboardParserTests.swift; sourceTree = "<group>"; };
+		F200000000000000000000101 /* UTTrackerMonthSummaryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UTTrackerMonthSummaryTests.swift; sourceTree = "<group>"; };
 		D2A000000000000000000106 /* HiddenSpaceCoreViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSpaceCoreViews.swift; path = EasySearch/Features/Dashboard/Views/HiddenSpaceCoreViews.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000107 /* Hidden4KHDViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Hidden4KHDViews.swift; path = EasySearch/Features/Dashboard/Views/Hidden4KHDViews.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000113 /* Hidden4KHDViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Hidden4KHDViewModel.swift; path = EasySearch/Features/Dashboard/Views/Hidden4KHDViewModel.swift; sourceTree = SOURCE_ROOT; };
@@ -378,6 +382,7 @@
 				E200000000000000000000101 /* ImageTranslateViewModelTests.swift */,
 				E200000000000000000000102 /* SearchViewModelTests.swift */,
 				E200000000000000000000103 /* DashboardParserTests.swift */,
+				F200000000000000000000101 /* UTTrackerMonthSummaryTests.swift */,
 			);
 			name = EasySearchTests;
 			path = EasySearchTests;
@@ -707,6 +712,7 @@
 		E59C8AA3A5C7B7392A388AF9 /* UIComponents */ = {
 			isa = PBXGroup;
 			children = (
+				E800000000000000000000101 /* EasySearchUIComponents.swift */,
 			);
 			path = UIComponents;
 			sourceTree = "<group>";
@@ -835,6 +841,7 @@
 				E200000000000000000000001 /* ImageTranslateViewModelTests.swift in Sources */,
 				E200000000000000000000002 /* SearchViewModelTests.swift in Sources */,
 				E200000000000000000000003 /* DashboardParserTests.swift in Sources */,
+				F200000000000000000000001 /* UTTrackerMonthSummaryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -844,6 +851,7 @@
 			files = (
 				1A145786259D610FACA711A5 /* AppRouter.swift in Sources */,
 				08F64AB6A4B3B085A9FDDA21 /* AppFeature.swift in Sources */,
+				E800000000000000000000001 /* EasySearchUIComponents.swift in Sources */,
 				8AFD20AC531C4A867E1490CE /* FeatureRegistry.swift in Sources */,
 				689CF6B202785041EFC90676 /* EasySearchApp.swift in Sources */,
 				BA0E54A01A17C1BBEDEF6FCF /* SettingsView.swift in Sources */,

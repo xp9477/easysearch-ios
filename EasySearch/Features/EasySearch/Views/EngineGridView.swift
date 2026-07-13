@@ -11,20 +11,13 @@ struct EngineGridView: View {
 
     var body: some View {
         if engines.isEmpty {
-            VStack(spacing: 10) {
-                Image(systemName: "square.grid.2x2")
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
-
-                Text("暂无平台")
-                    .font(.headline)
-
-                Text("这个分类下还没有可用入口。")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 32)
+            ESEmptyState(
+                title: "暂无平台",
+                message: "这个分类下还没有可用入口。",
+                systemImage: "square.grid.2x2",
+                minHeight: 180
+            )
+            .esCard()
         } else {
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(engines) { engine in
@@ -46,35 +39,27 @@ struct EngineButton: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                ZStack {
-                    Circle()
-                        .fill(Color.accentColor.opacity(0.12))
-                        .frame(width: 28, height: 28)
-
-                    Image(systemName: engine.symbolName)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Color.accentColor)
-                }
+                ESFeatureIcon(systemName: engine.symbolName, color: .accentColor, size: 36)
 
                 Text(engine.name)
-                    .font(.body.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 66, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color(.secondarySystemBackground))
+                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                    .fill(ESUI.elevatedBackground)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color(.separator).opacity(0.12), lineWidth: 1)
+                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                    .stroke(Color.primary.opacity(0.05), lineWidth: 1)
             )
         }
-        .buttonStyle(EngineButtonStyle())
+        .buttonStyle(ESCardButtonStyle())
     }
 }
 
