@@ -29,7 +29,7 @@ public struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     if moduleFeatures.isEmpty && hiddenFeatures.isEmpty {
                         ESEmptyState(
-                            title: "鏆傛棤妯″潡",
+                            title: "暂无模块",
                             message: nil,
                             systemImage: "square.grid.2x2"
                         )
@@ -49,11 +49,11 @@ public struct DashboardView: View {
             }
             .esBottomTabPadding()
             .esScreenBackground()
-            .navigationTitle("妯″潡")
+            .navigationTitle("模块")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("妯″潡")
+                    Text("模块")
                         .font(.headline)
                         .contentShape(Rectangle())
                         .onTapGesture {
@@ -70,7 +70,7 @@ public struct DashboardView: View {
                             saveHiddenSpaceSnapshotIfNeeded()
                         }
                 } else {
-                    Text("妯″潡涓嶅瓨鍦?)
+                    Text("模块不存在")
                         .foregroundStyle(.secondary)
                 }
             }
@@ -124,7 +124,7 @@ public struct DashboardView: View {
 
     private var moduleWorkbenchSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ESSectionHeader(title: "妯″潡宸ヤ綔鍙?, trailing: "\(moduleFeatures.count)")
+            ESSectionHeader(title: "模块工作台", trailing: "\(moduleFeatures.count)")
 
             LazyVStack(spacing: 12) {
                 ForEach(moduleFeatures, id: \.id) { feature in
@@ -136,7 +136,7 @@ public struct DashboardView: View {
 
     private var hiddenSpaceSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ESSectionHeader(title: "绉佸瘑绌洪棿", trailing: "宸茶В閿?)
+            ESSectionHeader(title: "私密空间", trailing: "已解锁")
 
             LazyVStack(spacing: 12) {
                 ForEach(hiddenFeatures, id: \.id) { feature in
@@ -285,7 +285,7 @@ private struct FeatureRow: View {
                         .lineLimit(1)
 
                     if tone == .privateSpace {
-                        ESStatusPill(text: "绉佸瘑", tone: .accent)
+                        ESStatusPill(text: "私密", tone: .accent)
                     }
                 }
 
@@ -384,8 +384,8 @@ private struct UTModuleProgressIcon: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("UT 鏈湀杩涘害")
-        .accessibilityValue("\(displayText) 鐧惧垎姣?)
+        .accessibilityLabel("UT 本月进度")
+        .accessibilityValue("\(displayText) 百分比")
     }
 
     private func refreshSummary() {
