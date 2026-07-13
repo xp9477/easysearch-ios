@@ -478,6 +478,17 @@ enum HiddenMissAVPlaybackResolver {
         return prioritizedStreamCandidates(normalized).first
     }
 
+    static func preferredStableStreamURL(for url: URL) -> URL {
+        guard url.host?.lowercased().contains("surrit.com") == true,
+              url.path.lowercased().hasSuffix("/playlist.m3u8"),
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url
+        }
+
+        components.path = String(components.path.dropLast("playlist.m3u8".count)) + "842x480/video.m3u8"
+        return components.url ?? url
+    }
+
     private static func decodeEvalBlocks(from html: String) -> [String] {
         let payloads = HiddenMissAVHTMLParser.regexFirstGroups(
             pattern: #"eval\(function\(p,a,c,k,e,d\)\{.*?\}\('(.+?)',(\d+),(\d+),'(.+?)'\.split\('\|'\),0,\{\}\)\)"#,
@@ -652,7 +663,7 @@ struct HiddenSharedVideoPlayerView: View {
             "User-Agent": HiddenMissAVPlaybackResolver.userAgent
         ]
         let asset = AVURLAsset(
-            url: item.streamURL,
+            url: HiddenMissAVPlaybackResolver.preferredStableStreamURL(for: item.streamURL),
             options: [
                 "AVURLAssetHTTPHeaderFieldsKey": headers
             ]

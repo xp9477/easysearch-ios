@@ -177,6 +177,19 @@ final class DashboardParserTests: XCTestCase {
         )
     }
 
+    func testSavedMissAVMasterPlaylistUsesStableQualityStream() throws {
+        let savedURL = try XCTUnwrap(
+            URL(string: "https://surrit.com/example/playlist.m3u8")
+        )
+
+        let stableURL = HiddenMissAVPlaybackResolver.preferredStableStreamURL(for: savedURL)
+
+        XCTAssertEqual(
+            stableURL.absoluteString,
+            "https://surrit.com/example/842x480/video.m3u8"
+        )
+    }
+
     func testPlaybackIssuePresentationHandlesAgeConfirmation() {
         let issue = HiddenPlaybackIssuePresentation(
             message: "需要先完成 18+ 年龄确认，请在网页中确认后重试",
