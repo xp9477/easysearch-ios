@@ -117,6 +117,13 @@ enum HiddenJavDBAPI {
 
     static func fetchMovieDetail(for movie: HiddenJavDBMovie) async throws -> HiddenJavDBMovieDetail {
         let html = try await fetchHTML(from: movie.url)
+        return parseMovieDetail(from: html, movie: movie)
+    }
+
+    static func parseMovieDetail(from html: String, movie: HiddenJavDBMovie) -> HiddenJavDBMovieDetail {
+        if html.contains("Markdown Content:") {
+            return parseMovieDetailFromMarkdown(html, movie: movie)
+        }
 
         let parsedTitle = firstNonEmpty([
             regexFirstCapture(pattern: #"<strong[^>]*class="[^"]*current-title[^"]*"[^>]*>(.*?)</strong>"#, in: html, dotMatchesLine: true),
@@ -611,6 +618,115 @@ enum HiddenJavDBAPI {
         return movies
     }
 
+    private static func parseMovieDetailFromMarkdown(
+        _ markdown: String,
+        movie: HiddenJavDBMovie
+    ) -> HiddenJavDBMovieDetail {
+        let headingGroups = regexFirstGroups(
+            pattern: #"##\s+\*\*([^*]+)\*\*\*\*([^*\r\n]+)\*\*"#,
+            in: markdown,
+            dotMatchesLine: false
+        )
+        let parsedCode = headingGroups.flatMap { $0.first }.map(cleanTitle)?.nonEmpty ?? movie.code
+        let parsedTitle = headingGroups.flatMap { $0.dropFirst().first }.map(cleanTitle)?.nonEmpty
+            ?? regexFirstCapture(
+                pattern: #"Title:\s*(.*?)\s*\|\s*JavDB"#,
+                in: markdown,
+                dotMatchesLine: false
+            ).map(cleanTitle)?.nonEmpty
+            ?? movie.displayTitle
+
+        let actresses = regexCaptureAll(
+            pattern: #"\[([^\]]+)\]\(https?://javdb\.com/actors/[^)]+\)"#,
+            in: markdown,
+            dotMatchesLine: false
+        ).map(cleanTitle)
+        let releaseDate = regexFirstCapture(
+            pattern: #"\*\*Released Date:\*\*\s*([^\r\n]+)"#,
+            in: markdown,
+            dotMatchesLine: false
+        ).map(cleanTitle)?.nonEmpty
+        let durationMinutes = regexFirstCapture(
+            pattern: #"\*\*Duration:\*\*\s*(\d+)"#,
+            in: markdown,
+            dotMatchesLine: false
+        ).flatMap(Int.init)
+        let studio = regexFirstCapture(
+            pattern: #"\*\*Maker:\*\*\s*\[([^\]]+)\]"#,
+            in: markdown,
+            dotMatchesLine: false
+        ).map(cleanTitle)?.nonEmpty
+
+        let otherSection = regexFirstCapture(
+            pattern: #"They are also starred\s*(.*?)(?:You may also like|Review rules and regulations|$)"#,
+            in: markdown,
+            dotMatchesLine: true
+        ) ?? ""
+        let recommendedSection = regexFirstCapture(
+            pattern: #"You may also like\s*(.*?)(?:Review rules and regulations|$)"#,
+            in: markdown,
+            dotMatchesLine: true
+        ) ?? ""
+
+        return HiddenJavDBMovieDetail(
+            code: parsedCode,
+            title: parsedTitle,
+            actresses: actresses.isEmpty ? movie.actresses : actresses,
+            releaseDate: releaseDate,
+            durationMinutes: durationMinutes,
+            studio: studio,
+            otherActressMovies: parseRelatedMoviesFromMarkdown(otherSection, excluding: movie),
+            recommendedMovies: parseRelatedMoviesFromMarkdown(recommendedSection, excluding: movie)
+        )
+    }
+
+    private static func parseRelatedMoviesFromMarkdown(
+        _ markdown: String,
+        excluding currentMovie: HiddenJavDBMovie
+    ) -> [HiddenJavDBMovie] {
+        let pattern = #"\[!\[[^\]]*\]\((https?://[^)\s]+)\)\s+([^\]]+)\]\((https?://javdb\.com/v/[^)\s\"]+)(?:\s+\"([^\"]*)\")?\)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return []
+        }
+
+        let range = NSRange(markdown.startIndex..<markdown.endIndex, in: markdown)
+        let movies = regex.matches(in: markdown, options: [], range: range).compactMap { match -> HiddenJavDBMovie? in
+            guard match.numberOfRanges >= 4,
+                  let coverRange = Range(match.range(at: 1), in: markdown),
+                  let labelRange = Range(match.range(at: 2), in: markdown),
+                  let movieRange = Range(match.range(at: 3), in: markdown),
+                  let coverURL = URL(string: String(markdown[coverRange])),
+                  let rawMovieURL = URL(string: String(markdown[movieRange])) else {
+                return nil
+            }
+
+            let movieURL = normalizeMovieURL(rawMovieURL)
+            guard movieURL.absoluteString != currentMovie.url.absoluteString else { return nil }
+
+            let label = cleanTitle(String(markdown[labelRange]))
+            guard let code = extractLikelyMovieCode(from: label) else { return nil }
+
+            let title: String
+            if match.numberOfRanges > 4,
+               match.range(at: 4).location != NSNotFound,
+               let titleRange = Range(match.range(at: 4), in: markdown) {
+                title = cleanTitle(String(markdown[titleRange]))
+            } else {
+                title = strippingLeadingMovieCode(label, code: code)
+            }
+
+            return HiddenJavDBMovie(
+                url: movieURL,
+                code: code,
+                title: title,
+                coverURL: normalizeImageURL(coverURL),
+                actresses: []
+            )
+        }
+
+        return dedupedRelatedMovies(movies)
+    }
+
     private static func extractMovieCode(from block: String) -> String? {
         let explicitCandidates = [
             regexFirstCapture(pattern: #"<div[^>]*class=["'][^"']*uid[^"']*["'][^>]*>(.*?)</div>"#, in: block, dotMatchesLine: true),
@@ -763,6 +879,20 @@ enum HiddenJavDBAPI {
     }
 
     static func parseMovieImages(from html: String) -> [URL] {
+        if html.contains("Markdown Content:") {
+            let linkedImages = regexCaptureAll(
+                pattern: #"\[!\[[^\]]*\]\([^)]+\)\]\((https?://[^)\s]+)\)"#,
+                in: html,
+                dotMatchesLine: true
+            )
+            let sampleImages = dedupePreferredMovieSampleImages(
+                linkedImages.compactMap(normalizedURL(from:)).filter(isLikelyMovieSampleImageURL)
+            )
+            if !sampleImages.isEmpty {
+                return sampleImages
+            }
+        }
+
         let anchoredImages = dedupePreferredMovieSampleImages(
             extractAnchoredPreviewImageCandidates(from: html)
                 .compactMap(normalizedURL(from:))

@@ -105,6 +105,44 @@ final class DashboardParserTests: XCTestCase {
         XCTAssertEqual(movie.coverURL.absoluteString, "https://c0.jdbstatic.com/covers/yw/YwzwPz.jpg")
     }
 
+    func testJavDBMarkdownDetailParsesScreenshotsAndRelatedMovies() throws {
+        let markdown = #"""
+        Title: ABC-123 Sample Title | JavDB, Online information source
+        Markdown Content:
+        ## **ABC-123****Sample Title**
+        **Released Date:**2026-07-01
+        **Duration:**120 minute(s)
+        **Maker:**[Sample Studio](https://javdb.com/makers/123)
+        **Actor(s):**[Alice](https://javdb.com/actors/alice)**female**
+        [![Image 1](https://c0.jdbstatic.com/samples/ab/ABC_s_0.jpg)](https://c0.jdbstatic.com/samples/ab/ABC_l_0.jpg)
+        They are also starred
+        [![Image 2](https://c0.jdbstatic.com/thumbs/de/DEF.jpg) DEF-456 Other Movie](https://javdb.com/v/def456 "Other Movie")
+        You may also like
+        [![Image 3](https://c0.jdbstatic.com/thumbs/gh/GHI.jpg) GHI-789 Recommended](https://javdb.com/v/ghi789 "Recommended")
+        Review rules and regulations
+        """#
+        let movie = HiddenJavDBMovie(
+            url: try XCTUnwrap(URL(string: "https://javdb.com/v/abc123")),
+            code: "ABC-123",
+            title: "Fallback",
+            coverURL: try XCTUnwrap(URL(string: "https://c0.jdbstatic.com/covers/ab/ABC.jpg")),
+            actresses: []
+        )
+
+        let images = HiddenJavDBAPI.parseMovieImages(from: markdown)
+        let detail = HiddenJavDBAPI.parseMovieDetail(from: markdown, movie: movie)
+
+        XCTAssertEqual(images.map(\.absoluteString), ["https://c0.jdbstatic.com/samples/ab/ABC_l_0.jpg"])
+        XCTAssertEqual(detail.code, "ABC-123")
+        XCTAssertEqual(detail.title, "Sample Title")
+        XCTAssertEqual(detail.actresses, ["Alice"])
+        XCTAssertEqual(detail.releaseDate, "2026-07-01")
+        XCTAssertEqual(detail.durationMinutes, 120)
+        XCTAssertEqual(detail.studio, "Sample Studio")
+        XCTAssertEqual(detail.otherActressMovies.first?.code, "DEF-456")
+        XCTAssertEqual(detail.recommendedMovies.first?.code, "GHI-789")
+    }
+
     func testMissAVDefaultHostUsesReachableMirror() {
         XCTAssertEqual(HiddenMissAVDomainConfiguration.defaultHost, "missav123.com")
         XCTAssertEqual(HiddenMissAVDomainConfiguration.resolvedHost(from: nil), "missav123.com")
@@ -126,7 +164,7 @@ final class DashboardParserTests: XCTestCase {
     func testMissAVPackedScriptExtractsPrimaryStream() throws {
         let html = #"""
         <script>
-        eval(function(p,a,c,k,e,d){e=function(c){return c.toString(36)};if(!''.replace(/^/,String)){while(c--){d[c.toString(a)]=k[c]||c.toString(a)}k=[function(e){return d[e]}];e=function(){return'\\w+'};c=1};while(c--){if(k[c]){p=p.replace(new RegExp('\\b'+e(c)+'\\b','g'),k[c])}}return p}('f=\'8://7.6/5-4-3-2-1/e.0\';',16,16,'m3u8|d20308920041|9c38|411c|45a1|0c73d32d|com|surrit|https|video|1280x720|source1280|842x480|source842|playlist|source'.split('|'),0,{}))
+        eval(function(p,a,c,k,e,d){e=function(c){return c.toString(36)};if(!''.replace(/^/,String)){while(c--){d[c.toString(a)]=k[c]||c.toString(a)}k=[function(e){return d[e]}];e=function(){return'\\w+'};c=1};while(c--){if(k[c]){p=p.replace(new RegExp('\\b'+e(c)+'\\b','g'),k[c])}}return p}('f=\'8://7.6/5-4-3-2-1/e.0\';d=\'8://7.6/5-4-3-2-1/c/9.0\';b=\'8://7.6/5-4-3-2-1/a/9.0\';',16,16,'m3u8|d20308920041|9c38|411c|45a1|0c73d32d|com|surrit|https|video|1280x720|source1280|842x480|source842|playlist|source'.split('|'),0,{}))
         </script>
         """#
         let pageURL = try XCTUnwrap(URL(string: "https://missav123.com/cn/ssis-001"))
@@ -135,7 +173,7 @@ final class DashboardParserTests: XCTestCase {
 
         XCTAssertEqual(
             streamURL?.absoluteString,
-            "https://surrit.com/0c73d32d-45a1-411c-9c38-d20308920041/playlist.m3u8"
+            "https://surrit.com/0c73d32d-45a1-411c-9c38-d20308920041/842x480/video.m3u8"
         )
     }
 
