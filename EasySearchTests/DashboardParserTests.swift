@@ -86,6 +86,25 @@ final class DashboardParserTests: XCTestCase {
         )
     }
 
+    func testJavDBMarkdownFallbackParsesMovieAndCover() throws {
+        let markdown = #"""
+        Title: JavDB
+        Markdown Content:
+        [![Image 2](https://c0.jdbstatic.com/covers/yw/YwzwPz.jpg) **DLDSS-507** sample](https://javdb.com/v/YwzwPz "Sample Movie")
+        """#
+
+        let movies = HiddenJavDBAPI.parseMovies(
+            from: markdown,
+            baseURL: try XCTUnwrap(URL(string: "https://javdb.com/"))
+        )
+
+        let movie = try XCTUnwrap(movies.first)
+        XCTAssertEqual(movie.code, "DLDSS-507")
+        XCTAssertEqual(movie.title, "Sample Movie")
+        XCTAssertEqual(movie.url.absoluteString, "https://javdb.com/v/YwzwPz")
+        XCTAssertEqual(movie.coverURL.absoluteString, "https://c0.jdbstatic.com/covers/yw/YwzwPz.jpg")
+    }
+
     func testMissAVDefaultHostUsesReachableMirror() {
         XCTAssertEqual(HiddenMissAVDomainConfiguration.defaultHost, "missav123.com")
         XCTAssertEqual(HiddenMissAVDomainConfiguration.resolvedHost(from: nil), "missav123.com")
