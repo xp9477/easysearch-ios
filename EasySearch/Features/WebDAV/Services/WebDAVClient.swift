@@ -288,6 +288,17 @@ final class WebDAVClient: WebDAVClientProtocol {
         }
     }
 
+    func makeStreamingRequest(for item: WebDAVItem, rangeHeader: String?) throws -> URLRequest {
+        guard !item.isDirectory else { throw WebDAVError.invalidURL }
+        let url = try remoteURL(for: item.path)
+        var request = makeRequest(url: url, method: "GET")
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        if let rangeHeader, !rangeHeader.isEmpty {
+            request.setValue(rangeHeader, forHTTPHeaderField: "Range")
+        }
+        return request
+    }
+
     private func makeDownloadPlan(for root: WebDAVItem) async throws -> DownloadPlan {
         let rootName = WebDAVLocalFileStore.sanitizedFileName(root.name)
         var pending = [PlannedItem(item: root, relativePath: rootName)]

@@ -18,8 +18,10 @@ enum WebDAVLocalFileStore {
 
     static func makePreviewDirectory() throws -> URL {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        let directory = caches
-            .appendingPathComponent("WebDAVPreviews", isDirectory: true)
+        let previewRoot = caches.appendingPathComponent("WebDAVPreviews", isDirectory: true)
+        try FileManager.default.createDirectory(at: previewRoot, withIntermediateDirectories: true)
+        removeExpiredPreviews(in: previewRoot)
+        let directory = previewRoot
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         var values = URLResourceValues()
@@ -27,6 +29,22 @@ enum WebDAVLocalFileStore {
         var mutableDirectory = directory
         try? mutableDirectory.setResourceValues(values)
         return directory
+    }
+
+    private static func removeExpiredPreviews(in root: URL) {
+        let expirationDate = Date().addingTimeInterval(-24 * 60 * 60)
+        let directories = (try? FileManager.default.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )) ?? []
+        for directory in directories {
+            guard let values = try? directory.resourceValues(
+                forKeys: [.contentModificationDateKey, .isDirectoryKey]
+            ), values.isDirectory == true,
+                  (values.contentModificationDate ?? .distantPast) < expirationDate else { continue }
+            try? FileManager.default.removeItem(at: directory)
+        }
     }
 
     static func removePreview(containing fileURL: URL) {

@@ -23,11 +23,20 @@ struct WebDAVPreviewView: View {
     @State private var saveMessage: String?
     @State private var hasUnsavedTextChanges = false
     @State private var isShowingDiscardConfirmation = false
+    @State private var streamingFallbackRequested = false
+    @State private var streamingFallbackMessage: String?
     @State private var loadToken = UUID()
 
     var body: some View {
         Group {
-            if let localURL {
+            if requestedPreviewKind == .video, !streamingFallbackRequested {
+                WebDAVStreamingVideoPlayerView(
+                    configuration: request.configuration,
+                    item: request.item,
+                    onFailure: handleStreamingFailure
+                )
+                .ignoresSafeArea(edges: .bottom)
+            } else if let localURL {
                 viewer(for: localURL)
             } else if isLoading {
                 loadingContent
@@ -48,7 +57,9 @@ struct WebDAVPreviewView: View {
                 Button("关闭") { requestDismiss() }
                     .disabled(isSaving)
             }
-            if localURL == nil, !isLoading {
+            if localURL == nil,
+               !isLoading,
+               requestedPreviewKind != .video || streamingFallbackRequested {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         loadToken = UUID()
@@ -107,8 +118,9 @@ struct WebDAVPreviewView: View {
             } else {
                 ProgressView()
             }
-            Text("正在准备预览…")
+            Text(streamingFallbackMessage ?? "正在准备预览…")
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -147,6 +159,10 @@ struct WebDAVPreviewView: View {
     }
 
     private func loadPreview() async {
+        guard requestedPreviewKind != .video || streamingFallbackRequested else {
+            isLoading = false
+            return
+        }
         if let localURL {
             WebDAVLocalFileStore.removePreview(containing: localURL)
             self.localURL = nil
@@ -179,6 +195,21 @@ struct WebDAVPreviewView: View {
         guard let localURL,
               WebDAVPreviewKind(url: localURL) == .quickLook else { return false }
         return QLPreviewController.canPreview(localURL as NSURL)
+    }
+
+    private var requestedPreviewKind: WebDAVPreviewKind {
+        WebDAVPreviewKind(fileName: request.item.name, contentType: request.item.contentType)
+    }
+
+    private func handleStreamingFailure(_ error: Error) {
+        guard !streamingFallbackRequested else { return }
+        streamingFallbackRequested = true
+        streamingFallbackMessage = error is WebDAVStreamingError
+            ? "服务器无法继续流式播放，正在下载后预览…"
+            : "流式播放失败，正在下载后预览…"
+        isLoading = true
+        progress = nil
+        loadToken = UUID()
     }
 
     private func saveQuickLookEdit(from url: URL) {
@@ -220,7 +251,18 @@ private enum WebDAVPreviewKind: Equatable {
     case quickLook
 
     init(url: URL) {
-        let ext = url.pathExtension.lowercased()
+        self.init(fileName: url.lastPathComponent, contentType: nil)
+    }
+
+    init(fileName: String, contentType: String?) {
+        if let contentType,
+           let mimeType = contentType.split(separator: ";").first,
+           let type = UTType(mimeType: String(mimeType)),
+           type.conforms(to: .audiovisualContent) {
+            self = .video
+            return
+        }
+        let ext = (fileName as NSString).pathExtension.lowercased()
         if let type = UTType(filenameExtension: ext),
            type.conforms(to: .audiovisualContent) || type.conforms(to: .movie) {
             self = .video
@@ -420,6 +462,106 @@ private struct WebDAVQuickLookView: UIViewControllerRepresentable {
     }
 }
 
+private enum WebDAVVideoAudioSession {
+    private static var activePlayerCount = 0
+
+    static func activate() {
+        activePlayerCount += 1
+        guard activePlayerCount == 1 else { return }
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .moviePlayback, options: [.allowAirPlay])
+        try? session.setActive(true)
+    }
+
+    static func deactivate() {
+        activePlayerCount = max(activePlayerCount - 1, 0)
+        guard activePlayerCount == 0 else { return }
+        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+    }
+}
+
+private struct WebDAVStreamingVideoPlayerView: UIViewControllerRepresentable {
+    let configuration: WebDAVConfiguration
+    let item: WebDAVItem
+    let onFailure: (Error) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onFailure: onFailure)
+    }
+
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let controller = AVPlayerViewController()
+        controller.showsPlaybackControls = true
+        controller.allowsPictureInPicturePlayback = true
+        controller.videoGravity = .resizeAspect
+        WebDAVVideoAudioSession.activate()
+
+        let coordinator = context.coordinator
+        do {
+            let loader = try WebDAVStreamResourceLoader(
+                configuration: configuration,
+                item: item,
+                onFailure: { [weak coordinator] error in
+                    coordinator?.report(error)
+                }
+            )
+            let playerItem = AVPlayerItem(asset: loader.asset)
+            playerItem.preferredForwardBufferDuration = 5
+            let player = AVPlayer(playerItem: playerItem)
+            player.automaticallyWaitsToMinimizeStalling = true
+            player.isMuted = false
+            player.volume = 1
+            coordinator.loader = loader
+            coordinator.player = player
+            coordinator.statusObservation = playerItem.observe(\.status, options: [.new]) { item, _ in
+                if item.status == .failed {
+                    coordinator.report(item.error ?? WebDAVStreamingError.invalidResponse)
+                }
+            }
+            controller.player = player
+            player.play()
+        } catch {
+            coordinator.report(error)
+        }
+        return controller
+    }
+
+    func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
+        context.coordinator.onFailure = onFailure
+    }
+
+    static func dismantleUIViewController(_ controller: AVPlayerViewController, coordinator: Coordinator) {
+        coordinator.statusObservation = nil
+        coordinator.player?.pause()
+        coordinator.loader?.invalidate()
+        coordinator.loader = nil
+        controller.player = nil
+        coordinator.player = nil
+        WebDAVVideoAudioSession.deactivate()
+    }
+
+    final class Coordinator {
+        var onFailure: (Error) -> Void
+        var player: AVPlayer?
+        var loader: WebDAVStreamResourceLoader?
+        var statusObservation: NSKeyValueObservation?
+        private var didReportFailure = false
+
+        init(onFailure: @escaping (Error) -> Void) {
+            self.onFailure = onFailure
+        }
+
+        func report(_ error: Error) {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !self.didReportFailure else { return }
+                self.didReportFailure = true
+                self.loader?.invalidate()
+                self.onFailure(error)
+            }
+        }
+    }
+}
+
 private struct WebDAVVideoPlayerView: UIViewControllerRepresentable {
     let url: URL
 
@@ -428,6 +570,9 @@ private struct WebDAVVideoPlayerView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
         let player = AVPlayer(url: url)
+        WebDAVVideoAudioSession.activate()
+        player.isMuted = false
+        player.volume = 1
         context.coordinator.player = player
         controller.player = player
         controller.showsPlaybackControls = true
@@ -443,6 +588,7 @@ private struct WebDAVVideoPlayerView: UIViewControllerRepresentable {
         coordinator.player?.pause()
         controller.player = nil
         coordinator.player = nil
+        WebDAVVideoAudioSession.deactivate()
     }
 
     final class Coordinator {

@@ -332,6 +332,32 @@ final class WebDAVClientTests: XCTestCase {
         }
     }
 
+    func testStreamingRequestUsesRangeAuthenticationAndNoCache() throws {
+        let item = WebDAVItem(
+            path: "videos/demo.mp4",
+            name: "demo.mp4",
+            kind: .file,
+            contentLength: 1_024,
+            modifiedAt: nil,
+            contentType: "video/mp4"
+        )
+
+        let request = try makeClient().makeStreamingRequest(
+            for: item,
+            rangeHeader: "bytes=128-255"
+        )
+
+        XCTAssertEqual(request.httpMethod, "GET")
+        XCTAssertEqual(request.url?.path, "/dav/videos/demo.mp4")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Range"), "bytes=128-255")
+        XCTAssertEqual(request.cachePolicy, .reloadIgnoringLocalCacheData)
+        let expectedCredentials = Data("user:password".utf8).base64EncodedString()
+        XCTAssertEqual(
+            request.value(forHTTPHeaderField: "Authorization"),
+            "Basic \(expectedCredentials)"
+        )
+    }
+
     private func makeClient() -> WebDAVClient {
         let sessionConfiguration = URLSessionConfiguration.ephemeral
         sessionConfiguration.protocolClasses = [WebDAVURLProtocolStub.self]
