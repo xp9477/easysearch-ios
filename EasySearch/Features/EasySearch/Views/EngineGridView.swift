@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct EngineGridView: View {
     let engines: [SearchEngine]
@@ -75,22 +76,32 @@ struct EngineButton: View {
 }
 
 private struct EngineFaviconView: View {
+    private enum Phase {
+        case loading
+        case success(UIImage)
+        case failure
+    }
+
     let engine: SearchEngine
 
+    @State private var phase: Phase = .loading
+
     var body: some View {
-        AsyncImage(url: engine.faviconURL) { phase in
+        Group {
             switch phase {
             case let .success(image):
-                image
+                Image(uiImage: image)
                     .resizable()
                     .scaledToFit()
                     .padding(6)
-            case .empty:
-                ProgressView()
-                    .controlSize(.small)
+            case .loading:
+                if engine.faviconURL != nil {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    fallbackIcon
+                }
             case .failure:
-                fallbackIcon
-            @unknown default:
                 fallbackIcon
             }
         }
@@ -102,6 +113,34 @@ private struct EngineFaviconView: View {
                 .stroke(Color.black.opacity(0.06), lineWidth: 1)
         )
         .accessibilityHidden(true)
+        .task(id: engine.faviconURL) {
+            await loadImage()
+        }
+    }
+
+    @MainActor
+    private func loadImage() async {
+        phase = .loading
+
+        guard let url = engine.faviconURL else {
+            phase = .failure
+            return
+        }
+
+        do {
+            let data = try await SearchEngineIconCache.shared.data(for: url)
+            try Task.checkCancellation()
+            guard let loadedImage = UIImage(data: data) else {
+                phase = .failure
+                return
+            }
+            phase = .success(loadedImage)
+        } catch is CancellationError {
+            return
+        } catch {
+            guard !Task.isCancelled else { return }
+            phase = .failure
+        }
     }
 
     private var fallbackIcon: some View {

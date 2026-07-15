@@ -13,6 +13,7 @@ enum SettingsRoute: Hashable {
     case imageTranslate
     case emailAssistant
     case qingLong
+    case webDAV
 }
 
 @MainActor
@@ -56,8 +57,10 @@ struct EasySearchApp: App {
 }
 
 private struct AppShellView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var searchViewModel = SearchViewModel()
     @StateObject private var navigationState = AppNavigationState()
+    @StateObject private var shareInboxCoordinator = ShareInboxCoordinator()
 
     var body: some View {
         TabView(selection: $navigationState.selectedTab) {
@@ -82,7 +85,21 @@ private struct AppShellView: View {
         .appTabBarBehavior()
         .environmentObject(navigationState)
         .task {
+            shareInboxCoordinator.refreshIfNeeded()
             await searchViewModel.refreshConfigIfNeededOnLaunch()
+        }
+        .onOpenURL { url in
+            shareInboxCoordinator.handleIncomingURL(url)
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
+                shareInboxCoordinator.refreshIfNeeded()
+            }
+        }
+        .sheet(item: $shareInboxCoordinator.presentedBatch) { batch in
+            IncomingShareActionsView(items: batch.items) { _ in
+                shareInboxCoordinator.consume(batch)
+            }
         }
     }
 }

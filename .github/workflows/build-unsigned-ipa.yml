@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - master
+      - main
+      - 'codex/**'
 
 jobs:
   build:
@@ -39,18 +41,39 @@ jobs:
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
+            AD_HOC_CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM='' \
             CODE_SIGN_IDENTITY='' \
             clean build
 
       - name: Package unsigned IPA
         run: |
           set -euo pipefail
-          APP_PATH="$(find "$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos" -maxdepth 1 -type d -name '*.app' | head -n 1)"
-          test -n "$APP_PATH"
+          APP_PATH="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/EasySearch.app"
+          SHARE_EXTENSION="$APP_PATH/PlugIns/EasySearchShare.appex"
+          test -d "$APP_PATH"
+          test -x "$APP_PATH/EasySearch"
+          test -d "$SHARE_EXTENSION"
+          test -x "$SHARE_EXTENSION/EasySearchShare"
+
+          find "$APP_PATH" -type d -name '_CodeSignature' -prune -exec rm -rf {} +
+          find "$APP_PATH" -type f -name 'embedded.mobileprovision' -delete
+
           mkdir -p "$RUNNER_TEMP/ipa/Payload"
           cp -R "$APP_PATH" "$RUNNER_TEMP/ipa/Payload/"
           cd "$RUNNER_TEMP/ipa"
           /usr/bin/zip -qry "$GITHUB_WORKSPACE/EasySearch-unsigned.ipa" Payload
+
+      - name: Verify unsigned IPA
+        run: |
+          set -euo pipefail
+          unzip -l EasySearch-unsigned.ipa > "$RUNNER_TEMP/ipa-contents.txt"
+          grep -q 'Payload/EasySearch.app/EasySearch' "$RUNNER_TEMP/ipa-contents.txt"
+          grep -q 'Payload/EasySearch.app/PlugIns/EasySearchShare.appex/EasySearchShare' "$RUNNER_TEMP/ipa-contents.txt"
+          if grep -Eq '_CodeSignature|embedded.mobileprovision' "$RUNNER_TEMP/ipa-contents.txt"; then
+            echo 'Unexpected signing files found in unsigned IPA.' >&2
+            exit 1
+          fi
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4

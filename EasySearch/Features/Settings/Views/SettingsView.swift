@@ -7,6 +7,7 @@ struct SettingsView: View {
     @StateObject private var cloudViewModel = HiddenCloudSyncViewModel.shared
     @StateObject private var utNotificationManager = UTNotificationManager.shared
     @StateObject private var expenseAssistantNotificationManager = ExpenseAssistantNotificationManager.shared
+    @StateObject private var webDAVSettingsStore = WebDAVSettingsStore.shared
     @State private var path = NavigationPath()
     @State private var deepSeekConfiguration = ImageTranslateConfiguration(
         baseURL: DeepSeekClientConfiguration.defaultBaseURL,
@@ -168,6 +169,8 @@ struct SettingsView: View {
             AISettingsDetailView(entry: .emailAssistant)
         case .qingLong:
             QingLongSettingsDetailView()
+        case .webDAV:
+            WebDAVSettingsView(store: webDAVSettingsStore)
         }
     }
 
@@ -224,6 +227,15 @@ struct SettingsView: View {
                 status: deepSeekStatusText,
                 systemImage: feature.iconName,
                 route: .emailAssistant
+            )
+        case "webdav":
+            let host = webDAVSettingsStore.configuration?.baseURL.host ?? ""
+            return ModuleSettingsItem(
+                id: feature.id,
+                title: feature.title,
+                status: host.isEmpty ? "未配置" : "已连接 · \(host)",
+                systemImage: feature.iconName,
+                route: .webDAV
             )
         default:
             return nil
