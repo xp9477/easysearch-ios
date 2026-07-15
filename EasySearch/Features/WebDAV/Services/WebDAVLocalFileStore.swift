@@ -7,8 +7,34 @@ enum WebDAVLocalFileStore {
         fileprivate let directoryURL: URL
     }
 
+    struct StagedEdit {
+        let localURL: URL
+        fileprivate let directoryURL: URL
+    }
+
     static var rootURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    }
+
+    static func makePreviewDirectory() throws -> URL {
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let directory = caches
+            .appendingPathComponent("WebDAVPreviews", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        var mutableDirectory = directory
+        try? mutableDirectory.setResourceValues(values)
+        return directory
+    }
+
+    static func removePreview(containing fileURL: URL) {
+        let directory = fileURL.deletingLastPathComponent()
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("WebDAVPreviews", isDirectory: true)
+        guard directory.path.hasPrefix(caches.path + "/") else { return }
+        try? FileManager.default.removeItem(at: directory)
     }
 
     static func destinationURL(for remotePath: String) -> URL {
@@ -54,6 +80,32 @@ enum WebDAVLocalFileStore {
 
     static func removeStagedUpload(_ stagedUpload: StagedUpload) {
         try? FileManager.default.removeItem(at: stagedUpload.directoryURL)
+    }
+
+    static func stageEditedFile(_ url: URL) throws -> StagedEdit {
+        let fileManager = FileManager.default
+        let applicationSupport = try fileManager.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let directory = applicationSupport
+            .appendingPathComponent("WebDAVEdits", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+        let target = directory.appendingPathComponent(sanitizedFileName(url.lastPathComponent))
+        do {
+            try fileManager.copyItem(at: url, to: target)
+            return StagedEdit(localURL: target, directoryURL: directory)
+        } catch {
+            try? fileManager.removeItem(at: directory)
+            throw error
+        }
+    }
+
+    static func removeStagedEdit(_ stagedEdit: StagedEdit) {
+        try? FileManager.default.removeItem(at: stagedEdit.directoryURL)
     }
 
     static func uniqueURL(for url: URL) -> URL {

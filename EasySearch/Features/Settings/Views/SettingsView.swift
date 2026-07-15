@@ -229,11 +229,12 @@ struct SettingsView: View {
                 route: .emailAssistant
             )
         case "webdav":
-            let host = webDAVSettingsStore.configuration?.baseURL.host ?? ""
+            let count = webDAVSettingsStore.locations.count
+            let currentName = webDAVSettingsStore.selectedLocation?.name ?? ""
             return ModuleSettingsItem(
                 id: feature.id,
                 title: feature.title,
-                status: host.isEmpty ? "未配置" : "已连接 · \(host)",
+                status: count == 0 ? "未配置" : "\(count) 个位置 · \(currentName)",
                 systemImage: feature.iconName,
                 route: .webDAV
             )

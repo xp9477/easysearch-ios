@@ -1,4 +1,5 @@
 import Foundation
+import Security
 import XCTest
 @testable import EasySearch
 
@@ -51,6 +52,8 @@ final class WebDAVClientTests: XCTestCase {
                 <d:resourcetype />
                 <d:getcontentlength>1024</d:getcontentlength>
                 <d:getlastmodified>Mon, 13 Jul 2026 08:00:00 GMT</d:getlastmodified>
+                <d:getcontenttype>application/pdf</d:getcontenttype>
+                <d:getetag>&quot;version-1&quot;</d:getetag>
               </d:prop>
             </d:propstat>
           </d:response>
@@ -69,12 +72,34 @@ final class WebDAVClientTests: XCTestCase {
         XCTAssertEqual(item.kind, .file)
         XCTAssertEqual(item.contentLength, 1024)
         XCTAssertNotNil(item.modifiedAt)
+        XCTAssertEqual(item.contentType, "application/pdf")
+        XCTAssertEqual(item.etag, "\"version-1\"")
     }
 
     func testSanitizedFileNameBlocksTraversalComponents() {
         XCTAssertEqual(WebDAVLocalFileStore.sanitizedFileName(".."), "未命名文件")
         XCTAssertEqual(WebDAVLocalFileStore.sanitizedFileName("a/b\\c.txt"), "a_b_c.txt")
         XCTAssertEqual(WebDAVLocalFileStore.sanitizedFileName(" report.pdf "), "report.pdf")
+    }
+
+    func testHiddenFolderRecognitionDoesNotHideDotFiles() {
+        let folder = WebDAVItem(
+            path: ".archive",
+            name: ".archive",
+            kind: .directory,
+            contentLength: nil,
+            modifiedAt: nil
+        )
+        let file = WebDAVItem(
+            path: ".env",
+            name: ".env",
+            kind: .file,
+            contentLength: 10,
+            modifiedAt: nil
+        )
+
+        XCTAssertTrue(folder.isHiddenFolder)
+        XCTAssertFalse(file.isHiddenFolder)
     }
 
     func testListingParserPreservesLiteralPercentEscapeInFileName() throws {
@@ -168,6 +193,145 @@ final class WebDAVClientTests: XCTestCase {
         XCTAssertTrue(requests.allSatisfy { $0.value(forHTTPHeaderField: "If-None-Match") == "*" })
     }
 
+    func testDetailsRecursivelyCountsFilesFoldersAndKnownSize() async throws {
+        WebDAVURLProtocolStub.setHandler { request in
+            let path = try XCTUnwrap(request.url?.path)
+            let body: String
+            switch path {
+            case "/dav/folder/":
+                body = """
+                <d:multistatus xmlns:d="DAV:">
+                  <d:response><d:href>/dav/folder/</d:href><d:propstat><d:prop><d:resourcetype><d:collection /></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+                  <d:response><d:href>/dav/folder/a.txt</d:href><d:propstat><d:prop><d:resourcetype /><d:getcontentlength>5</d:getcontentlength></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+                  <d:response><d:href>/dav/folder/nested/</d:href><d:propstat><d:prop><d:resourcetype><d:collection /></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+                </d:multistatus>
+                """
+            case "/dav/folder/nested/":
+                body = """
+                <d:multistatus xmlns:d="DAV:">
+                  <d:response><d:href>/dav/folder/nested/</d:href><d:propstat><d:prop><d:resourcetype><d:collection /></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+                  <d:response><d:href>/dav/folder/nested/b.txt</d:href><d:propstat><d:prop><d:resourcetype /><d:getcontentlength>7</d:getcontentlength></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+                </d:multistatus>
+                """
+            default:
+                XCTFail("Unexpected path: \(path)")
+                body = "<d:multistatus xmlns:d=\"DAV:\" />"
+            }
+            let response = try XCTUnwrap(HTTPURLResponse(
+                url: try XCTUnwrap(request.url),
+                statusCode: 207,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            return (response, Data(body.utf8))
+        }
+
+        let details = try await makeClient().details(for: WebDAVItem(
+            path: "folder",
+            name: "folder",
+            kind: .directory,
+            contentLength: nil,
+            modifiedAt: nil
+        ))
+
+        XCTAssertEqual(details.fileCount, 2)
+        XCTAssertEqual(details.folderCount, 1)
+        XCTAssertEqual(details.totalSize, 12)
+        XCTAssertEqual(details.unknownSizeFileCount, 0)
+    }
+
+    func testDeleteDirectoryUsesCollectionURL() async throws {
+        WebDAVURLProtocolStub.setHandler { request in
+            let response = try XCTUnwrap(HTTPURLResponse(
+                url: try XCTUnwrap(request.url),
+                statusCode: 204,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            return (response, Data())
+        }
+
+        try await makeClient().delete(item: WebDAVItem(
+            path: "folder",
+            name: "folder",
+            kind: .directory,
+            contentLength: nil,
+            modifiedAt: nil
+        ))
+
+        let request = try XCTUnwrap(WebDAVURLProtocolStub.requests.first)
+        XCTAssertEqual(request.httpMethod, "DELETE")
+        XCTAssertEqual(request.url?.path, "/dav/folder/")
+    }
+
+    func testReplaceUsesOriginalPathAndETag() async throws {
+        WebDAVURLProtocolStub.setHandler { request in
+            let response = try XCTUnwrap(HTTPURLResponse(
+                url: try XCTUnwrap(request.url),
+                statusCode: 204,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            return (response, Data())
+        }
+        let localURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("webdav-edit-\(UUID().uuidString).txt")
+        try Data("edited".utf8).write(to: localURL)
+        defer { try? FileManager.default.removeItem(at: localURL) }
+
+        try await makeClient().replace(
+            localURL: localURL,
+            item: WebDAVItem(
+                path: "notes/report.txt",
+                name: "report.txt",
+                kind: .file,
+                contentLength: 6,
+                modifiedAt: nil,
+                etag: "\"version-1\""
+            ),
+            force: false
+        )
+
+        let request = try XCTUnwrap(WebDAVURLProtocolStub.requests.first)
+        XCTAssertEqual(request.httpMethod, "PUT")
+        XCTAssertEqual(request.url?.path, "/dav/notes/report.txt")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "If-Match"), "\"version-1\"")
+    }
+
+    func testReplaceMapsPreconditionFailureToEditConflict() async throws {
+        WebDAVURLProtocolStub.setHandler { request in
+            let response = try XCTUnwrap(HTTPURLResponse(
+                url: try XCTUnwrap(request.url),
+                statusCode: 412,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            return (response, Data())
+        }
+        let localURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("webdav-conflict-\(UUID().uuidString).txt")
+        try Data("edited".utf8).write(to: localURL)
+        defer { try? FileManager.default.removeItem(at: localURL) }
+
+        do {
+            try await makeClient().replace(
+                localURL: localURL,
+                item: WebDAVItem(
+                    path: "report.txt",
+                    name: "report.txt",
+                    kind: .file,
+                    contentLength: 6,
+                    modifiedAt: nil,
+                    etag: "\"old\""
+                ),
+                force: false
+            )
+            XCTFail("Expected edit conflict")
+        } catch WebDAVError.editConflict {
+            // Expected.
+        }
+    }
+
     private func makeClient() -> WebDAVClient {
         let sessionConfiguration = URLSessionConfiguration.ephemeral
         sessionConfiguration.protocolClasses = [WebDAVURLProtocolStub.self]
@@ -180,6 +344,148 @@ final class WebDAVClientTests: XCTestCase {
             configuration: configuration,
             session: URLSession(configuration: sessionConfiguration)
         )
+    }
+}
+
+@MainActor
+final class WebDAVSettingsStoreTests: XCTestCase {
+    func testMultipleLocationsPersistSelectionAndSeparatePasswords() throws {
+        let context = makeContext()
+        defer { context.cleanup() }
+        let store = WebDAVSettingsStore(userDefaults: context.defaults, keychain: context.credentials)
+        let home = try store.makeLocation(
+            name: "Home",
+            baseURLString: "https://home.example/dav",
+            username: "home-user",
+            password: "home-password"
+        ).get()
+        let work = try store.makeLocation(
+            name: "Work",
+            baseURLString: "https://work.example/dav",
+            username: "work-user",
+            password: "work-password"
+        ).get()
+
+        try store.save(location: home).get()
+        try store.save(location: work).get()
+        store.select(locationID: home.id)
+
+        XCTAssertEqual(store.locations.count, 2)
+        XCTAssertEqual(store.selectedLocationID, home.id)
+        XCTAssertEqual(try context.credentials.readPassword(locationID: home.id), "home-password")
+        XCTAssertEqual(try context.credentials.readPassword(locationID: work.id), "work-password")
+
+        let reloaded = WebDAVSettingsStore(userDefaults: context.defaults, keychain: context.credentials)
+        XCTAssertEqual(reloaded.selectedLocationID, home.id)
+        XCTAssertEqual(reloaded.location(withID: work.id)?.password, "work-password")
+    }
+
+    func testRemovingLocationKeepsOtherCredentials() throws {
+        let context = makeContext()
+        defer { context.cleanup() }
+        let store = WebDAVSettingsStore(userDefaults: context.defaults, keychain: context.credentials)
+        let first = try store.makeLocation(
+            name: "One",
+            baseURLString: "https://one.example/dav",
+            username: "",
+            password: "one"
+        ).get()
+        let second = try store.makeLocation(
+            name: "Two",
+            baseURLString: "https://two.example/dav",
+            username: "",
+            password: "two"
+        ).get()
+        try store.save(location: first).get()
+        try store.save(location: second).get()
+
+        store.remove(locationID: first.id)
+
+        XCTAssertNil(store.location(withID: first.id))
+        XCTAssertThrowsError(try context.credentials.readPassword(locationID: first.id))
+        XCTAssertEqual(try context.credentials.readPassword(locationID: second.id), "two")
+    }
+
+    func testHiddenFolderPreferencePersists() {
+        let context = makeContext()
+        defer { context.cleanup() }
+        let store = WebDAVSettingsStore(userDefaults: context.defaults, keychain: context.credentials)
+
+        store.setShowsHiddenFolders(true)
+
+        let reloaded = WebDAVSettingsStore(userDefaults: context.defaults, keychain: context.credentials)
+        XCTAssertTrue(reloaded.showsHiddenFolders)
+    }
+
+    func testLegacyConfigurationMigratesToLocation() throws {
+        let context = makeContext()
+        defer { context.cleanup() }
+        context.defaults.set("https://legacy.example/dav", forKey: "webdav.baseURL")
+        context.defaults.set("legacy-user", forKey: "webdav.username")
+        context.credentials.legacyPassword = "legacy-password"
+
+        let store = WebDAVSettingsStore(userDefaults: context.defaults, keychain: context.credentials)
+
+        let location = try XCTUnwrap(store.locations.first)
+        XCTAssertEqual(store.locations.count, 1)
+        XCTAssertEqual(location.name, "legacy.example")
+        XCTAssertEqual(location.username, "legacy-user")
+        XCTAssertEqual(location.password, "legacy-password")
+        XCTAssertNil(context.defaults.string(forKey: "webdav.baseURL"))
+        XCTAssertNil(context.credentials.legacyPassword)
+        XCTAssertEqual(try context.credentials.readPassword(locationID: location.id), "legacy-password")
+    }
+
+    private func makeContext() -> WebDAVSettingsTestContext {
+        let suiteName = "WebDAVSettingsStoreTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return WebDAVSettingsTestContext(
+            suiteName: suiteName,
+            defaults: defaults,
+            credentials: InMemoryWebDAVCredentials()
+        )
+    }
+}
+
+private struct WebDAVSettingsTestContext {
+    let suiteName: String
+    let defaults: UserDefaults
+    let credentials: InMemoryWebDAVCredentials
+
+    func cleanup() {
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+}
+
+private final class InMemoryWebDAVCredentials: WebDAVCredentialStoring {
+    var legacyPassword: String?
+    private var passwords: [UUID: String] = [:]
+
+    func save(password: String, locationID: UUID) throws {
+        passwords[locationID] = password
+    }
+
+    func readPassword(locationID: UUID) throws -> String {
+        guard let password = passwords[locationID] else {
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(errSecItemNotFound))
+        }
+        return password
+    }
+
+    func deletePassword(locationID: UUID) throws {
+        passwords.removeValue(forKey: locationID)
+    }
+
+    func readLegacyPassword() throws -> String {
+        guard let legacyPassword else {
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(errSecItemNotFound))
+        }
+        return legacyPassword
+    }
+
+    func deleteLegacyPassword() throws {
+        legacyPassword = nil
     }
 }
 

@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 struct WebDAVShareUploadView: View {
@@ -32,6 +33,17 @@ struct WebDAVShareUploadView: View {
                 .padding(20)
             } else {
                 List {
+                    if settingsStore.locations.count > 1 {
+                        Section("WebDAV 位置") {
+                            Picker("存储到", selection: selectedLocationBinding) {
+                                ForEach(settingsStore.locations) { location in
+                                    Text(location.name).tag(location.id)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                        }
+                    }
+
                     Section("待上传") {
                         ForEach(items, id: \.id) { item in
                             Label(item.displayName, systemImage: "doc.circle")
@@ -47,7 +59,7 @@ struct WebDAVShareUploadView: View {
                             }
                         }
 
-                        ForEach(folders) { folder in
+                        ForEach(visibleFolders) { folder in
                             Button {
                                 currentPath = folder.path
                             } label: {
@@ -57,7 +69,7 @@ struct WebDAVShareUploadView: View {
 
                         if isLoading {
                             ProgressView("读取文件夹…")
-                        } else if folders.isEmpty {
+                        } else if visibleFolders.isEmpty {
                             Text("当前文件夹没有下级目录")
                                 .foregroundStyle(.secondary)
                         }
@@ -106,7 +118,9 @@ struct WebDAVShareUploadView: View {
             }
         }
         .sheet(isPresented: $isShowingSettings) {
-            NavigationStack { WebDAVSettingsView(store: settingsStore) }
+            NavigationStack {
+                WebDAVSettingsView(store: settingsStore, showsCloseButton: true)
+            }
         }
         .alert("上传失败", isPresented: Binding(
             get: { errorMessage != nil },
@@ -116,6 +130,25 @@ struct WebDAVShareUploadView: View {
         } message: {
             Text(errorMessage ?? "")
         }
+        .onChange(of: settingsStore.selectedLocationID) { _ in
+            currentPath = ""
+            folders = []
+        }
+    }
+
+    private var visibleFolders: [WebDAVItem] {
+        folders.filter { settingsStore.showsHiddenFolders || !$0.isHiddenFolder }
+    }
+
+    private var selectedLocationBinding: Binding<UUID> {
+        Binding(
+            get: {
+                settingsStore.selectedLocationID
+                    ?? settingsStore.locations.first?.id
+                    ?? UUID()
+            },
+            set: { settingsStore.select(locationID: $0) }
+        )
     }
 
     private func loadFolders() async {

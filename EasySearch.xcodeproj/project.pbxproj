@@ -21,6 +21,10 @@
 		F40000000000000000000012 /* WebDAVSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000115 /* WebDAVSettingsView.swift */; };
 		F40000000000000000000013 /* WebDAVShareUploadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000116 /* WebDAVShareUploadView.swift */; };
 		F40000000000000000000014 /* WebDAVItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000117 /* WebDAVItemRow.swift */; };
+		F40000000000000000000015 /* WebDAVDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000118 /* WebDAVDownloadManager.swift */; };
+		F40000000000000000000016 /* WebDAVDownloadsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000119 /* WebDAVDownloadsView.swift */; };
+		F40000000000000000000017 /* WebDAVPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000120 /* WebDAVPreviewView.swift */; };
+		F40000000000000000000018 /* WebDAVItemDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000121 /* WebDAVItemDetailsView.swift */; };
 		F30000000000000000000001 /* SearchEngineIconCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000101 /* SearchEngineIconCache.swift */; };
 		F30000000000000000000002 /* SearchEngineIconCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000102 /* SearchEngineIconCacheTests.swift */; };
 		E800000000000000000000001 /* EasySearchUIComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E800000000000000000000101 /* EasySearchUIComponents.swift */; };
@@ -153,6 +157,10 @@
 		F40000000000000000000115 /* WebDAVSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVSettingsView.swift; path = EasySearch/Features/WebDAV/Views/WebDAVSettingsView.swift; sourceTree = SOURCE_ROOT; };
 		F40000000000000000000116 /* WebDAVShareUploadView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVShareUploadView.swift; path = EasySearch/Features/WebDAV/Views/WebDAVShareUploadView.swift; sourceTree = SOURCE_ROOT; };
 		F40000000000000000000117 /* WebDAVItemRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVItemRow.swift; path = EasySearch/Features/WebDAV/Views/WebDAVItemRow.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000118 /* WebDAVDownloadManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVDownloadManager.swift; path = EasySearch/Features/WebDAV/Services/WebDAVDownloadManager.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000119 /* WebDAVDownloadsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVDownloadsView.swift; path = EasySearch/Features/WebDAV/Views/WebDAVDownloadsView.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000120 /* WebDAVPreviewView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVPreviewView.swift; path = EasySearch/Features/WebDAV/Views/WebDAVPreviewView.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000121 /* WebDAVItemDetailsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVItemDetailsView.swift; path = EasySearch/Features/WebDAV/Views/WebDAVItemDetailsView.swift; sourceTree = SOURCE_ROOT; };
 		F30000000000000000000101 /* SearchEngineIconCache.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchEngineIconCache.swift; path = EasySearch/Features/EasySearch/Models/SearchEngineIconCache.swift; sourceTree = SOURCE_ROOT; };
 		F30000000000000000000102 /* SearchEngineIconCacheTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SearchEngineIconCacheTests.swift; sourceTree = "<group>"; };
 		E800000000000000000000101 /* EasySearchUIComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EasySearchUIComponents.swift; path = EasySearch/Core/UIComponents/EasySearchUIComponents.swift; sourceTree = SOURCE_ROOT; };
@@ -763,6 +771,7 @@
 			children = (
 				F40000000000000000000104 /* WebDAVClient.swift */,
 				F40000000000000000000105 /* WebDAVLocalFileStore.swift */,
+				F40000000000000000000118 /* WebDAVDownloadManager.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -774,6 +783,9 @@
 				F40000000000000000000115 /* WebDAVSettingsView.swift */,
 				F40000000000000000000116 /* WebDAVShareUploadView.swift */,
 				F40000000000000000000117 /* WebDAVItemRow.swift */,
+				F40000000000000000000119 /* WebDAVDownloadsView.swift */,
+				F40000000000000000000120 /* WebDAVPreviewView.swift */,
+				F40000000000000000000121 /* WebDAVItemDetailsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -1005,6 +1017,10 @@
 				F40000000000000000000012 /* WebDAVSettingsView.swift in Sources */,
 				F40000000000000000000013 /* WebDAVShareUploadView.swift in Sources */,
 				F40000000000000000000014 /* WebDAVItemRow.swift in Sources */,
+				F40000000000000000000015 /* WebDAVDownloadManager.swift in Sources */,
+				F40000000000000000000016 /* WebDAVDownloadsView.swift in Sources */,
+				F40000000000000000000017 /* WebDAVPreviewView.swift in Sources */,
+				F40000000000000000000018 /* WebDAVItemDetailsView.swift in Sources */,
 				F40000000000000000000007 /* ShareInboxStore.swift in Sources */,
 				F40000000000000000000008 /* IncomingShareActionsView.swift in Sources */,
 				F30000000000000000000001 /* SearchEngineIconCache.swift in Sources */,

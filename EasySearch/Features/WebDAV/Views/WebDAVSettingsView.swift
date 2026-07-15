@@ -1,8 +1,142 @@
+import Foundation
 import SwiftUI
 
 struct WebDAVSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var store: WebDAVSettingsStore
+    let showsCloseButton: Bool
+
+    @State private var editorDestination: LocationEditorDestination?
+    @State private var pendingDeletion: WebDAVLocation?
+
+    init(store: WebDAVSettingsStore = .shared, showsCloseButton: Bool = false) {
+        self.store = store
+        self.showsCloseButton = showsCloseButton
+    }
+
+    var body: some View {
+        List {
+            Section {
+                if store.locations.isEmpty {
+                    Text("还没有 WebDAV 位置")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(store.locations) { location in
+                        locationRow(location)
+                    }
+                }
+
+                Button {
+                    editorDestination = LocationEditorDestination(locationID: UUID(), isNew: true)
+                } label: {
+                    Label("添加 WebDAV 位置", systemImage: "plus")
+                }
+            } header: {
+                Text("WebDAV 位置")
+            } footer: {
+                Text("当前位置用于文件浏览和从分享菜单上传；可以随时在文件管理页面切换。")
+            }
+
+            Section("浏览") {
+                Toggle("显示隐藏文件夹", isOn: Binding(
+                    get: { store.showsHiddenFolders },
+                    set: { store.setShowsHiddenFolders($0) }
+                ))
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("WebDAV 设置")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if showsCloseButton {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完成") { dismiss() }
+                }
+            }
+        }
+        .sheet(item: $editorDestination) { destination in
+            NavigationStack {
+                WebDAVLocationEditorView(
+                    store: store,
+                    locationID: destination.locationID,
+                    isNew: destination.isNew
+                )
+            }
+        }
+        .alert("删除 WebDAV 位置？", isPresented: Binding(
+            get: { pendingDeletion != nil },
+            set: { if !$0 { pendingDeletion = nil } }
+        ), presenting: pendingDeletion) { location in
+            Button("删除", role: .destructive) {
+                store.remove(locationID: location.id)
+                pendingDeletion = nil
+            }
+            Button("取消", role: .cancel) { pendingDeletion = nil }
+        } message: { location in
+            Text("将删除“\(location.name)”及其本机保存的登录凭据，不会删除服务器上的文件。")
+        }
+    }
+
+    private func locationRow(_ location: WebDAVLocation) -> some View {
+        HStack(spacing: 12) {
+            Button {
+                store.select(locationID: location.id)
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: store.selectedLocationID == location.id ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(store.selectedLocationID == location.id ? Color.accentColor : Color.secondary)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(location.name)
+                            .foregroundStyle(.primary)
+                        Text(location.baseURL.host ?? location.baseURL.absoluteString)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Menu {
+                Button {
+                    store.select(locationID: location.id)
+                } label: {
+                    Label("设为当前位置", systemImage: "checkmark.circle")
+                }
+                Button {
+                    editorDestination = LocationEditorDestination(locationID: location.id, isNew: false)
+                } label: {
+                    Label("编辑", systemImage: "pencil")
+                }
+                Button(role: .destructive) {
+                    pendingDeletion = location
+                } label: {
+                    Label("删除", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .accessibilityLabel("\(location.name)操作")
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+private struct LocationEditorDestination: Identifiable {
+    let locationID: UUID
+    let isNew: Bool
+    var id: UUID { locationID }
+}
+
+private struct WebDAVLocationEditorView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var store: WebDAVSettingsStore
+
+    let locationID: UUID
+    let isNew: Bool
+    @State private var name: String
     @State private var baseURL: String
     @State private var username: String
     @State private var password: String
@@ -14,18 +148,24 @@ struct WebDAVSettingsView: View {
         URL(string: baseURL.trimmingCharacters(in: .whitespacesAndNewlines))?.scheme?.lowercased() == "http"
     }
 
-    init(store: WebDAVSettingsStore = .shared) {
+    init(store: WebDAVSettingsStore, locationID: UUID, isNew: Bool) {
         self.store = store
-        _baseURL = State(initialValue: store.configuration?.baseURL.absoluteString ?? "")
-        _username = State(initialValue: store.configuration?.username ?? "")
-        _password = State(initialValue: store.configuration?.password ?? "")
-        _allowsInsecureHTTP = State(initialValue: store.configuration?.baseURL.scheme?.lowercased() == "http")
+        self.locationID = locationID
+        self.isNew = isNew
+        let location = isNew ? nil : store.location(withID: locationID)
+        _name = State(initialValue: location?.name ?? "")
+        _baseURL = State(initialValue: location?.baseURL.absoluteString ?? "")
+        _username = State(initialValue: location?.username ?? "")
+        _password = State(initialValue: location?.password ?? "")
+        _allowsInsecureHTTP = State(initialValue: location?.baseURL.scheme?.lowercased() == "http")
     }
 
     var body: some View {
         Form {
             Section {
-                TextField("服务器地址，例如 https://dav.example.com/remote.php/dav/files/user", text: $baseURL)
+                TextField("位置名称，例如 家庭 NAS", text: $name)
+
+                TextField("服务器地址", text: $baseURL)
                     .textInputAutocapitalization(.never)
                     .keyboardType(.URL)
                     .autocorrectionDisabled()
@@ -45,7 +185,7 @@ struct WebDAVSettingsView: View {
             } header: {
                 Text("连接配置")
             } footer: {
-                Text("建议使用 HTTPS；HTTP 仅适用于局域网。建议为 WebDAV 创建独立的应用专用密码。")
+                Text("建议使用 HTTPS；HTTP 仅适用于可信局域网。位置名称留空时使用服务器域名。")
             }
 
             Section {
@@ -59,14 +199,6 @@ struct WebDAVSettingsView: View {
                     }
                 }
                 .disabled(isTesting || baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-                if store.configuration != nil {
-                    Button("清除连接", role: .destructive) {
-                        store.clear()
-                        dismiss()
-                    }
-                    .disabled(isTesting)
-                }
             }
 
             if let errorMessage {
@@ -77,7 +209,7 @@ struct WebDAVSettingsView: View {
                 }
             }
         }
-        .navigationTitle("WebDAV 设置")
+        .navigationTitle(isNew ? "添加位置" : "编辑位置")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isTesting)
         .interactiveDismissDisabled(isTesting)
@@ -96,35 +228,36 @@ struct WebDAVSettingsView: View {
             return
         }
         isTesting = true
-        let result = store.makeConfiguration(baseURLString: baseURL, username: username, password: password)
+        let result = store.makeLocation(
+            id: locationID,
+            name: name,
+            baseURLString: baseURL,
+            username: username,
+            password: password
+        )
         switch result {
         case let .failure(error):
             isTesting = false
             errorMessage = error.localizedDescription
-        case let .success(configuration):
+        case let .success(location):
             Task {
                 do {
-                    _ = try await WebDAVClient(configuration: configuration).list(path: "")
-                    await MainActor.run {
-                        switch store.save(configuration: configuration) {
-                        case .success:
-                            isTesting = false
-                            dismiss()
-                        case let .failure(error):
-                            isTesting = false
-                            errorMessage = error.localizedDescription
-                        }
-                    }
-                } catch is CancellationError {
-                    await MainActor.run { isTesting = false }
-                } catch {
-                    await MainActor.run {
+                    _ = try await WebDAVClient(configuration: location.configuration).list(path: "")
+                    switch store.save(location: location) {
+                    case .success:
+                        isTesting = false
+                        dismiss()
+                    case let .failure(error):
                         isTesting = false
                         errorMessage = error.localizedDescription
                     }
+                } catch is CancellationError {
+                    isTesting = false
+                } catch {
+                    isTesting = false
+                    errorMessage = error.localizedDescription
                 }
             }
         }
     }
-
 }

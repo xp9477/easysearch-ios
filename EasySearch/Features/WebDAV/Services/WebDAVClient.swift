@@ -4,10 +4,38 @@ protocol WebDAVClientProtocol {
     func list(path: String) async throws -> [WebDAVItem]
     func createDirectory(path: String) async throws
     func upload(localURL: URL, remotePath: String) async throws
-    func download(item: WebDAVItem, into localDirectory: URL) async throws -> URL
+    func details(for item: WebDAVItem) async throws -> WebDAVItemDetails
+    func delete(item: WebDAVItem) async throws
+    func replace(localURL: URL, item: WebDAVItem, force: Bool) async throws
+    func download(
+        item: WebDAVItem,
+        into localDirectory: URL,
+        progress: @escaping (WebDAVTransferProgress) -> Void
+    ) async throws -> URL
+    func downloadForPreview(
+        item: WebDAVItem,
+        progress: @escaping (WebDAVTransferProgress) -> Void
+    ) async throws -> URL
+}
+
+extension WebDAVClientProtocol {
+    func download(item: WebDAVItem, into localDirectory: URL) async throws -> URL {
+        try await download(item: item, into: localDirectory, progress: { _ in })
+    }
 }
 
 final class WebDAVClient: WebDAVClientProtocol {
+    private struct PlannedItem {
+        let item: WebDAVItem
+        let relativePath: String
+    }
+
+    private struct DownloadPlan {
+        let directories: [PlannedItem]
+        let files: [PlannedItem]
+        let totalBytes: Int64?
+    }
+
     private let configuration: WebDAVConfiguration
     private let session: URLSession
     private let fileManager: FileManager
@@ -34,6 +62,8 @@ final class WebDAVClient: WebDAVClientProtocol {
             <d:resourcetype />
             <d:getcontentlength />
             <d:getlastmodified />
+            <d:getcontenttype />
+            <d:getetag />
           </d:prop>
         </d:propfind>
         """.utf8)
@@ -87,8 +117,7 @@ final class WebDAVClient: WebDAVClientProtocol {
                 if try child.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink == true {
                     continue
                 }
-                let childPath = join(createdPath, child.lastPathComponent)
-                try await upload(localURL: child, remotePath: childPath)
+                try await upload(localURL: child, remotePath: join(createdPath, child.lastPathComponent))
             }
             return
         }
@@ -96,69 +125,249 @@ final class WebDAVClient: WebDAVClientProtocol {
         try await uploadFile(localURL: localURL, requestedPath: remotePath)
     }
 
-    func download(item: WebDAVItem, into localDirectory: URL) async throws -> URL {
+    func details(for item: WebDAVItem) async throws -> WebDAVItemDetails {
+        let plan = try await makeDownloadPlan(for: item)
+        return WebDAVItemDetails(
+            fileCount: plan.files.count,
+            folderCount: max(0, plan.directories.count - (item.isDirectory ? 1 : 0)),
+            totalSize: plan.files.reduce(0) { $0 + max($1.item.contentLength ?? 0, 0) },
+            unknownSizeFileCount: plan.files.filter { $0.item.contentLength == nil }.count
+        )
+    }
+
+    func delete(item: WebDAVItem) async throws {
+        let url = try remoteURL(for: item.path, isCollection: item.isDirectory)
+        let request = makeRequest(url: url, method: "DELETE")
+        let (data, response) = try await session.data(for: request)
+        try validate(response: response, data: data)
+    }
+
+    func replace(localURL: URL, item: WebDAVItem, force: Bool = false) async throws {
+        guard !item.isDirectory, fileManager.fileExists(atPath: localURL.path) else {
+            throw WebDAVError.localFileMissing
+        }
+        let url = try remoteURL(for: item.path)
+        var request = makeRequest(url: url, method: "PUT")
+        if !force, let etag = item.etag, !etag.isEmpty {
+            request.setValue(etag, forHTTPHeaderField: "If-Match")
+        }
+        let (data, response) = try await session.upload(for: request, fromFile: localURL)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw WebDAVError.invalidResponse
+        }
+        if httpResponse.statusCode == 412 {
+            throw WebDAVError.editConflict
+        }
+        try validate(response: response, data: data)
+    }
+
+    func download(
+        item: WebDAVItem,
+        into localDirectory: URL,
+        progress: @escaping (WebDAVTransferProgress) -> Void
+    ) async throws -> URL {
         try fileManager.createDirectory(at: localDirectory, withIntermediateDirectories: true)
-        if item.isDirectory {
-            let stagingRoot = fileManager.temporaryDirectory
-                .appendingPathComponent("EasySearchWebDAVDownloads", isDirectory: true)
-                .appendingPathComponent(UUID().uuidString, isDirectory: true)
-            let stagingTarget = stagingRoot.appendingPathComponent(
-                WebDAVLocalFileStore.sanitizedFileName(item.name),
-                isDirectory: true
-            )
-            do {
-                try fileManager.createDirectory(at: stagingRoot, withIntermediateDirectories: true)
-                try await downloadRecursively(item: item, to: stagingTarget)
-                let finalTarget = WebDAVLocalFileStore.uniqueURL(
-                    for: localDirectory.appendingPathComponent(
-                        WebDAVLocalFileStore.sanitizedFileName(item.name),
-                        isDirectory: true
-                    )
+        let plan = try await makeDownloadPlan(for: item)
+        let stagingRoot = fileManager.temporaryDirectory
+            .appendingPathComponent("EasySearchWebDAVDownloads", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let rootName = WebDAVLocalFileStore.sanitizedFileName(item.name)
+        let stagedRoot = stagingRoot.appendingPathComponent(rootName, isDirectory: item.isDirectory)
+
+        do {
+            try fileManager.createDirectory(at: stagingRoot, withIntermediateDirectories: true)
+            for directory in plan.directories {
+                let target = stagingRoot.appendingPathComponent(
+                    directory.relativePath,
+                    isDirectory: true
                 )
-                try fileManager.moveItem(at: stagingTarget, to: finalTarget)
-                try? fileManager.removeItem(at: stagingRoot)
-                return finalTarget
+                try fileManager.createDirectory(at: target, withIntermediateDirectories: true)
+            }
+
+            var completedBytes: Int64 = 0
+            var completedFiles = 0
+            reportProgress(
+                completedBytes: 0,
+                totalBytes: plan.totalBytes,
+                completedFiles: 0,
+                totalFiles: plan.files.count,
+                progress: progress
+            )
+
+            for file in plan.files {
+                try Task.checkCancellation()
+                let target = stagingRoot.appendingPathComponent(file.relativePath, isDirectory: false)
+                try fileManager.createDirectory(
+                    at: target.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                let output = try await downloadFile(path: file.item.path) { written, _ in
+                    self.reportProgress(
+                        completedBytes: completedBytes + written,
+                        totalBytes: plan.totalBytes,
+                        completedFiles: completedFiles,
+                        totalFiles: plan.files.count,
+                        progress: progress
+                    )
+                }
+                do {
+                    try Task.checkCancellation()
+                    try fileManager.moveItem(at: output.localURL, to: target)
+                } catch {
+                    try? fileManager.removeItem(at: output.localURL)
+                    throw error
+                }
+                completedBytes += output.bytesWritten
+                completedFiles += 1
+                reportProgress(
+                    completedBytes: completedBytes,
+                    totalBytes: plan.totalBytes,
+                    completedFiles: completedFiles,
+                    totalFiles: plan.files.count,
+                    progress: progress
+                )
+            }
+
+            try Task.checkCancellation()
+            let finalTarget = WebDAVLocalFileStore.uniqueURL(
+                for: localDirectory.appendingPathComponent(rootName, isDirectory: item.isDirectory)
+            )
+            try fileManager.moveItem(at: stagedRoot, to: finalTarget)
+            try? fileManager.removeItem(at: stagingRoot)
+            return finalTarget
+        } catch {
+            try? fileManager.removeItem(at: stagingRoot)
+            throw error
+        }
+    }
+
+    func downloadForPreview(
+        item: WebDAVItem,
+        progress: @escaping (WebDAVTransferProgress) -> Void
+    ) async throws -> URL {
+        guard !item.isDirectory else { throw WebDAVError.invalidURL }
+        let previewDirectory = try WebDAVLocalFileStore.makePreviewDirectory()
+        let target = previewDirectory.appendingPathComponent(
+            WebDAVLocalFileStore.sanitizedFileName(item.name),
+            isDirectory: false
+        )
+        do {
+            let output = try await downloadFile(path: item.path) { written, expected in
+                let total: Int64?
+                if let contentLength = item.contentLength, contentLength > 0 {
+                    total = contentLength
+                } else if expected > 0 {
+                    total = expected
+                } else {
+                    total = nil
+                }
+                progress(WebDAVTransferProgress(
+                    completedBytes: written,
+                    totalBytes: total,
+                    completedFiles: 0,
+                    totalFiles: 1
+                ))
+            }
+            do {
+                try Task.checkCancellation()
+                try fileManager.moveItem(at: output.localURL, to: target)
             } catch {
-                try? fileManager.removeItem(at: stagingRoot)
+                try? fileManager.removeItem(at: output.localURL)
                 throw error
+            }
+            progress(WebDAVTransferProgress(
+                completedBytes: output.bytesWritten,
+                totalBytes: item.contentLength.flatMap { $0 > 0 ? $0 : nil } ?? output.bytesWritten,
+                completedFiles: 1,
+                totalFiles: 1
+            ))
+            return target
+        } catch {
+            try? fileManager.removeItem(at: previewDirectory)
+            throw error
+        }
+    }
+
+    private func makeDownloadPlan(for root: WebDAVItem) async throws -> DownloadPlan {
+        let rootName = WebDAVLocalFileStore.sanitizedFileName(root.name)
+        var pending = [PlannedItem(item: root, relativePath: rootName)]
+        var directories: [PlannedItem] = []
+        var files: [PlannedItem] = []
+        var visitedDirectories = Set<String>()
+
+        while let current = pending.popLast() {
+            try Task.checkCancellation()
+            if current.item.isDirectory {
+                guard visitedDirectories.insert(current.item.path).inserted else { continue }
+                directories.append(current)
+                let children = try await list(path: current.item.path)
+                var usedNames = Set<String>()
+                let plannedChildren = children.map { child -> PlannedItem in
+                    let component = uniqueLocalName(
+                        WebDAVLocalFileStore.sanitizedFileName(child.name),
+                        isDirectory: child.isDirectory,
+                        usedNames: &usedNames
+                    )
+                    return PlannedItem(
+                        item: child,
+                        relativePath: join(current.relativePath, component)
+                    )
+                }
+                pending.append(contentsOf: plannedChildren.reversed())
+            } else {
+                files.append(current)
             }
         }
 
-        let target = WebDAVLocalFileStore.uniqueURL(
-            for: localDirectory.appendingPathComponent(
-                WebDAVLocalFileStore.sanitizedFileName(item.name),
-                isDirectory: false
-            )
-        )
-        try await downloadFile(path: item.path, to: target)
-        return target
+        let hasUnknownSize = files.contains { ($0.item.contentLength ?? -1) < 0 }
+        let totalBytes = hasUnknownSize
+            ? nil
+            : files.reduce(Int64(0)) { $0 + ($1.item.contentLength ?? 0) }
+        return DownloadPlan(directories: directories, files: files, totalBytes: totalBytes)
     }
 
-    private func downloadRecursively(item: WebDAVItem, to target: URL) async throws {
-        if !item.isDirectory {
-            try await downloadFile(path: item.path, to: target)
-            return
+    private func uniqueLocalName(
+        _ requestedName: String,
+        isDirectory: Bool,
+        usedNames: inout Set<String>
+    ) -> String {
+        guard usedNames.contains(requestedName) else {
+            usedNames.insert(requestedName)
+            return requestedName
         }
-
-        try fileManager.createDirectory(at: target, withIntermediateDirectories: true)
-        let children = try await list(path: item.path)
-        for child in children {
-            let childTarget = WebDAVLocalFileStore.uniqueURL(
-                for: target.appendingPathComponent(
-                    WebDAVLocalFileStore.sanitizedFileName(child.name),
-                    isDirectory: child.isDirectory
-                )
-            )
-            try await downloadRecursively(item: child, to: childTarget)
+        let source = requestedName as NSString
+        let ext = isDirectory ? "" : source.pathExtension
+        let stem = ext.isEmpty ? requestedName : source.deletingPathExtension
+        var index = 2
+        while true {
+            let candidate = ext.isEmpty ? "\(stem) (\(index))" : "\(stem) (\(index)).\(ext)"
+            if usedNames.insert(candidate).inserted { return candidate }
+            index += 1
         }
     }
 
-    private func downloadFile(path: String, to target: URL) async throws {
+    private func reportProgress(
+        completedBytes: Int64,
+        totalBytes: Int64?,
+        completedFiles: Int,
+        totalFiles: Int,
+        progress: (WebDAVTransferProgress) -> Void
+    ) {
+        progress(WebDAVTransferProgress(
+            completedBytes: max(completedBytes, 0),
+            totalBytes: totalBytes,
+            completedFiles: completedFiles,
+            totalFiles: totalFiles
+        ))
+    }
+
+    private func downloadFile(
+        path: String,
+        progress: @escaping (Int64, Int64) -> Void
+    ) async throws -> WebDAVProgressDownloadOperation.Output {
         let url = try remoteURL(for: path)
         let request = makeRequest(url: url, method: "GET")
-        let (temporaryURL, response) = try await session.download(for: request)
-        try validate(response: response, data: nil)
-        try fileManager.moveItem(at: temporaryURL, to: target)
+        return try await WebDAVProgressDownloadOperation(progress: progress).run(request: request)
     }
 
     private func makeRequest(url: URL, method: String) -> URLRequest {
@@ -167,8 +376,7 @@ final class WebDAVClient: WebDAVClientProtocol {
         request.timeoutInterval = 60
         if !configuration.username.isEmpty {
             let credentials = "\(configuration.username):\(configuration.password)"
-            let encoded = Data(credentials.utf8).base64EncodedString()
-            request.setValue("Basic \(encoded)", forHTTPHeaderField: "Authorization")
+            request.setValue("Basic \(Data(credentials.utf8).base64EncodedString())", forHTTPHeaderField: "Authorization")
         }
         return request
     }
@@ -203,8 +411,7 @@ final class WebDAVClient: WebDAVClientProtocol {
                 return candidatePath
             }
             if httpResponse.statusCode == 405 {
-                let parent = parentPath(of: candidatePath)
-                let existingItems = try await list(path: parent)
+                let existingItems = try await list(path: parentPath(of: candidatePath))
                 if existingItems.contains(where: { $0.path == candidatePath }) {
                     continue
                 }
@@ -285,14 +492,141 @@ final class WebDAVClient: WebDAVClientProtocol {
         if right.isEmpty { return left }
         return "\(left)/\(right)"
     }
+}
 
+private final class WebDAVProgressDownloadOperation: NSObject, URLSessionDownloadDelegate {
+    struct Output {
+        let localURL: URL
+        let bytesWritten: Int64
+    }
+
+    private let progress: (Int64, Int64) -> Void
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Output, Error>?
+    private var session: URLSession?
+    private var task: URLSessionDownloadTask?
+    private var stagedURL: URL?
+    private var stagingError: Error?
+    private var bytesWritten: Int64 = 0
+    private var cancellationRequested = false
+
+    init(progress: @escaping (Int64, Int64) -> Void) {
+        self.progress = progress
+    }
+
+    func run(request: URLRequest) async throws -> Output {
+        try Task.checkCancellation()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                self.continuation = continuation
+                let configuration = URLSessionConfiguration.ephemeral
+                configuration.timeoutIntervalForRequest = 60
+                configuration.timeoutIntervalForResource = 24 * 60 * 60
+                let queue = OperationQueue()
+                queue.maxConcurrentOperationCount = 1
+                let session = URLSession(configuration: configuration, delegate: self, delegateQueue: queue)
+                self.session = session
+                let task = session.downloadTask(with: request)
+                self.lock.lock()
+                self.task = task
+                let shouldCancel = self.cancellationRequested
+                self.lock.unlock()
+                if shouldCancel {
+                    task.resume()
+                    task.cancel()
+                } else {
+                    task.resume()
+                }
+            }
+        } onCancel: {
+            self.cancel()
+        }
+    }
+
+    func cancel() {
+        lock.lock()
+        cancellationRequested = true
+        let task = self.task
+        lock.unlock()
+        task?.cancel()
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        self.bytesWritten = totalBytesWritten
+        progress(totalBytesWritten, totalBytesExpectedToWrite)
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        do {
+            let directory = FileManager.default.temporaryDirectory
+                .appendingPathComponent("EasySearchWebDAVTransport", isDirectory: true)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let target = directory.appendingPathComponent(UUID().uuidString)
+            try FileManager.default.moveItem(at: location, to: target)
+            stagedURL = target
+            if bytesWritten == 0 {
+                let fileSize = try? target.resourceValues(forKeys: [.fileSizeKey]).fileSize
+                bytesWritten = Int64(fileSize ?? 0)
+            }
+        } catch {
+            stagingError = error
+        }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: Error?
+    ) {
+        defer {
+            self.session?.finishTasksAndInvalidate()
+            self.session = nil
+            self.task = nil
+        }
+        guard let continuation else { return }
+        self.continuation = nil
+
+        if let error {
+            if let stagedURL { try? FileManager.default.removeItem(at: stagedURL) }
+            continuation.resume(throwing: error)
+            return
+        }
+        if let stagingError {
+            if let stagedURL { try? FileManager.default.removeItem(at: stagedURL) }
+            continuation.resume(throwing: stagingError)
+            return
+        }
+        guard let response = task.response as? HTTPURLResponse else {
+            continuation.resume(throwing: WebDAVError.invalidResponse)
+            return
+        }
+        guard (200..<300).contains(response.statusCode) else {
+            if let stagedURL { try? FileManager.default.removeItem(at: stagedURL) }
+            continuation.resume(throwing: WebDAVError.server(statusCode: response.statusCode, message: ""))
+            return
+        }
+        guard let stagedURL else {
+            continuation.resume(throwing: WebDAVError.invalidResponse)
+            return
+        }
+        continuation.resume(returning: Output(localURL: stagedURL, bytesWritten: bytesWritten))
+    }
 }
 
 final class WebDAVListingParser: NSObject, XMLParserDelegate {
     private let baseURL: URL
     private let requestedPath: String
     private var currentResponse: ParsedResponse?
-    private var currentElement = ""
     private var text = ""
     private var parsedResponses: [ParsedResponse] = []
     private(set) var hasParseError = false
@@ -322,7 +656,9 @@ final class WebDAVListingParser: NSObject, XMLParserDelegate {
                 name: fallbackName,
                 kind: response.isDirectory ? .directory : .file,
                 contentLength: response.contentLength,
-                modifiedAt: response.modifiedAt
+                modifiedAt: response.modifiedAt,
+                contentType: response.contentType,
+                etag: response.etag
             )
         }
     }
@@ -335,7 +671,6 @@ final class WebDAVListingParser: NSObject, XMLParserDelegate {
         attributes attributeDict: [String: String] = [:]
     ) {
         let name = localName(elementName)
-        currentElement = name
         text = ""
         if name == "response" {
             currentResponse = ParsedResponse()
@@ -364,6 +699,10 @@ final class WebDAVListingParser: NSObject, XMLParserDelegate {
                 response.contentLength = Int64(value)
             case "getlastmodified":
                 response.modifiedAt = Self.dateFormatter.date(from: value)
+            case "getcontenttype":
+                response.contentType = value.isEmpty ? nil : value
+            case "getetag":
+                response.etag = value.isEmpty ? nil : value
             case "status":
                 response.sawStatus = true
                 if value.contains(" 200 ") || value.hasSuffix(" 200") {
@@ -379,7 +718,6 @@ final class WebDAVListingParser: NSObject, XMLParserDelegate {
                 currentResponse = response
             }
         }
-        currentElement = ""
         text = ""
     }
 
@@ -418,6 +756,8 @@ private struct ParsedResponse {
     var isDirectory = false
     var contentLength: Int64?
     var modifiedAt: Date?
+    var contentType: String?
+    var etag: String?
     var sawStatus = false
     var hasSuccessfulStatus = false
 }
