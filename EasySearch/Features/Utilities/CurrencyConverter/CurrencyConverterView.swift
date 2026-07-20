@@ -2,7 +2,12 @@ import SwiftUI
 
 struct CurrencyConverterView: View {
     @StateObject private var viewModel = CurrencyConverterViewModel()
-    @FocusState private var focusedField: CurrencyConverterViewModel.EditingField?
+    @FocusState private var focusedField: Field?
+
+    private enum Field {
+        case cny
+        case twd
+    }
 
     var body: some View {
         ScrollView {
@@ -33,14 +38,11 @@ struct CurrencyConverterView: View {
             }
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("完成") { focusedField = nil; viewModel.endEditing() }
+                Button("完成") { focusedField = nil }
             }
         }
         .task {
             await viewModel.fetchRate()
-        }
-        .onChange(of: focusedField) { field in
-            viewModel.beginEditing(field ?? .none)
         }
     }
 
@@ -61,6 +63,10 @@ struct CurrencyConverterView: View {
                 Text("1 CNY = \(rate, specifier: "%.4f") TWD")
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
+
+                Text("1 TWD = \(1.0 / rate, specifier: "%.4f") CNY")
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(.secondary)
             } else if viewModel.isLoading {
                 HStack(spacing: 8) {
                     ProgressView()
@@ -105,8 +111,9 @@ struct CurrencyConverterView: View {
                 flag: "🇨🇳",
                 code: "CNY",
                 label: "人民币",
-                amount: $viewModel.cnyAmount,
-                field: .cny
+                text: viewModel.cnyAmount,
+                field: .cny,
+                onChange: viewModel.updateCNYAmount
             )
 
             swapButton
@@ -115,8 +122,9 @@ struct CurrencyConverterView: View {
                 flag: "🇹🇼",
                 code: "TWD",
                 label: "新台币",
-                amount: $viewModel.twdAmount,
-                field: .twd
+                text: viewModel.twdAmount,
+                field: .twd,
+                onChange: viewModel.updateTWDAmount
             )
         }
     }
@@ -125,8 +133,9 @@ struct CurrencyConverterView: View {
         flag: String,
         code: String,
         label: String,
-        amount: Binding<String>,
-        field: CurrencyConverterViewModel.EditingField
+        text: String,
+        field: Field,
+        onChange: @escaping (String) -> Void
     ) -> some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
@@ -143,12 +152,18 @@ struct CurrencyConverterView: View {
             }
             .frame(width: 80, alignment: .leading)
 
-            TextField("输入金额", text: amount)
-                .keyboardType(.decimalPad)
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .multilineTextAlignment(.trailing)
-                .focused($focusedField, equals: field)
-                .foregroundStyle(amount.wrappedValue == "--" ? .secondary : .primary)
+            TextField(
+                "输入金额",
+                text: Binding(
+                    get: { text == "--" ? "" : text },
+                    set: onChange
+                )
+            )
+            .keyboardType(.decimalPad)
+            .font(.system(size: 28, weight: .semibold, design: .rounded))
+            .multilineTextAlignment(.trailing)
+            .focused($focusedField, equals: field)
+            .foregroundStyle(text == "--" ? .secondary : .primary)
         }
         .padding(16)
         .background(
@@ -162,6 +177,10 @@ struct CurrencyConverterView: View {
                     lineWidth: focusedField == field ? 2 : 1
                 )
         )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            focusedField = field
+        }
     }
 
     private var swapButton: some View {
@@ -188,7 +207,7 @@ struct CurrencyConverterView: View {
         HStack(spacing: 4) {
             Image(systemName: "info.circle")
                 .font(.system(size: 11))
-            Text("数据来源：ExchangeRate-API")
+            Text("数据来源：ExchangeRate-API · 输入任一侧金额即可换算")
                 .font(.system(size: 11, weight: .medium))
         }
         .foregroundStyle(.quaternary)

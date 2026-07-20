@@ -3,42 +3,27 @@ import Combine
 
 @MainActor
 final class CurrencyConverterViewModel: ObservableObject {
-    // MARK: - Published state
-
-    @Published var cnyAmount: String = ""
-    @Published var twdAmount: String = ""
+    @Published private(set) var cnyAmount: String = ""
+    @Published private(set) var twdAmount: String = ""
     @Published private(set) var rate: Double?
     @Published private(set) var rateUpdatedAt: Date?
     @Published private(set) var rateSource: ExchangeRateSource?
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var errorMessage: String?
 
-    // MARK: - Internal
-
-    enum EditingField { case cny, twd, none }
-    private(set) var editingField: EditingField = .none
-    private var cancellables = Set<AnyCancellable>()
-    private let service: ExchangeRateService
-
-    // MARK: - Init
-
-    init(service: ExchangeRateService = .shared) {
-        self.service = service
-
-        $cnyAmount
-            .dropFirst()
-            .removeDuplicates()
-            .sink { [weak self] _ in self?.cnyDidChange() }
-            .store(in: &cancellables)
-
-        $twdAmount
-            .dropFirst()
-            .removeDuplicates()
-            .sink { [weak self] _ in self?.twdDidChange() }
-            .store(in: &cancellables)
+    /// Which field the user last edited; used by swap and rate refresh.
+    private enum SourceField {
+        case cny
+        case twd
     }
 
-    // MARK: - Actions
+    private var sourceField: SourceField = .cny
+    private let service: ExchangeRateService
+    init(service: ExchangeRateService = .shared) {
+        self.service = service
+    }
+
+    // MARK: - Rate
 
     func fetchRate(force: Bool = false) async {
         isLoading = true
@@ -55,71 +40,109 @@ final class CurrencyConverterViewModel: ObservableObject {
     }
 
     /// Applies a rate result and recalculates conversion fields.
-    /// Exposed for unit tests to avoid network calls.
     func apply(_ result: ExchangeRateResult) {
         rate = result.rate
         rateUpdatedAt = result.updatedAt
         rateSource = result.source
-        recalculateAfterRateUpdate()
+        recalculateFromSourceField()
     }
 
+    // MARK: - Input
+
+    func updateCNYAmount(_ text: String) {
+        let sanitized = Self.sanitizeAmountInput(text)
+        setCNYAmount(sanitized)
+        sourceField = .cny
+        convertFromCNY()
+    }
+
+    func updateTWDAmount(_ text: String) {
+        let sanitized = Self.sanitizeAmountInput(text)
+        setTWDAmount(sanitized)
+        sourceField = .twd
+        convertFromTWD()
+    }
+
+    /// Move the currently entered number to the other currency, then recalculate.
+    /// Example: 100 CNY -> 440 TWD, after swap becomes 100 TWD -> 22.71 CNY.
     func swapFields() {
-        let oldCNY = cnyAmount
-        let oldTWD = twdAmount
-        editingField = .none
-        cnyAmount = oldTWD
-        twdAmount = oldCNY
+        guard rate != nil else { return }
+
+        switch sourceField {
+        case .cny:
+            let amount = cnyAmount
+            sourceField = .twd
+            setTWDAmount(amount)
+            convertFromTWD()
+        case .twd:
+            let amount = twdAmount
+            sourceField = .cny
+            setCNYAmount(amount)
+            convertFromCNY()
+        }
     }
 
-    func beginEditing(_ field: EditingField) {
-        editingField = field
-    }
+    // MARK: - Conversion
 
-    func endEditing() {
-        editingField = .none
-    }
-
-    // MARK: - Conversion logic
-
-    private func cnyDidChange() {
-        guard editingField == .cny else { return }
+    private func convertFromCNY() {
         guard let rate else {
-            twdAmount = cnyAmount.isEmpty ? "" : "--"
+            setTWDAmount(cnyAmount.isEmpty ? "" : "--")
             return
         }
-        guard let value = Double(cnyAmount), !cnyAmount.isEmpty else {
-            twdAmount = ""
+        guard let value = Double(cnyAmount) else {
+            setTWDAmount(cnyAmount.isEmpty ? "" : "")
             return
         }
-        twdAmount = formatAmount(value * rate)
+        setTWDAmount(Self.formatAmount(value * rate))
     }
 
-    private func twdDidChange() {
-        guard editingField == .twd else { return }
+    private func convertFromTWD() {
         guard let rate, rate > 0 else {
-            cnyAmount = twdAmount.isEmpty ? "" : "--"
+            setCNYAmount(twdAmount.isEmpty ? "" : "--")
             return
         }
-        guard let value = Double(twdAmount), !twdAmount.isEmpty else {
-            cnyAmount = ""
+        guard let value = Double(twdAmount) else {
+            setCNYAmount(twdAmount.isEmpty ? "" : "")
             return
         }
-        cnyAmount = formatAmount(value / rate)
+        setCNYAmount(Self.formatAmount(value / rate))
     }
 
-    private func recalculateAfterRateUpdate() {
-        guard let rate else { return }
-
-        if editingField == .twd, let value = Double(twdAmount), rate > 0 {
-            cnyAmount = formatAmount(value / rate)
-        } else if let value = Double(cnyAmount) {
-            twdAmount = formatAmount(value * rate)
-        } else if let value = Double(twdAmount), rate > 0 {
-            cnyAmount = formatAmount(value / rate)
+    private func recalculateFromSourceField() {
+        switch sourceField {
+        case .cny:
+            convertFromCNY()
+        case .twd:
+            convertFromTWD()
         }
     }
 
-    private func formatAmount(_ value: Double) -> String {
+    private func setCNYAmount(_ value: String) {
+        cnyAmount = value
+    }
+
+    private func setTWDAmount(_ value: String) {
+        twdAmount = value
+    }
+
+    static func formatAmount(_ value: Double) -> String {
         String(format: "%.2f", value)
+    }
+
+    /// Keep digits and at most one decimal point.
+    static func sanitizeAmountInput(_ text: String) -> String {
+        var result = ""
+        var hasDecimal = false
+
+        for character in text {
+            if character.isNumber {
+                result.append(character)
+            } else if character == ".", !hasDecimal {
+                result.append(character)
+                hasDecimal = true
+            }
+        }
+
+        return result
     }
 }
