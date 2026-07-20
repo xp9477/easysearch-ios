@@ -32,6 +32,7 @@ public class FeatureRegistry: ObservableObject {
         features.append(QingLongFeature())
         features.append(ImageTranslateFeature())
         features.append(EmailAssistantFeature())
+        features.append(UtilitiesFeature())
         features.append(HiddenSpaceFeature())
         reloadModuleFeatureOrder()
     }
