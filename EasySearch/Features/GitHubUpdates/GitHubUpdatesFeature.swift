@@ -7,6 +7,7 @@ public struct GitHubUpdatesFeature: AppFeature {
     public var iconName: String = "bell.badge"
     public var color: Color = .indigo
     public var placement: AppFeaturePlacement = .moduleList
+    public var group: AppFeatureGroup? = .connectAndOps
 
     public init() {}
 

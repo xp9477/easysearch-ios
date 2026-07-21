@@ -22,40 +22,21 @@ struct QingLongEmptyState: View {
     }
 
     var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            Text(title)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.primary)
-
-            if let description {
-                Text(description)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-
-            if let actionTitle, let action {
-                Button(action: action) {
-                    Label(actionTitle, systemImage: "arrow.right.circle")
-                        .font(.system(size: 13, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 9)
-                }
-                .buttonStyle(.bordered)
-                .tint(.green)
-            }
+        if let actionTitle, let action {
+            ESEmptyState(
+                title: title,
+                message: description,
+                systemImage: icon,
+                actionTitle: actionTitle,
+                action: action
+            )
+        } else {
+            ESEmptyState(
+                title: title,
+                message: description,
+                systemImage: icon
+            )
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 18)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
-        )
     }
 }
 
@@ -64,13 +45,13 @@ struct QingLongSearchField: View {
     let placeholder: String
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: ESUI.Space.sm) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
             TextField(placeholder, text: $text)
-                .font(.system(size: 14, weight: .medium))
+                .font(.subheadline)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
 
@@ -84,11 +65,11 @@ struct QingLongSearchField: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 9)
+        .padding(.horizontal, ESUI.Space.sm)
+        .padding(.vertical, ESUI.Space.sm)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .fill(ESUI.fill)
         )
     }
 }
@@ -100,19 +81,19 @@ struct QingLongFilterBar<Option: Identifiable & Hashable>: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+            HStack(spacing: ESUI.Space.sm) {
                 ForEach(options) { option in
                     Button {
                         selection = option
                     } label: {
                         Text(option[keyPath: title])
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(selection == option ? Color.green : Color.primary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(selection == option ? Color.accentColor : Color.primary)
+                            .padding(.horizontal, ESUI.Space.sm)
+                            .padding(.vertical, ESUI.Space.xs)
                             .background(
                                 Capsule(style: .continuous)
-                                    .fill(selection == option ? Color.green.opacity(0.12) : Color(.tertiarySystemFill))
+                                    .fill(selection == option ? Color.accentColor.opacity(0.12) : ESUI.fill)
                             )
                     }
                     .buttonStyle(.plain)
@@ -128,10 +109,10 @@ struct QingLongTag: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 10, weight: .semibold))
+            .font(.caption2.weight(.semibold))
             .foregroundStyle(color)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 4)
+            .padding(.horizontal, ESUI.Space.xs)
+            .padding(.vertical, ESUI.Space.xxs)
             .background(
                 Capsule(style: .continuous)
                     .fill(color.opacity(0.12))
@@ -140,14 +121,8 @@ struct QingLongTag: View {
 }
 
 extension View {
+    /// QingLong card chrome aligned with ESUI surfaces.
     func cardStyle() -> some View {
-        background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-        )
+        esSurface(cornerRadius: ESUI.cardCornerRadius)
     }
 }

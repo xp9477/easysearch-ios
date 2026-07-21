@@ -7,6 +7,7 @@ public struct ExpenseAssistantFeature: AppFeature {
     public var iconName: String = "receipt"
     public var color: Color = .orange
     public var placement: AppFeaturePlacement = .moduleList
+    public var group: AppFeatureGroup? = .recordsAndProgress
 
     public init() {}
 

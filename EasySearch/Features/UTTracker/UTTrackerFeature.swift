@@ -7,6 +7,7 @@ public struct UTTrackerFeature: AppFeature {
     public var iconName: String = "chart.bar.doc.horizontal"
     public var color: Color = .green
     public var placement: AppFeaturePlacement = .moduleList
+    public var group: AppFeatureGroup? = .recordsAndProgress
 
     public init() {}
 

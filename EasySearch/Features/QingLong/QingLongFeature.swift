@@ -7,6 +7,7 @@ public struct QingLongFeature: AppFeature {
     public var iconName: String = "server.rack"
     public var color: Color = .green
     public var placement: AppFeaturePlacement = .moduleList
+    public var group: AppFeatureGroup? = .connectAndOps
 
     public init() {}
 

@@ -14,129 +14,100 @@ struct QingLongOverviewCard: View {
     let openPanelAction: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: ESUI.Space.md) {
+            HStack(alignment: .top, spacing: ESUI.Space.sm) {
+                ESFeatureIcon(systemName: "terminal", color: .green)
+
+                VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                     Text("青龙管理")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.headline)
                         .foregroundStyle(.primary)
 
                     Text(summaryText)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
 
                 Spacer(minLength: 0)
 
                 if let connectionStateText {
-                    Text(connectionStateText)
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.green)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(Color.green.opacity(0.12))
-                        )
+                    ESStatusBadge(text: connectionStateText, tone: .success)
+                } else {
+                    ESStatusBadge(text: "未连接", tone: .warning)
                 }
             }
 
-            HStack(spacing: 8) {
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: ESUI.Space.xs),
+                    GridItem(.flexible(), spacing: ESUI.Space.xs)
+                ],
+                spacing: ESUI.Space.xs
+            ) {
                 ForEach(metrics) { metric in
-                    HStack(spacing: 6) {
-                        Image(systemName: metric.symbol)
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.green)
-
-                        VStack(alignment: .leading, spacing: 1) {
+                    VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
+                        HStack(spacing: 4) {
+                            Image(systemName: metric.symbol)
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(Color.accentColor)
                             Text(metric.value)
-                                .font(.system(size: 15, weight: .bold))
+                                .font(.headline)
                                 .foregroundStyle(.primary)
-
-                            Text(metric.title)
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(.secondary)
                         }
+                        Text(metric.title)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, ESUI.Space.sm)
+                    .padding(.vertical, ESUI.Space.sm)
                     .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.white.opacity(0.5))
+                        RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                            .fill(ESUI.fill)
                     )
                 }
             }
 
             if let errorMessage {
-                HStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.orange)
-                    Text(errorMessage)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.orange.opacity(0.10))
+                ESStatusBanner(
+                    title: errorMessage,
+                    systemImage: "exclamationmark.triangle.fill",
+                    tone: .warning
                 )
             }
 
             if viewModel.profile != nil {
-                HStack(spacing: 10) {
+                HStack(spacing: ESUI.Space.sm) {
                     Button(action: refreshAction) {
                         HStack {
                             Image(systemName: "arrow.clockwise")
                             Text("刷新")
                             if viewModel.isRefreshing {
                                 ProgressView()
-                                    .scaleEffect(0.8)
+                                    .controlSize(.small)
                             }
                         }
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, ESUI.Space.xs)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.green)
                     .disabled(viewModel.isRefreshing || viewModel.isConnecting)
 
                     if let openPanelAction {
                         Button(action: openPanelAction) {
                             Label("面板", systemImage: "arrow.up.right.square")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.subheadline.weight(.semibold))
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
+                                .padding(.vertical, ESUI.Space.xs)
                         }
                         .buttonStyle(.bordered)
-                        .tint(.green)
                     }
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(.secondarySystemGroupedBackground),
-                            Color.green.opacity(0.14)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-        )
+        .esCard()
     }
 
     private var summaryText: String {

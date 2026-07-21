@@ -1,22 +1,16 @@
 import SwiftUI
 import UIKit
+import UserNotifications
 
 struct SettingsView: View {
     @EnvironmentObject private var navigationState: AppNavigationState
     @EnvironmentObject private var registry: FeatureRegistry
+    @EnvironmentObject private var statusCenter: FeatureStatusCenter
     @StateObject private var cloudViewModel = HiddenCloudSyncViewModel.shared
     @StateObject private var utNotificationManager = UTNotificationManager.shared
     @StateObject private var expenseAssistantNotificationManager = ExpenseAssistantNotificationManager.shared
     @StateObject private var gitHubNotificationManager = GitHubUpdatesNotificationManager.shared
     @State private var path = NavigationPath()
-    @State private var deepSeekConfiguration = ImageTranslateConfiguration(
-        baseURL: DeepSeekClientConfiguration.defaultBaseURL,
-        apiKey: "",
-        model: "deepseek-chat",
-        targetLanguage: .simplifiedChinese
-    )
-    @State private var qingLongProfile: QingLongPanelProfile?
-    @State private var gitHubRepositoryCount = 0
 
     private var appVersionText: String {
         let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
@@ -34,25 +28,6 @@ struct SettingsView: View {
         }
     }
 
-    private var deepSeekStatusText: String {
-        deepSeekConfiguration.hasAPIKey ? "已配置" : "未配置"
-    }
-
-    private var qingLongStatusText: String {
-        qingLongProfile == nil ? "未连接" : "已连接"
-    }
-
-    private var cloudSyncStatusText: String {
-        if !cloudViewModel.isCloudConfigured {
-            return "仅本地"
-        }
-        if cloudViewModel.isCloudAuthenticated {
-            let email = cloudViewModel.cloudUserEmail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return email.isEmpty ? "云端已登录" : email
-        }
-        return "云端未登录"
-    }
-
     private var orderedModuleSettingsItems: [ModuleSettingsItem] {
         registry.moduleListFeatures.compactMap(moduleSettingsItem(for:))
     }
@@ -60,22 +35,23 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    cloudSyncSection
-
+                VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
+                    accountSyncSection
+                    permissionsSection
+                    servicesSection
                     if !orderedModuleSettingsItems.isEmpty {
                         moduleSettingsSection
                     }
-
                     aboutSection
                 }
                 .padding(.horizontal, ESUI.screenHorizontalPadding)
-                .padding(.top, 14)
+                .padding(.top, ESUI.Space.md)
+                .padding(.bottom, ESUI.Space.lg)
             }
             .esBottomTabPadding()
             .esScreenBackground()
             .navigationTitle("设置")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .navigationDestination(for: SettingsRoute.self) { route in
                 settingsDestination(for: route)
             }
@@ -84,80 +60,162 @@ struct SettingsView: View {
                 await utNotificationManager.configure()
                 await expenseAssistantNotificationManager.configure()
                 await gitHubNotificationManager.configure()
-                refreshSummaryState()
+                await statusCenter.refresh()
                 handlePendingRouteIfNeeded()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .imageTranslateConfigurationDidChange)) { _ in
-                refreshSummaryState()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .qingLongPanelDidChange)) { _ in
-                refreshSummaryState()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .gitHubWatchedRepositoriesDidChange)) { _ in
-                refreshSummaryState()
             }
             .onChange(of: navigationState.pendingSettingsRoute) { _ in
                 handlePendingRouteIfNeeded()
             }
+            .onChange(of: navigationState.selectedTab) { tab in
+                if tab == .settings {
+                    Task { await statusCenter.refresh() }
+                    handlePendingRouteIfNeeded()
+                }
+            }
         }
     }
 
-    private var cloudSyncSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ESSectionHeader(title: "同步状态")
+    // MARK: - Sections
+
+    private var accountSyncSection: some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(title: "账户与同步", subtitle: "云端连接与同步状态")
 
             NavigationLink(value: SettingsRoute.cloudSync) {
-                ModuleSettingsRow(
+                ESSettingsRow(
                     title: "云端同步",
-                    status: cloudSyncStatusText,
+                    subtitle: statusCenter.cloudSummary.text,
                     systemImage: "icloud",
-                    tone: cloudViewModel.isCloudAuthenticated ? .success : .neutral
+                    iconColor: .blue,
+                    statusText: statusCenter.cloudSummary.text,
+                    statusTone: .from(kind: statusCenter.cloudSummary.kind)
                 )
             }
-            .buttonStyle(ESCardButtonStyle())
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var permissionsSection: some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(title: "权限与通知", subtitle: "系统授权状态摘要")
+
+            VStack(spacing: ESUI.Space.xs) {
+                notificationSummaryRow(
+                    title: "UT 记录",
+                    status: utNotificationManager.authorizationStatus
+                )
+                notificationSummaryRow(
+                    title: "报销助手",
+                    status: expenseAssistantNotificationManager.authorizationStatus
+                )
+                notificationSummaryRow(
+                    title: "GitHub 更新",
+                    status: gitHubNotificationManager.authorizationStatus
+                )
+            }
+        }
+    }
+
+    private var servicesSection: some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(title: "服务连接", subtitle: "跨模块依赖的服务配置")
+
+            VStack(spacing: ESUI.Space.xs) {
+                NavigationLink(value: SettingsRoute.imageTranslate) {
+                    ESSettingsRow(
+                        title: "AI 服务",
+                        subtitle: "DeepSeek / 翻译与邮件共用",
+                        systemImage: "sparkles",
+                        iconColor: .cyan,
+                        statusText: statusCenter.deepSeekSummary.text,
+                        statusTone: .from(kind: statusCenter.deepSeekSummary.kind)
+                    )
+                }
+                .buttonStyle(.plain)
+
+                NavigationLink(value: SettingsRoute.qingLong) {
+                    ESSettingsRow(
+                        title: "青龙面板",
+                        subtitle: "自建面板连接",
+                        systemImage: "server.rack",
+                        iconColor: .green,
+                        statusText: statusCenter.qingLongSummary.text,
+                        statusTone: .from(kind: statusCenter.qingLongSummary.kind)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
     private var moduleSettingsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ESSectionHeader(title: "模块设置", trailing: "\(orderedModuleSettingsItems.count)")
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(title: "模块配置", trailing: "\(orderedModuleSettingsItems.count)")
 
-            VStack(spacing: 10) {
+            VStack(spacing: ESUI.Space.xs) {
                 ForEach(orderedModuleSettingsItems) { item in
                     NavigationLink(value: item.route) {
-                        ModuleSettingsRow(
+                        ESSettingsRow(
                             title: item.title,
-                            status: item.status,
+                            subtitle: item.subtitle,
                             systemImage: item.systemImage,
-                            tone: item.tone
+                            iconColor: item.color,
+                            statusText: item.status.text,
+                            statusTone: .from(kind: item.status.kind)
                         )
                     }
-                    .buttonStyle(ESCardButtonStyle())
+                    .buttonStyle(.plain)
                 }
             }
         }
     }
 
     private var aboutSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             ESSectionHeader(title: "关于")
 
-            HStack(spacing: 14) {
-                ESFeatureIcon(systemName: "app.badge", color: .accentColor, size: 46)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("EasySearch")
-                        .font(.subheadline.weight(.semibold))
-                    Text("版本 \(appVersionText)")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+                Text("EasySearch")
+                    .font(.body.weight(.semibold))
+                Text("版本 \(appVersionText)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text("轻量多功能个人工作台")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
-            .esCard()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(ESUI.Space.md)
+            .esSurface()
         }
     }
+
+    private func notificationSummaryRow(title: String, status: UNAuthorizationStatus) -> some View {
+        let summary = notificationSummary(for: status)
+        return ESSettingsRow(
+            title: title,
+            systemImage: "bell.badge",
+            iconColor: .orange,
+            statusText: summary.text,
+            statusTone: .from(kind: summary.kind),
+            showsChevron: false
+        )
+    }
+
+    private func notificationSummary(for status: UNAuthorizationStatus) -> FeatureStatusSummary {
+        switch status {
+        case .authorized, .provisional, .ephemeral:
+            return FeatureStatusSummary(kind: .ready, text: "已授权")
+        case .denied:
+            return FeatureStatusSummary(kind: .needsAuthorization, text: "未授权")
+        case .notDetermined:
+            return FeatureStatusSummary(kind: .needsAuthorization, text: "未请求")
+        @unknown default:
+            return FeatureStatusSummary(kind: .empty, text: "未知")
+        }
+    }
+
+    // MARK: - Navigation
 
     @ViewBuilder
     private func settingsDestination(for route: SettingsRoute) -> some View {
@@ -179,68 +237,73 @@ struct SettingsView: View {
         }
     }
 
-    private func refreshSummaryState() {
-        deepSeekConfiguration = ImageTranslateConfigurationStore.shared.loadConfiguration()
-        qingLongProfile = QingLongPanelLocalStore().loadProfile()
-        gitHubRepositoryCount = GitHubWatchedRepositoryLocalStore().loadRepositories().count
-    }
-
     private func handlePendingRouteIfNeeded() {
         guard let route = navigationState.pendingSettingsRoute else { return }
-        path = NavigationPath()
         path.append(route)
         navigationState.pendingSettingsRoute = nil
     }
 
     private func moduleSettingsItem(for feature: any AppFeature) -> ModuleSettingsItem? {
+        let status = statusCenter.summary(for: feature.id)
         switch feature.id {
         case "uttracker":
             return ModuleSettingsItem(
                 id: feature.id,
                 title: feature.title,
-                status: utNotificationManager.statusText,
+                subtitle: "通知与提醒",
                 systemImage: feature.iconName,
+                color: feature.color,
+                status: status,
                 route: .utTracker
             )
         case "expense-assistant":
             return ModuleSettingsItem(
                 id: feature.id,
                 title: feature.title,
-                status: expenseAssistantNotificationManager.statusText,
+                subtitle: "通知与提醒",
                 systemImage: feature.iconName,
+                color: feature.color,
+                status: status,
                 route: .expenseAssistant
             )
         case "github-updates":
-            let repositoryText = gitHubRepositoryCount > 0 ? " · \(gitHubRepositoryCount) 个仓库" : ""
             return ModuleSettingsItem(
                 id: feature.id,
                 title: feature.title,
-                status: gitHubNotificationManager.statusText + repositoryText,
+                subtitle: "通知与检查",
                 systemImage: feature.iconName,
+                color: feature.color,
+                status: status,
                 route: .gitHubUpdates
             )
         case "qinglong-management":
             return ModuleSettingsItem(
                 id: feature.id,
                 title: feature.title,
-                status: qingLongProfile?.hostLabel ?? qingLongStatusText,
+                subtitle: "面板连接",
                 systemImage: feature.iconName,
+                color: feature.color,
+                status: status,
                 route: .qingLong
             )
         case "image-translate":
             return ModuleSettingsItem(
                 id: feature.id,
                 title: feature.title,
-                status: "\(deepSeekStatusText) · \(deepSeekConfiguration.resolvedModel)",
+                subtitle: "AI 与目标语言",
                 systemImage: feature.iconName,
+                color: feature.color,
+                status: status,
                 route: .imageTranslate
             )
         case "email-assistant":
             return ModuleSettingsItem(
                 id: feature.id,
                 title: feature.title,
-                status: deepSeekStatusText,
+                subtitle: "AI 配置",
                 systemImage: feature.iconName,
+                color: feature.color,
+                status: status,
                 route: .emailAssistant
             )
         default:
@@ -252,75 +315,11 @@ struct SettingsView: View {
 private struct ModuleSettingsItem: Identifiable {
     let id: String
     let title: String
-    let status: String
+    let subtitle: String
     let systemImage: String
+    let color: Color
+    let status: FeatureStatusSummary
     let route: SettingsRoute
-
-    var tone: ESStatusPill.Tone {
-        if status.contains("已") || status.contains("@") {
-            return .success
-        }
-        if status.contains("未") || status.contains("尚未") {
-            return .warning
-        }
-        return .neutral
-    }
-}
-
-private struct ModuleSettingsRow: View {
-    let title: String
-    let status: String
-    let systemImage: String
-    var tone: ESStatusPill.Tone = .neutral
-
-    var body: some View {
-        HStack(spacing: 14) {
-            ESFeatureIcon(systemName: systemImage, color: iconColor, size: 46)
-
-            VStack(alignment: .leading, spacing: 5) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-
-                Text(status)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 10)
-
-            ESStatusPill(text: statusPillText, tone: tone)
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Color(.tertiaryLabel))
-        }
-        .esCard()
-    }
-
-    private var statusPillText: String {
-        if status.contains("@") {
-            return "已登录"
-        }
-        if status.contains("已") {
-            return "已配置"
-        }
-        if status.contains("未") || status.contains("尚未") {
-            return "待配置"
-        }
-        return "本地"
-    }
-
-    private var iconColor: Color {
-        switch tone {
-        case .neutral:
-            return .accentColor
-        default:
-            return tone.color
-        }
-    }
 }
 
 private struct CloudSyncSettingsDetailView: View {
@@ -959,7 +958,7 @@ private struct QingLongDiagnosticReportView: View {
                 }
                 .padding(20)
             }
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .esScreenBackground()
             .navigationTitle("连接诊断")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -993,11 +992,11 @@ struct HiddenSpaceSettingsDetailView: View {
                 }
             } header: {
                 Text("4khd")
+            } footer: {
+                Text("控制隐藏空间首页进入 4khd 时的默认随机方式。")
             }
 
-            Section(
-                header: Text("javdb")
-            ) {
+            Section {
                 Picker("默认随机模式", selection: $javDBRandomMode) {
                     ForEach(HiddenJavDBRandomMode.allCases) { mode in
                         Text(mode.title).tag(mode)
@@ -1005,27 +1004,36 @@ struct HiddenSpaceSettingsDetailView: View {
                 }
 
                 Toggle("默认展开详细信息", isOn: $showJavDBDetailsByDefault)
+            } header: {
+                Text("javdb")
+            } footer: {
+                Text("详细信息可在影片卡片与详情页随时切换显示。")
             }
 
-            Section(
-                header: Text("MissAV"),
-                footer: VStack(alignment: .leading, spacing: 4) {
-                    Text("支持直接输入域名或完整 URL；留空时回退默认域名。")
-                    Text("当前生效：\(HiddenMissAVDomainConfiguration.resolvedHost(from: missAVDomain))")
-                }
-            ) {
+            Section {
                 TextField("miss 域名，例如 missav.ws", text: $missAVDomain)
                     .textInputAutocapitalization(.never)
                     .disableAutocorrection(true)
                     .keyboardType(.URL)
 
-                if !missAVDomain.isEmpty {
-                    Button("恢复默认域名") {
+                LabeledContent("当前生效") {
+                    Text(HiddenMissAVDomainConfiguration.resolvedHost(from: missAVDomain))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                if !missAVDomain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Button("恢复默认域名", role: .destructive) {
                         missAVDomain = ""
                     }
                 }
+            } header: {
+                Text("MissAV")
+            } footer: {
+                Text("支持直接输入域名或完整 URL；留空时回退默认域名。")
             }
         }
+        .listStyle(.insetGrouped)
         .navigationTitle("隐藏空间设置")
         .navigationBarTitleDisplayMode(.inline)
         .task {

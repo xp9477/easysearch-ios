@@ -12,7 +12,7 @@ public struct QingLongView: View {
 
     public var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 16) {
+            LazyVStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
                 QingLongOverviewCard(
                     viewModel: viewModel,
                     metrics: overviewMetrics,
@@ -83,11 +83,11 @@ public struct QingLongView: View {
                     }
                 )
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 24)
+            .padding(.horizontal, ESUI.screenHorizontalPadding)
+            .padding(.top, ESUI.Space.md)
+            .padding(.bottom, ESUI.Space.xxl)
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .esScreenBackground()
         .navigationTitle("青龙管理")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -108,9 +108,9 @@ public struct QingLongView: View {
                     Text(log.content)
                         .font(.system(.footnote, design: .monospaced))
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(20)
+                        .padding(ESUI.Space.lg)
                 }
-                .background(Color(.systemGroupedBackground).ignoresSafeArea())
+                .esScreenBackground()
                 .navigationTitle(log.title)
                 .navigationBarTitleDisplayMode(.inline)
             }
@@ -121,9 +121,9 @@ public struct QingLongView: View {
                     Text(log.content)
                         .font(.system(.footnote, design: .monospaced))
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(20)
+                        .padding(ESUI.Space.lg)
                 }
-                .background(Color(.systemGroupedBackground).ignoresSafeArea())
+                .esScreenBackground()
                 .navigationTitle(log.title)
                 .navigationBarTitleDisplayMode(.inline)
             }

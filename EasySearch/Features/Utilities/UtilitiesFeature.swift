@@ -7,6 +7,7 @@ public struct UtilitiesFeature: AppFeature {
     public var iconName: String = "hammer.fill"
     public var color: Color = .orange
     public var placement: AppFeaturePlacement = .moduleList
+    public var group: AppFeatureGroup? = .utilities
     
     public init() {}
     

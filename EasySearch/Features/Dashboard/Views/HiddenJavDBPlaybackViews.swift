@@ -280,8 +280,8 @@ private struct HiddenInAppVideoPlayerView: View {
 
                     Spacer()
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 14)
+                .padding(.horizontal, ESUI.Space.md)
+                .padding(.top, ESUI.Space.md)
             }
         }
         .allowsHitTesting(true)
@@ -347,7 +347,7 @@ private struct HiddenInAppVideoPlayerView: View {
                                 markerPositions: markerPositions,
                                 duration: duration
                             )
-                            .padding(.horizontal, 12)
+                            .padding(.horizontal, ESUI.Space.sm)
                             .allowsHitTesting(false)
                         }
                     }
@@ -368,8 +368,8 @@ private struct HiddenInAppVideoPlayerView: View {
                             Label(recentlySavedPlaybackContext == nil ? "喜欢此处" : "已记录", systemImage: recentlySavedPlaybackContext == nil ? "heart.fill" : "checkmark.circle.fill")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 10)
+                                .padding(.horizontal, ESUI.Space.md)
+                                .padding(.vertical, ESUI.Space.sm)
                                 .background(Color.white.opacity(0.12), in: Capsule())
                         }
                         .buttonStyle(.plain)
@@ -380,8 +380,8 @@ private struct HiddenInAppVideoPlayerView: View {
                             Label(isMuted ? "开启声音" : "静音", systemImage: isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 10)
+                                .padding(.horizontal, ESUI.Space.md)
+                                .padding(.vertical, ESUI.Space.sm)
                                 .background(Color.white.opacity(0.12), in: Capsule())
                         }
                         .buttonStyle(.plain)
@@ -404,15 +404,15 @@ private struct HiddenInAppVideoPlayerView: View {
                             }
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, ESUI.Space.sm)
+                            .padding(.vertical, ESUI.Space.xs)
                             .background(Color.white.opacity(0.14), in: Capsule())
                             .buttonStyle(.plain)
                         }
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 20)
+                .padding(.horizontal, ESUI.Space.md)
+                .padding(.bottom, ESUI.Space.lg)
             }
         }
         .allowsHitTesting(true)
@@ -423,8 +423,8 @@ private struct HiddenInAppVideoPlayerView: View {
         Text(text)
             .font(.caption2.weight(.semibold))
             .foregroundStyle(.white.opacity(0.9))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, ESUI.Space.xs)
+            .padding(.vertical, ESUI.Space.xxs)
             .background(Color.white.opacity(0.12), in: Capsule())
     }
 
@@ -499,17 +499,17 @@ private struct HiddenInAppVideoPlayerView: View {
                     }
                     .frame(width: 8, height: 88)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 16)
-                .background(Color.black.opacity(0.58), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .padding(.horizontal, ESUI.Space.md)
+                .padding(.vertical, ESUI.Space.md)
+                .background(Color.black.opacity(0.58), in: RoundedRectangle(cornerRadius: ESUI.Space.lg, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    RoundedRectangle(cornerRadius: ESUI.Space.lg, style: .continuous)
                         .stroke(Color.white.opacity(0.16), lineWidth: 1)
                 )
 
                 Spacer()
             }
-            .padding(.leading, 18)
+            .padding(.leading, ESUI.Space.lg)
             .padding(.bottom, controlsVisible ? 168 : 84)
         }
         .allowsHitTesting(false)
@@ -527,7 +527,7 @@ private struct HiddenInAppVideoPlayerView: View {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
-            .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -1065,13 +1065,13 @@ private struct HiddenInAppWebPageView: View {
                             }
                             .buttonStyle(.plain)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 14)
+                        .padding(.horizontal, ESUI.Space.md)
+                        .padding(.top, ESUI.Space.md)
 
                         if webState.isLoading {
                             ProgressView(value: webState.progress)
                                 .tint(.white)
-                                .padding(.horizontal, 16)
+                                .padding(.horizontal, ESUI.Space.md)
                         }
                     }
                 }
@@ -1213,8 +1213,17 @@ struct HiddenJavDBImagePreviewView: View {
             Color.black.ignoresSafeArea()
 
             if imageURLs.isEmpty {
-                Text("没有可显示的图片")
-                    .foregroundStyle(.white.opacity(0.85))
+                VStack(spacing: ESUI.Space.sm) {
+                    Image(systemName: "photo")
+                        .font(.system(size: 28, weight: .semibold))
+                    Text("没有可显示的图片")
+                        .font(.subheadline.weight(.semibold))
+                    Text("返回后重试加载")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+                .foregroundStyle(.white.opacity(0.9))
+                .multilineTextAlignment(.center)
             } else {
                 TabView(selection: $currentIndex) {
                     ForEach(Array(imageURLs.enumerated()), id: \.offset) { index, imageURL in
@@ -1230,7 +1239,7 @@ struct HiddenJavDBImagePreviewView: View {
                                     ProgressView()
                                         .frame(width: proxy.size.width, height: proxy.size.height)
                                 case .failure:
-                                    VStack(spacing: 10) {
+                                    VStack(spacing: ESUI.Space.sm) {
                                         Image(systemName: "photo")
                                             .font(.system(size: 24, weight: .semibold))
                                         Text("图片加载失败")
@@ -1269,7 +1278,7 @@ struct HiddenJavDBImagePreviewView: View {
                     Text("\(currentIndex + 1) / \(imageURLs.count)")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
+                        .padding(.horizontal, ESUI.Space.sm)
                         .padding(.vertical, 6)
                         .background(Color.black.opacity(0.45), in: Capsule())
                         .padding(.bottom, 24)

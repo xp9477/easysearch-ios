@@ -8,15 +8,15 @@ public struct GitHubUpdatesView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
                 summaryCard
                 repositoriesCard
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 32)
+            .padding(.horizontal, ESUI.screenHorizontalPadding)
+            .padding(.top, ESUI.Space.md)
+            .padding(.bottom, ESUI.Space.xxl)
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .esScreenBackground()
         .navigationTitle("GitHub 更新")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable {
@@ -27,19 +27,29 @@ public struct GitHubUpdatesView: View {
         }
     }
 
-    private var summaryCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("GitHub 更新提醒")
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(.primary)
+    // MARK: - Summary
 
-            VStack(spacing: 12) {
-                summaryRow(title: "已关注", value: "\(viewModel.repositories.count) 个仓库")
-                summaryRow(title: "上次检查", value: viewModel.latestCheckedAt.map(relativeDateText) ?? "尚未检查")
+    private var summaryCard: some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.md) {
+            ESSectionHeader(
+                title: "更新概览",
+                subtitle: "关注仓库的 push 提醒"
+            )
+
+            VStack(spacing: ESUI.Space.sm) {
+                ESValueRow(title: "已关注", value: "\(viewModel.repositories.count) 个仓库")
+                ESValueRow(
+                    title: "上次检查",
+                    value: viewModel.latestCheckedAt.map(relativeDateText) ?? "尚未检查"
+                )
             }
 
             if let notice = viewModel.notice {
-                noticeBanner(notice)
+                ESStatusBanner(
+                    title: notice.message,
+                    systemImage: notice.iconName,
+                    tone: notice.tone.badgeTone
+                )
             }
 
             Button {
@@ -54,32 +64,34 @@ public struct GitHubUpdatesView: View {
                         ProgressView()
                     }
                 }
-                .font(.system(size: 16, weight: .semibold))
+                .font(.body.weight(.semibold))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
+                .padding(.vertical, ESUI.Space.xs)
             }
             .buttonStyle(.borderedProminent)
-            .tint(.indigo)
+            .controlSize(.large)
             .disabled(!viewModel.canRefreshRepositories)
         }
-        .padding(24)
-        .cardStyle()
+        .esCard()
     }
 
+    // MARK: - Repositories
+
     private var repositoriesCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("提醒列表")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.primary)
+        VStack(alignment: .leading, spacing: ESUI.Space.md) {
+            ESSectionHeader(
+                title: "提醒列表",
+                trailing: viewModel.repositories.isEmpty ? nil : "\(viewModel.repositories.count)"
+            )
 
             if viewModel.repositories.isEmpty {
-                emptyState(
-                    icon: "shippingbox.circle",
+                ESEmptyState(
                     title: "暂无关注仓库",
-                    description: "在设置里添加仓库后，会显示在这里。"
+                    message: "在设置里添加仓库后，会显示在这里。",
+                    systemImage: "shippingbox"
                 )
             } else {
-                LazyVStack(spacing: 12) {
+                LazyVStack(spacing: ESUI.Space.xs) {
                     ForEach(viewModel.repositories) { repository in
                         GitHubWatchedRepositoryRow(
                             repository: repository,
@@ -99,67 +111,7 @@ public struct GitHubUpdatesView: View {
                 }
             }
         }
-        .padding(24)
-        .cardStyle()
-    }
-
-    private func summaryRow(title: String, value: String) -> some View {
-        HStack(spacing: 12) {
-            Text(title)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            Spacer()
-
-            Text(value)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.trailing)
-        }
-    }
-
-    private func noticeBanner(_ notice: GitHubUpdatesNotice) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: notice.iconName)
-                .font(.system(size: 14, weight: .bold))
-
-            Text(notice.message)
-                .font(.system(size: 13, weight: .medium))
-                .fixedSize(horizontal: false, vertical: true)
-
-            Spacer(minLength: 0)
-        }
-        .foregroundStyle(notice.color)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(notice.color.opacity(0.12))
-        )
-    }
-
-    private func emptyState(icon: String, title: String, description: String) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            Text(title)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.primary)
-
-            Text(description)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 28)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
-        )
+        .esCard()
     }
 
     private func relativeDateText(_ date: Date) -> String {
@@ -168,8 +120,9 @@ public struct GitHubUpdatesView: View {
         formatter.unitsStyle = .short
         return formatter.localizedString(for: date, relativeTo: Date())
     }
-
 }
+
+// MARK: - Repository Row
 
 private struct GitHubWatchedRepositoryRow: View {
     let repository: GitHubWatchedRepository
@@ -180,34 +133,35 @@ private struct GitHubWatchedRepositoryRow: View {
     let relativeDateText: (Date) -> String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 6) {
+        HStack(alignment: .top, spacing: ESUI.Space.sm) {
+            ESFeatureIcon(systemName: "shippingbox.fill", color: .indigo, size: 36)
+
+            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                 Text(repository.fullName)
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if !repository.repositoryDescription.isEmpty {
                     Text(repository.repositoryDescription)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
 
                 Text(pushText)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            Spacer(minLength: 8)
+            Spacer(minLength: ESUI.Space.xs)
 
             accessory
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(ESUI.Space.md)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.systemBackground))
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .fill(ESUI.fill)
         )
         .contentShape(Rectangle())
         .onTapGesture {
@@ -224,22 +178,16 @@ private struct GitHubWatchedRepositoryRow: View {
             }
             .disabled(!canDelete)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("轻点打开仓库")
     }
 
     @ViewBuilder
     private var accessory: some View {
         if isDeleting {
             ProgressView()
-        } else if let statusText {
-            Text(statusText)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(statusColor)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(statusColor.opacity(0.12))
-                )
+        } else if let statusText, let tone = statusTone {
+            ESStatusBadge(text: statusText, tone: tone)
         }
     }
 
@@ -264,30 +212,21 @@ private struct GitHubWatchedRepositoryRow: View {
         return nil
     }
 
-    private var statusColor: Color {
+    private var statusTone: ESStatusBadge.Tone? {
         switch statusText {
         case "最近有更新":
-            return .orange
+            return .warning
         case "已归档":
-            return .secondary
+            return .neutral
         default:
-            return .indigo
+            return nil
         }
     }
 }
 
-private extension GitHubUpdatesNotice {
-    var color: Color {
-        switch tone {
-        case .neutral:
-            return .secondary
-        case .success:
-            return .green
-        case .caution:
-            return .orange
-        }
-    }
+// MARK: - Notice Mapping
 
+private extension GitHubUpdatesNotice {
     var iconName: String {
         switch tone {
         case .neutral:
@@ -296,6 +235,19 @@ private extension GitHubUpdatesNotice {
             return "checkmark.circle.fill"
         case .caution:
             return "exclamationmark.triangle.fill"
+        }
+    }
+}
+
+private extension GitHubUpdatesNoticeTone {
+    var badgeTone: ESStatusBadge.Tone {
+        switch self {
+        case .neutral:
+            return .neutral
+        case .success:
+            return .success
+        case .caution:
+            return .warning
         }
     }
 }

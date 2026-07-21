@@ -1,102 +1,55 @@
 import SwiftUI
 
-/// 搜索引擎按钮网格
 struct EngineGridView: View {
     let engines: [SearchEngine]
-    let onTap: (SearchEngine) -> Void
+    var isEnabled: Bool = true
+    let onSelect: (SearchEngine) -> Void
 
     private let columns = [
-        GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 12)
+        GridItem(.adaptive(minimum: 96, maximum: 140), spacing: ESUI.Space.sm)
     ]
 
     var body: some View {
-        if engines.isEmpty {
-            ESEmptyState(
-                title: "暂无平台",
-                message: "这个分类下还没有可用入口。",
-                systemImage: "square.grid.2x2",
-                minHeight: 180
-            )
-            .esCard()
-        } else {
-            LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(engines) { engine in
-                    EngineButton(engine: engine) {
-                        onTap(engine)
+        LazyVGrid(columns: columns, spacing: ESUI.Space.sm) {
+            ForEach(engines) { engine in
+                Button {
+                    onSelect(engine)
+                } label: {
+                    VStack(spacing: ESUI.Space.xs) {
+                        ESFeatureIcon(
+                            systemName: iconName(for: engine),
+                            color: .accentColor,
+                            size: 44
+                        )
+                        Text(engine.name)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
                     }
+                    .padding(.vertical, ESUI.Space.sm)
+                    .padding(.horizontal, ESUI.Space.xs)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                            .fill(ESUI.surface)
+                    )
+                    .opacity(isEnabled ? 1 : 0.45)
                 }
+                .buttonStyle(.plain)
+                .disabled(!isEnabled)
+                .accessibilityLabel(engine.name)
+                .accessibilityHint(isEnabled ? "打开搜索" : "请先输入搜索内容")
             }
-            .animation(.easeInOut(duration: 0.3), value: engines)
         }
     }
-}
 
-/// 单个搜索引擎按钮
-struct EngineButton: View {
-    let engine: SearchEngine
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                ESFeatureIcon(systemName: engine.symbolName, color: .accentColor, size: 36)
-
-                Text(engine.name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity, minHeight: 66, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                    .fill(ESUI.elevatedBackground)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                    .stroke(Color.primary.opacity(0.05), lineWidth: 1)
-            )
+    private func iconName(for engine: SearchEngine) -> String {
+        if let category = engine.category,
+           let searchCategory = SearchCategory(rawValue: category) {
+            return searchCategory.icon
         }
-        .buttonStyle(ESCardButtonStyle())
+        return "globe"
     }
-}
-
-/// 引擎按钮的自定义按压样式
-struct EngineButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .opacity(configuration.isPressed ? 0.8 : 1.0)
-            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
-    }
-}
-
-private extension SearchEngine {
-    var symbolName: String {
-        switch category ?? SearchCategory.search.rawValue {
-        case SearchCategory.ai.rawValue:
-            return "sparkles"
-        case SearchCategory.entertainment.rawValue:
-            return "play.rectangle.fill"
-        case SearchCategory.shopping.rawValue:
-            return "bag.fill"
-        default:
-            return urlScheme == nil ? "magnifyingglass" : "app.fill"
-        }
-    }
-}
-
-#Preview {
-    EngineGridView(
-        engines: [
-            SearchEngine(name: "百度", url: "https://baidu.com", urlScheme: nil, category: "搜索"),
-            SearchEngine(name: "Google", url: "https://google.com", urlScheme: nil, category: "搜索"),
-            SearchEngine(name: "知乎", url: "https://zhihu.com", urlScheme: nil, category: "搜索"),
-        ],
-        onTap: { _ in }
-    )
-    .padding()
-    .background(Color(.systemGroupedBackground))
 }

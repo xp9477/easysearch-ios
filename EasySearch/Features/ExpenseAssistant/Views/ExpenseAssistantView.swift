@@ -13,6 +13,7 @@ public struct ExpenseAssistantView: View {
             monthlySection
             travelSection
         }
+        .listStyle(.insetGrouped)
         .navigationTitle("报销助手")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -39,87 +40,97 @@ public struct ExpenseAssistantView: View {
         }
     }
 
+    // MARK: - Overview
+
     private var overviewSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: ESUI.Space.md) {
+                HStack(alignment: .top, spacing: ESUI.Space.sm) {
+                    VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                         Text("逾期概览")
-                            .font(.system(size: 22, weight: .bold))
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.primary)
+
                         Text("未完成的上月月单和已结束出差会进入每日提醒。")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.footnote)
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    Spacer()
+                    Spacer(minLength: ESUI.Space.xs)
 
                     Text("\(viewModel.overdueMonthlyClaims.count + viewModel.overdueTravelClaims.count)")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .font(.system(.title, design: .rounded).weight(.semibold))
                         .foregroundStyle(.primary)
+                        .accessibilityLabel(
+                            "逾期 \(viewModel.overdueMonthlyClaims.count + viewModel.overdueTravelClaims.count) 项"
+                        )
                 }
 
-                HStack(spacing: 12) {
+                HStack(spacing: ESUI.Space.sm) {
                     summaryChip(
                         title: "月单",
                         value: "\(viewModel.overdueMonthlyClaims.count) 项",
-                        color: .orange
+                        tone: .warning
                     )
                     summaryChip(
                         title: "出差",
                         value: "\(viewModel.overdueTravelClaims.count) 项",
-                        color: .blue
+                        tone: .accent
                     )
                 }
 
-                HStack(spacing: 10) {
-                    Image(systemName: "bell.badge")
-                        .foregroundStyle(.tint)
-                    Text(nextReminderText)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
+                ESStatusBanner(
+                    title: nextReminderText,
+                    systemImage: "bell.badge",
+                    tone: notificationManager.notificationsEnabled ? .neutral : .warning
+                )
             }
-            .padding(18)
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(.secondarySystemGroupedBackground),
-                                Color.orange.opacity(0.14)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+            .padding(.vertical, ESUI.Space.xs)
+            .listRowInsets(
+                EdgeInsets(
+                    top: ESUI.Space.sm,
+                    leading: ESUI.Space.md,
+                    bottom: ESUI.Space.xs,
+                    trailing: ESUI.Space.md
+                )
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-            )
-            .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 6, trailing: 16))
-            .listRowBackground(Color.clear)
         }
     }
 
     private var monthlySection: some View {
-        Section("月度报销") {
-            ForEach(viewModel.monthlyClaims) { claim in
-                NavigationLink(value: claim) {
-                    MonthlyClaimRow(
-                        claim: claim,
-                        isOverdue: viewModel.overdueMonthlyClaimIDs.contains(claim.id)
-                    )
+        Section {
+            if viewModel.monthlyClaims.isEmpty {
+                ESEmptyState(
+                    title: "暂无月度报销",
+                    message: "系统会按月份自动生成月单。",
+                    systemImage: "calendar"
+                )
+                .listRowBackground(Color.clear)
+            } else {
+                ForEach(viewModel.monthlyClaims) { claim in
+                    NavigationLink(value: claim) {
+                        MonthlyClaimRow(
+                            claim: claim,
+                            isOverdue: viewModel.overdueMonthlyClaimIDs.contains(claim.id)
+                        )
+                    }
                 }
             }
+        } header: {
+            Text("月度报销")
         }
     }
 
     private var travelSection: some View {
-        Section("出差报销") {
+        Section {
             if viewModel.travelClaims.isEmpty {
-                Label("还没有出差报销单", systemImage: "airplane")
-                    .foregroundStyle(.secondary)
+                ESEmptyState(
+                    title: "还没有出差报销单",
+                    message: "点右上角新增出差，开始跟踪审批与报销项。",
+                    systemImage: "airplane"
+                )
+                .listRowBackground(Color.clear)
             } else {
                 ForEach(viewModel.travelClaims) { claim in
                     NavigationLink(value: claim) {
@@ -130,6 +141,8 @@ public struct ExpenseAssistantView: View {
                     }
                 }
             }
+        } header: {
+            Text("出差报销")
         }
     }
 
@@ -145,48 +158,50 @@ public struct ExpenseAssistantView: View {
         return "下次提醒：\(nextReminderDate.formatted(.dateTime.month().day().hour().minute()))"
     }
 
-    private func summaryChip(title: String, value: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+    private func summaryChip(title: String, value: String, tone: ESStatusBadge.Tone) -> some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
             Text(title)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             Text(value)
-                .font(.system(size: 15, weight: .bold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, ESUI.Space.sm)
+        .padding(.vertical, ESUI.Space.sm)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(color.opacity(0.12))
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .fill(tone.color.opacity(0.12))
         )
     }
 }
+
+// MARK: - Rows
 
 private struct MonthlyClaimRow: View {
     let claim: MonthlyExpenseClaim
     let isOverdue: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+            HStack(spacing: ESUI.Space.xs) {
                 Text(claim.monthStart.formatted(.dateTime.year().month()))
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(.primary)
 
                 if isOverdue {
-                    statusBadge(title: "逾期", color: .orange)
+                    ESStatusBadge(text: "逾期", tone: .warning)
                 } else if claim.isCompleted {
-                    statusBadge(title: "已完成", color: .green)
+                    ESStatusBadge(text: "已完成", tone: .success)
                 }
             }
 
             Text(claimSummaryText)
-                .font(.system(size: 13, weight: .medium))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, ESUI.Space.xxs)
     }
 
     private var claimSummaryText: String {
@@ -196,18 +211,6 @@ private struct MonthlyClaimRow: View {
 
         return "\(claim.completedItemCount)/4 项已处理"
     }
-
-    private func statusBadge(title: String, color: Color) -> some View {
-        Text(title)
-            .font(.system(size: 11, weight: .bold))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(color.opacity(0.12))
-            )
-            .foregroundStyle(color)
-    }
 }
 
 private struct TravelClaimRow: View {
@@ -215,29 +218,29 @@ private struct TravelClaimRow: View {
     let isOverdue: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+            HStack(spacing: ESUI.Space.xs) {
                 Text(claim.resolvedTitle())
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(2)
 
                 if isOverdue {
-                    statusBadge(title: "逾期", color: .orange)
+                    ESStatusBadge(text: "逾期", tone: .warning)
                 } else if claim.isCompleted {
-                    statusBadge(title: "已完成", color: .green)
+                    ESStatusBadge(text: "已完成", tone: .success)
                 }
             }
 
             Text(dateSummaryText)
-                .font(.system(size: 13, weight: .medium))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
 
             Text(statusSummaryText)
-                .font(.system(size: 13, weight: .medium))
+                .font(.footnote)
                 .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, ESUI.Space.xxs)
     }
 
     private var dateSummaryText: String {
@@ -251,19 +254,9 @@ private struct TravelClaimRow: View {
     private var statusSummaryText: String {
         "TA \(claim.travelApprovalStatus.title) · Per Diem \(claim.perDiemStatus.title) · Expense \(claim.expenseStatus.title)"
     }
-
-    private func statusBadge(title: String, color: Color) -> some View {
-        Text(title)
-            .font(.system(size: 11, weight: .bold))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(color.opacity(0.12))
-            )
-            .foregroundStyle(color)
-    }
 }
+
+// MARK: - Detail
 
 private struct MonthlyClaimDetailView: View {
     @ObservedObject var viewModel: ExpenseAssistantViewModel
@@ -274,8 +267,14 @@ private struct MonthlyClaimDetailView: View {
             if let claim = viewModel.monthlyClaim(id: claimID) {
                 List {
                     Section {
-                        LabeledContent("月份", value: claim.monthStart.formatted(.dateTime.year().month()))
-                        LabeledContent("完成情况", value: claim.isCompleted ? "已完成" : "\(claim.completedItemCount)/4 项已处理")
+                        ESValueRow(
+                            title: "月份",
+                            value: claim.monthStart.formatted(.dateTime.year().month())
+                        )
+                        ESValueRow(
+                            title: "完成情况",
+                            value: claim.isCompleted ? "已完成" : "\(claim.completedItemCount)/4 项已处理"
+                        )
                     }
 
                     Section("报销项") {
@@ -292,7 +291,7 @@ private struct MonthlyClaimDetailView: View {
                 .navigationTitle(claim.monthStart.formatted(.dateTime.year().month()))
                 .navigationBarTitleDisplayMode(.inline)
             } else {
-                missingState(title: "月度报销单不存在")
+                ESErrorState(title: "月度报销单不存在", message: "该单据可能已被删除。")
             }
         }
     }
@@ -326,7 +325,7 @@ private struct TravelClaimDetailView: View {
                         DatePicker(
                             "开始时间",
                             selection: Binding(
-                                get: { viewModel.travelClaim(id: claimID)?.startDate ?? Date() },
+                                get: { viewModel.travelClaim(id: claimID)?.startDate ?? claim.startDate },
                                 set: { viewModel.updateTravelStartDate(claimID: claimID, startDate: $0) }
                             ),
                             displayedComponents: [.date, .hourAndMinute]
@@ -393,17 +392,22 @@ private struct TravelClaimDetailView: View {
                     }
 
                     Section {
-                        LabeledContent("整单状态", value: claim.isCompleted ? "已完成" : "待处理")
+                        ESValueRow(
+                            title: "整单状态",
+                            value: claim.isCompleted ? "已完成" : "待处理"
+                        )
                     }
                 }
                 .navigationTitle(claim.resolvedTitle())
                 .navigationBarTitleDisplayMode(.inline)
             } else {
-                missingState(title: "出差报销单不存在")
+                ESErrorState(title: "出差报销单不存在", message: "该单据可能已被删除。")
             }
         }
     }
 }
+
+// MARK: - Sheet
 
 private struct AddTravelClaimSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -439,15 +443,8 @@ private struct AddTravelClaimSheet: View {
     }
 }
 
-private func missingState(title: String) -> some View {
-    VStack(spacing: 12) {
-        Image(systemName: "exclamationmark.circle")
-            .font(.system(size: 28, weight: .semibold))
-            .foregroundStyle(.secondary)
-        Text(title)
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(.secondary)
+#Preview {
+    NavigationStack {
+        ExpenseAssistantView()
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .padding(24)
 }

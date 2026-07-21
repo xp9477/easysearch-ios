@@ -10,9 +10,9 @@ struct Hidden4KHDFeatureView: View {
     @State private var searchQuery = ""
 
     private let randomNineColumns = [
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8)
+        GridItem(.flexible(), spacing: ESUI.Space.xs),
+        GridItem(.flexible(), spacing: ESUI.Space.xs),
+        GridItem(.flexible(), spacing: ESUI.Space.xs)
     ]
 
     init(viewModel: HiddenSpaceViewModel) {
@@ -22,33 +22,35 @@ struct Hidden4KHDFeatureView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
                 searchAlbumCard
                 randomAlbumCard
 
                 NavigationLink(value: HiddenSpaceRoute.fourKHDFavorites) {
-                    HStack {
-                        Label("喜欢列表", systemImage: "heart.text.square")
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        Text("\(viewModel.totalFavoritesCount)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: ESUI.Space.sm) {
+                        ESFeatureIcon(systemName: "heart.text.square", color: .pink, size: 40)
+                        VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
+                            Text("喜欢列表")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text("图片与 album 收藏")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: ESUI.Space.xs)
+                        ESStatusBadge(text: "\(viewModel.totalFavoritesCount)", tone: .accent)
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(.tertiary)
+                            .accessibilityHidden(true)
                     }
-                    .padding(16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color(.secondarySystemBackground))
-                    )
+                    .esCard()
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(ESCardButtonStyle())
             }
             .padding(.horizontal, ESUI.screenHorizontalPadding)
-            .padding(.top, 14)
+            .padding(.top, ESUI.Space.md)
+            .padding(.bottom, ESUI.Space.lg)
             .esBottomTabPadding()
         }
         .esScreenBackground()
@@ -75,10 +77,10 @@ struct Hidden4KHDFeatureView: View {
 
     @ViewBuilder
     private var searchAlbumCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             ESSectionHeader(title: "搜索 album")
 
-            HStack(spacing: 10) {
+            HStack(spacing: ESUI.Space.sm) {
                 TextField("输入标题关键词", text: $searchQuery)
                     .textInputAutocapitalization(.never)
                     .disableAutocorrection(true)
@@ -110,12 +112,12 @@ struct Hidden4KHDFeatureView: View {
             } else if let searchErrorMessage = viewModel.searchAlbumErrorMessage {
                 ESInfoBanner(title: "搜索失败", message: searchErrorMessage, systemImage: "exclamationmark.triangle", tone: .warning)
             } else if let lastQuery = viewModel.lastSearchedAlbumQuery, !viewModel.searchedAlbums.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: ESUI.Space.sm) {
                     Text("“\(lastQuery)” · \(viewModel.searchedAlbums.count) 个结果")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    LazyVGrid(columns: favoriteAlbumColumns, spacing: 10) {
+                    LazyVGrid(columns: favoriteAlbumColumns, spacing: ESUI.Space.sm) {
                         ForEach(viewModel.searchedAlbums) { album in
                             NavigationLink(value: HiddenSpaceRoute.fourKHDAlbum(album)) {
                                 FavoriteAlbumTile(album: album)
@@ -125,9 +127,11 @@ struct Hidden4KHDFeatureView: View {
                     }
                 }
             } else if let lastQuery = viewModel.lastSearchedAlbumQuery {
-                Text("“\(lastQuery)” 没有搜索到内容")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                ESEmptyState(
+                    title: "没有搜索到内容",
+                    message: "“\(lastQuery)” 暂无匹配 album，可换关键词重试。",
+                    systemImage: "rectangle.stack"
+                )
             }
         }
         .esCard()
@@ -135,14 +139,11 @@ struct Hidden4KHDFeatureView: View {
 
     @ViewBuilder
     private var randomAlbumCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                ESSectionHeader(title: "随机封面", trailing: randomMode.title)
-                Spacer()
-                if viewModel.isLoadingRandomAlbum {
-                    ProgressView()
-                }
-            }
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(
+                title: "随机封面",
+                trailing: viewModel.isLoadingRandomAlbum ? "加载中" : randomMode.title
+            )
 
             Picker("随机模式", selection: $randomMode) {
                 ForEach(HiddenRandomMode.allCases) { mode in
@@ -152,15 +153,15 @@ struct Hidden4KHDFeatureView: View {
             .pickerStyle(.segmented)
 
             if viewModel.isLoadingRandomAlbum {
-                ESMediaPlaceholder(mode: .loading(randomMode.loadingText), systemImage: "photo.stack")
+                HiddenMediaPlaceholder(mode: .loading(randomMode.loadingText), systemImage: "photo.stack")
                     .frame(height: 230)
             } else if !viewModel.randomAlbums.isEmpty {
                 if randomMode == .single, let album = viewModel.randomAlbum {
                     NavigationLink(value: HiddenSpaceRoute.fourKHDAlbum(album)) {
-                        VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
                             AsyncCoverImage(url: album.coverURL, fitToContainer: true)
                                 .frame(height: 230)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .clipShape(RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous))
 
                             Text(album.title)
                                 .font(.subheadline)
@@ -170,7 +171,7 @@ struct Hidden4KHDFeatureView: View {
                     }
                     .buttonStyle(.plain)
 
-                    HStack(spacing: 12) {
+                    HStack(spacing: ESUI.Space.sm) {
                         Button {
                             Task {
                                 await viewModel.loadRandomAlbums(mode: randomMode)
@@ -194,7 +195,7 @@ struct Hidden4KHDFeatureView: View {
                         .tint(viewModel.isFavorite(album) ? .pink : .primary)
                     }
                 } else {
-                    LazyVGrid(columns: randomNineColumns, spacing: 8) {
+                    LazyVGrid(columns: randomNineColumns, spacing: ESUI.Space.xs) {
                         ForEach(Array(viewModel.randomAlbums.prefix(9))) { album in
                             NavigationLink(value: HiddenSpaceRoute.fourKHDAlbum(album)) {
                                 RandomNineAlbumTile(
@@ -219,8 +220,8 @@ struct Hidden4KHDFeatureView: View {
                     .disabled(viewModel.isLoadingRandomAlbum)
                 }
             } else {
-                VStack(spacing: 10) {
-                    ESMediaPlaceholder(mode: .failure(viewModel.randomErrorMessage ?? "暂时没有拿到封面"), systemImage: "photo.stack")
+                VStack(spacing: ESUI.Space.sm) {
+                    HiddenMediaPlaceholder(mode: .failure(viewModel.randomErrorMessage ?? "暂时没有拿到封面"), systemImage: "photo.stack")
                         .frame(height: 200)
                     Button("重试") {
                         Task {
@@ -241,8 +242,8 @@ struct Hidden4KHDFeatureView: View {
 
     private var favoriteAlbumColumns: [GridItem] {
         [
-            GridItem(.flexible(), spacing: 10),
-            GridItem(.flexible(), spacing: 10)
+            GridItem(.flexible(), spacing: ESUI.Space.sm),
+            GridItem(.flexible(), spacing: ESUI.Space.sm)
         ]
     }
 
@@ -271,25 +272,23 @@ struct Hidden4KHDFavoritesView: View {
     var body: some View {
         ScrollView {
             if viewModel.totalFavoritesCount == 0 {
-                VStack(spacing: 10) {
-                    Image(systemName: "heart")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Text("还没有喜欢的内容")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 220)
+                ESEmptyState(
+                    title: "还没有喜欢的内容",
+                    message: "在随机封面或 album 详情中点喜欢后会出现在这里。",
+                    systemImage: "heart"
+                )
+                .frame(maxWidth: .infinity, minHeight: 280)
             } else {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
                     randomFavoriteCard
                     favoriteCollectionsSection
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 12)
+                .padding(.horizontal, ESUI.screenHorizontalPadding)
+                .padding(.top, ESUI.Space.md)
+                .padding(.bottom, ESUI.Space.lg)
             }
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .esScreenBackground()
         .navigationTitle("喜欢列表")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: viewModel.totalFavoritesCount) {
@@ -313,15 +312,11 @@ struct Hidden4KHDFavoritesView: View {
 
     @ViewBuilder
     private var randomFavoriteCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("随机喜欢图片")
-                    .font(.headline)
-                Spacer()
-                if isLoadingRandomFavorite {
-                    ProgressView()
-                }
-            }
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(
+                title: "随机喜欢图片",
+                trailing: isLoadingRandomFavorite ? "加载中" : nil
+            )
 
             if let imageURL = randomFavoriteImageURL {
                 Button {
@@ -332,7 +327,7 @@ struct Hidden4KHDFavoritesView: View {
                 } label: {
                     AsyncCoverImage(url: imageURL, fitToContainer: true)
                         .frame(height: 300)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
                 }
                 .buttonStyle(.plain)
 
@@ -355,44 +350,29 @@ struct Hidden4KHDFavoritesView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(isLoadingRandomFavorite)
             } else if isLoadingRandomFavorite {
-                VStack(spacing: 8) {
-                    ProgressView()
-                    Text("正在汇总喜欢图片...")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 160)
+                ESLoadingState(message: "正在汇总喜欢图片…")
+                    .frame(minHeight: 160)
             } else {
-                VStack(spacing: 8) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Text(randomFavoriteError ?? "暂时没有可随机的图片")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                    Button("重试") {
+                ESErrorState(
+                    title: "暂时没有可随机的图片",
+                    message: randomFavoriteError,
+                    retryTitle: "重试",
+                    retry: {
                         Task {
                             await loadRandomFavorite(force: true)
                         }
                     }
-                    .buttonStyle(.bordered)
-                }
-                .frame(maxWidth: .infinity, minHeight: 160)
+                )
+                .frame(minHeight: 160)
             }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .esCard()
     }
 
     @ViewBuilder
     private var favoriteCollectionsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("分类查看")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(title: "分类查看")
 
             if !viewModel.favoriteImageURLs.isEmpty {
                 NavigationLink(value: HiddenSpaceRoute.fourKHDFavoriteImages) {
@@ -400,10 +380,11 @@ struct Hidden4KHDFavoritesView: View {
                         title: "喜欢的图片",
                         subtitle: "进入子页分页查看，避免总览页一次性加载全部图片",
                         countText: "\(viewModel.favoriteImageURLs.count)",
-                        systemImage: "photo.stack"
+                        systemImage: "photo.stack",
+                        color: .blue
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(ESCardButtonStyle())
             }
 
             if !viewModel.favoriteAlbums.isEmpty {
@@ -412,10 +393,11 @@ struct Hidden4KHDFavoritesView: View {
                         title: "喜欢的 album",
                         subtitle: "进入子页分页查看 album，按页控制封面数量",
                         countText: "\(viewModel.favoriteAlbums.count)",
-                        systemImage: "square.stack.3d.up"
+                        systemImage: "square.stack.3d.up",
+                        color: .indigo
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(ESCardButtonStyle())
             }
         }
     }
@@ -473,34 +455,24 @@ struct HiddenFavoriteImagesView: View {
     @State private var currentPage = 0
 
     private let imageColumns = [
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8)
+        GridItem(.flexible(), spacing: ESUI.Space.xs),
+        GridItem(.flexible(), spacing: ESUI.Space.xs),
+        GridItem(.flexible(), spacing: ESUI.Space.xs)
     ]
     private let pageSize = 30
 
     var body: some View {
         ScrollView {
             if viewModel.favoriteImageURLs.isEmpty {
-                VStack(spacing: 10) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Text("还没有喜欢的图片")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 220)
+                ESEmptyState(
+                    title: "还没有喜欢的图片",
+                    message: "在 album 预览中点喜欢后会出现在这里。",
+                    systemImage: "photo.on.rectangle.angled"
+                )
+                .frame(maxWidth: .infinity, minHeight: 280)
             } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text("喜欢的图片")
-                            .font(.headline)
-                        Spacer()
-                        Text("\(viewModel.favoriteImageURLs.count) 张")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
+                VStack(alignment: .leading, spacing: ESUI.Space.md) {
+                    ESSectionHeader(title: "喜欢的图片", trailing: "\(viewModel.favoriteImageURLs.count) 张")
 
                     HiddenPagedFavoritesControls(
                         pageText: "第 \(effectivePage + 1) / \(pageCount) 页",
@@ -511,7 +483,7 @@ struct HiddenFavoriteImagesView: View {
                         onNext: { currentPage = min(effectivePage + 1, pageCount - 1) }
                     )
 
-                    LazyVGrid(columns: imageColumns, spacing: 8) {
+                    LazyVGrid(columns: imageColumns, spacing: ESUI.Space.xs) {
                         ForEach(Array(currentPageImageURLs.enumerated()), id: \.offset) { offset, imageURL in
                             let globalIndex = currentRange.lowerBound + offset
                             AlbumGridImageTile(
@@ -536,11 +508,11 @@ struct HiddenFavoriteImagesView: View {
                         onNext: { currentPage = min(effectivePage + 1, pageCount - 1) }
                     )
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 12)
+                .padding(.horizontal, ESUI.screenHorizontalPadding)
+                .padding(.vertical, ESUI.Space.md)
             }
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .esScreenBackground()
         .navigationTitle("喜欢图片")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: viewModel.favoriteImageURLs.count) { _ in
@@ -604,33 +576,23 @@ struct HiddenFavoriteAlbumsView: View {
     @State private var currentPage = 0
 
     private let albumColumns = [
-        GridItem(.flexible(), spacing: 10),
-        GridItem(.flexible(), spacing: 10)
+        GridItem(.flexible(), spacing: ESUI.Space.sm),
+        GridItem(.flexible(), spacing: ESUI.Space.sm)
     ]
     private let pageSize = 18
 
     var body: some View {
         ScrollView {
             if viewModel.favoriteAlbums.isEmpty {
-                VStack(spacing: 10) {
-                    Image(systemName: "square.stack.3d.up.slash")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Text("还没有喜欢的 album")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 220)
+                ESEmptyState(
+                    title: "还没有喜欢的 album",
+                    message: "在随机封面或详情中点喜欢后会出现在这里。",
+                    systemImage: "square.stack.3d.up.slash"
+                )
+                .frame(maxWidth: .infinity, minHeight: 280)
             } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text("喜欢的 album")
-                            .font(.headline)
-                        Spacer()
-                        Text("\(viewModel.favoriteAlbums.count) 个")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
+                VStack(alignment: .leading, spacing: ESUI.Space.md) {
+                    ESSectionHeader(title: "喜欢的 album", trailing: "\(viewModel.favoriteAlbums.count) 个")
 
                     HiddenPagedFavoritesControls(
                         pageText: "第 \(effectivePage + 1) / \(pageCount) 页",
@@ -641,7 +603,7 @@ struct HiddenFavoriteAlbumsView: View {
                         onNext: { currentPage = min(effectivePage + 1, pageCount - 1) }
                     )
 
-                    LazyVGrid(columns: albumColumns, spacing: 10) {
+                    LazyVGrid(columns: albumColumns, spacing: ESUI.Space.sm) {
                         ForEach(currentPageAlbums) { album in
                             NavigationLink(value: HiddenSpaceRoute.fourKHDAlbum(album)) {
                                 FavoriteAlbumTile(album: album)
@@ -659,11 +621,11 @@ struct HiddenFavoriteAlbumsView: View {
                         onNext: { currentPage = min(effectivePage + 1, pageCount - 1) }
                     )
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 12)
+                .padding(.horizontal, ESUI.screenHorizontalPadding)
+                .padding(.vertical, ESUI.Space.md)
             }
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .esScreenBackground()
         .navigationTitle("喜欢 album")
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: viewModel.favoriteAlbums.count) { _ in
@@ -699,18 +661,15 @@ private struct HiddenFavoriteSectionLinkCard: View {
     let subtitle: String
     let countText: String
     let systemImage: String
+    var color: Color = .accentColor
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.primary)
-                .frame(width: 42, height: 42)
-                .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        HStack(spacing: ESUI.Space.sm) {
+            ESFeatureIcon(systemName: systemImage, color: color, size: 42)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                 Text(title)
-                    .font(.headline)
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(.primary)
 
                 Text(subtitle)
@@ -719,22 +678,21 @@ private struct HiddenFavoriteSectionLinkCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Spacer()
+            Spacer(minLength: ESUI.Space.xs)
 
-            VStack(alignment: .trailing, spacing: 4) {
+            VStack(alignment: .trailing, spacing: ESUI.Space.xxs) {
                 Text(countText)
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.primary)
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .esCard()
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -747,8 +705,8 @@ private struct HiddenPagedFavoritesControls: View {
     let onNext: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: ESUI.Space.sm) {
+            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                 Text(pageText)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
@@ -785,18 +743,18 @@ struct HiddenAlbumDetailView: View {
     @State private var scrollViewportFrame: CGRect = .zero
 
     private let columnCount = 2
-    private let columnSpacing: CGFloat = 10
-    private let itemSpacing: CGFloat = 8
+    private let columnSpacing: CGFloat = ESUI.Space.sm
+    private let itemSpacing: CGFloat = ESUI.Space.xs
     private let returnScrollViewportPadding: CGFloat = 72
 
     var body: some View {
         ScrollViewReader { scrollProxy in
             GeometryReader { containerProxy in
                 ScrollView {
-                    content(availableWidth: max(containerProxy.size.width - 24, 0))
+                    content(availableWidth: max(containerProxy.size.width - (ESUI.screenHorizontalPadding * 2), 0))
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 12)
+                .padding(.horizontal, ESUI.screenHorizontalPadding)
+                .padding(.vertical, ESUI.Space.md)
                 .background(
                     GeometryReader { viewportProxy in
                         Color.clear.preference(
@@ -817,7 +775,7 @@ struct HiddenAlbumDetailView: View {
                 }
             }
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .esScreenBackground()
         .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -866,30 +824,20 @@ struct HiddenAlbumDetailView: View {
     @ViewBuilder
     private func content(availableWidth: CGFloat) -> some View {
         if isLoading {
-            VStack(spacing: 10) {
-                ProgressView()
-                Text("正在加载 album 全部图片...")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, minHeight: 220)
+            ESLoadingState(message: "正在加载 album 全部图片…")
+                .frame(minHeight: 220)
         } else if let errorMessage {
-            VStack(spacing: 10) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(.orange)
-                Text(errorMessage)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                Button("重试") {
+            ESErrorState(
+                title: "加载失败",
+                message: errorMessage,
+                retryTitle: "重试",
+                retry: {
                     Task {
                         await loadImages(force: true)
                     }
                 }
-                .buttonStyle(.bordered)
-            }
-            .frame(maxWidth: .infinity, minHeight: 220)
+            )
+            .frame(minHeight: 220)
         } else {
             let layout = waterfallLayout(for: availableWidth)
 
@@ -1202,8 +1150,8 @@ private struct HiddenImagePreviewView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 14)
-                .padding(.top, 10)
+                .padding(.horizontal, ESUI.Space.md)
+                .padding(.top, ESUI.Space.sm)
 
                 Spacer()
 
@@ -1211,10 +1159,10 @@ private struct HiddenImagePreviewView: View {
                     Text("\(currentIndex + 1) / \(imageURLs.count)")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, ESUI.Space.sm)
+                        .padding(.vertical, ESUI.Space.xs)
                         .background(Color.black.opacity(0.45), in: Capsule())
-                        .padding(.bottom, 24)
+                        .padding(.bottom, ESUI.Space.xl)
                 }
             }
         }
@@ -1597,10 +1545,10 @@ private struct FavoriteAlbumTile: View {
     let album: HiddenAlbum
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
             AsyncCoverImage(url: album.coverURL)
                 .frame(height: 110)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
 
             Text(album.title)
                 .font(.caption)
@@ -1619,7 +1567,7 @@ private struct RandomNineAlbumTile: View {
             ZStack(alignment: .topTrailing) {
                 AsyncCoverImage(url: album.coverURL)
                     .aspectRatio(1, contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: ESUI.Space.xs, style: .continuous))
 
                 if isFavorite {
                     Image(systemName: "heart.fill")
@@ -1639,22 +1587,71 @@ private struct RandomNineAlbumTile: View {
     }
 }
 
+struct HiddenMediaPlaceholder: View {
+    enum Mode {
+        case loading(String?)
+        case empty(String)
+        case failure(String)
+    }
+
+    let mode: Mode
+    var systemImage: String = "photo"
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .fill(ESUI.fill)
+
+            VStack(spacing: ESUI.Space.xs) {
+                switch mode {
+                case let .loading(text):
+                    ProgressView()
+                        .controlSize(.regular)
+                    if let text {
+                        Text(text)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                case let .empty(text):
+                    Image(systemName: systemImage)
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                    Text(text)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                case let .failure(text):
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.orange)
+                    Text(text)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .multilineTextAlignment(.center)
+            .padding(ESUI.Space.md)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 struct AsyncCoverImage: View {
     let url: URL
     var fitToContainer: Bool = false
 
     var body: some View {
         ZStack {
-            ESMediaPlaceholder(mode: .loading(nil), systemImage: "photo")
+            HiddenMediaPlaceholder(mode: .loading(nil), systemImage: "photo")
 
             HiddenCachedImage(url: url) { image in
                 Image(uiImage: image)
                     .resizable()
                     .modifier(CoverScaleModifier(fitToContainer: fitToContainer))
             } placeholder: {
-                ESMediaPlaceholder(mode: .loading(nil), systemImage: "photo")
+                HiddenMediaPlaceholder(mode: .loading(nil), systemImage: "photo")
             } failure: {
-                ESMediaPlaceholder(mode: .failure("图片加载失败"), systemImage: "photo")
+                HiddenMediaPlaceholder(mode: .failure("图片加载失败"), systemImage: "photo")
             }
         }
         .clipped()
@@ -1750,8 +1747,8 @@ private struct AlbumWaterfallImageTile: View {
         ZStack(alignment: .topTrailing) {
             Button(action: onPreview) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(.tertiarySystemFill))
+                    RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                        .fill(ESUI.fill)
 
                     HiddenCachedImage(url: url) { image in
                         Image(uiImage: image)
@@ -1771,7 +1768,7 @@ private struct AlbumWaterfallImageTile: View {
                     }
                 }
                 .frame(width: width, height: tileHeight)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
             }
             .buttonStyle(.plain)
 
@@ -1794,8 +1791,8 @@ struct AlbumThumbImage: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color(.tertiarySystemFill))
+                RoundedRectangle(cornerRadius: ESUI.Space.xs, style: .continuous)
+                    .fill(ESUI.fill)
 
                 HiddenCachedImage(url: url) { image in
                     Image(uiImage: image)
@@ -1810,7 +1807,7 @@ struct AlbumThumbImage: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: ESUI.Space.xs, style: .continuous))
         }
         .aspectRatio(1, contentMode: .fit)
     }

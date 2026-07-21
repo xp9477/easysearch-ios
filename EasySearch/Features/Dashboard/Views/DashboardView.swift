@@ -1,13 +1,12 @@
 import SwiftUI
-import WebKit
-import AVKit
-@preconcurrency import AVFoundation
-import UIKit
 
 public struct DashboardView: View {
+    public var isTabActive: Bool = true
+
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var registry: FeatureRegistry
-    private let isTabActive: Bool
+    @EnvironmentObject private var statusCenter: FeatureStatusCenter
+
     @StateObject private var hidden4KHDViewModel = HiddenSpaceViewModel()
     @StateObject private var hiddenJavDBViewModel = HiddenJavDBViewModel()
     @StateObject private var hiddenPresentationState = HiddenSpacePresentationState()
@@ -26,128 +25,99 @@ public struct DashboardView: View {
     public var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    if moduleFeatures.isEmpty && hiddenFeatures.isEmpty {
+                VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
+                    if moduleFeatures.isEmpty && unlockedHiddenFeatures.isEmpty {
                         ESEmptyState(
                             title: "暂无模块",
-                            message: nil,
+                            message: "功能模块会显示在这里。",
                             systemImage: "square.grid.2x2"
                         )
                         .esCard()
                     } else {
-                        if !moduleFeatures.isEmpty {
-                            moduleWorkbenchSection
+                        ForEach(AppFeatureGroup.allCases) { group in
+                            let features = registry.moduleFeatures(in: group)
+                            if !features.isEmpty {
+                                moduleGroupSection(group: group, features: features)
+                            }
                         }
 
-                        if !hiddenFeatures.isEmpty {
-                            hiddenSpaceSection
+                        if !unlockedHiddenFeatures.isEmpty {
+                            privateSection
                         }
                     }
                 }
                 .padding(.horizontal, ESUI.screenHorizontalPadding)
-                .padding(.top, 14)
+                .padding(.top, ESUI.Space.md)
+                .padding(.bottom, ESUI.Space.lg)
             }
             .esBottomTabPadding()
             .esScreenBackground()
-            .navigationTitle("模块")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("工作台")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("模块")
+                    Text("工作台")
                         .font(.headline)
-                        .contentShape(Rectangle())
+                        .opacity(0.01)
                         .onTapGesture {
                             unlockHiddenModulesIfNeeded()
                         }
+                        .accessibilityHidden(true)
                 }
             }
             .navigationDestination(for: String.self) { featureId in
-                if let feature = registry.features.first(where: { $0.id == featureId }) {
+                if let feature = (moduleFeatures + unlockedHiddenFeatures).first(where: { $0.id == featureId }) {
                     feature.entryView
-                        .navigationBarTitleDisplayMode(.inline)
-                        .onAppear {
-                            selectedFeatureID = featureId
+                        .environmentObject(hidden4KHDViewModel)
+                        .environmentObject(hiddenJavDBViewModel)
+                        .environmentObject(hiddenPresentationState)
+                        .onDisappear {
                             saveHiddenSpaceSnapshotIfNeeded()
+                            collapseHiddenSpaceAfterExitIfNeeded()
                         }
                 } else {
-                    Text("模块不存在")
-                        .foregroundStyle(.secondary)
+                    ESEmptyState(title: "模块不存在", systemImage: "questionmark.circle")
                 }
             }
             .navigationDestination(for: HiddenSpaceRoute.self) { route in
                 hiddenSpaceDestination(for: route)
             }
+            .id(navigationStackIdentity)
         }
-        .id(navigationStackIdentity)
         .overlay {
             if scenePhase != .active && shouldMaskHiddenFeatures {
-                Color(.systemGroupedBackground)
-                    .ignoresSafeArea()
+                Color.black.opacity(0.92).ignoresSafeArea()
             }
         }
         .onChange(of: scenePhase) { phase in
             guard phase != .active else { return }
             lockHiddenModulesForPrivacyIfNeeded()
         }
-        .onChange(of: path.count) { count in
-            if count > 0 {
+        .onChange(of: isTabActive) { active in
+            if active {
                 saveHiddenSpaceSnapshotIfNeeded()
-            }
-            if count == 0 {
-                collapseHiddenSpaceAfterExitIfNeeded()
+            } else {
+                collapseHiddenSpaceOnTabLeaveIfNeeded()
             }
         }
-        .onChange(of: isTabActive) { isActive in
-            guard !isActive else { return }
-            collapseHiddenSpaceOnTabLeaveIfNeeded()
+        .task(id: isTabActive) {
+            guard isTabActive else { return }
+            await statusCenter.refresh()
         }
     }
 
-    private func unlockHiddenModulesIfNeeded() {
-        dashboardTapCount += 1
-        guard dashboardTapCount >= 12 else { return }
-        dashboardTapCount = 0
-        hiddenModulesUnlocked = true
-    }
+    // MARK: - Data
 
     private var moduleFeatures: [any AppFeature] {
         registry.moduleListFeatures
     }
 
-    private var hiddenFeatures: [any AppFeature] {
+    private var unlockedHiddenFeatures: [any AppFeature] {
         hiddenModulesUnlocked ? registry.hiddenFeatures : []
     }
 
     private var hiddenFeatureIDs: Set<String> {
-        Set(registry.hiddenFeatures.map { $0.id })
-    }
-
-    private var moduleWorkbenchSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ESSectionHeader(title: "模块工作台", trailing: "\(moduleFeatures.count)")
-
-            LazyVStack(spacing: 12) {
-                ForEach(moduleFeatures, id: \.id) { feature in
-                    featureRow(for: feature, locked: false)
-                }
-            }
-        }
-    }
-
-    private var hiddenSpaceSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ESSectionHeader(title: "私密空间", trailing: "已解锁")
-
-            LazyVStack(spacing: 12) {
-                ForEach(hiddenFeatures, id: \.id) { feature in
-                    featureRow(for: feature, locked: true)
-                }
-            }
-        }
-    }
-
-    private var hiddenSpaceFeatureID: String {
-        "hidden-space"
+        Set(registry.hiddenFeatures.map(\.id))
     }
 
     private var shouldMaskHiddenFeatures: Bool {
@@ -155,8 +125,121 @@ public struct DashboardView: View {
     }
 
     private var isInsideHiddenFeature: Bool {
-        guard let selectedFeatureID else { return false }
-        return hiddenFeatureIDs.contains(selectedFeatureID)
+        if let selectedFeatureID, hiddenFeatureIDs.contains(selectedFeatureID) {
+            return true
+        }
+        return false
+    }
+
+    // MARK: - Sections
+
+    private func moduleGroupSection(group: AppFeatureGroup, features: [any AppFeature]) -> some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(title: group.title, trailing: "\(features.count)")
+
+            VStack(spacing: ESUI.Space.xs) {
+                ForEach(Array(features.enumerated()), id: \.element.id) { index, feature in
+                    Button {
+                        openFeature(feature)
+                    } label: {
+                        workbenchRow(for: feature, isPrivate: false)
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        if features.count > 1 {
+                            if index > 0 {
+                                Button("上移") {
+                                    moveFeature(feature, in: group, by: -1)
+                                }
+                            }
+                            if index < features.count - 1 {
+                                Button("下移") {
+                                    moveFeature(feature, in: group, by: 1)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var privateSection: some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(title: "私密", subtitle: "离开后将自动锁定", trailing: "已解锁")
+
+            VStack(spacing: ESUI.Space.xs) {
+                ForEach(unlockedHiddenFeatures, id: \.id) { feature in
+                    Button {
+                        openFeature(feature)
+                    } label: {
+                        workbenchRow(for: feature, isPrivate: true)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func workbenchRow(for feature: any AppFeature, isPrivate: Bool) -> some View {
+        HStack(spacing: ESUI.Space.sm) {
+            if feature.id == "uttracker" {
+                UTModuleProgressIcon(color: feature.color)
+            } else {
+                ESFeatureIcon(systemName: feature.iconName, color: feature.color, size: 40)
+            }
+
+            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
+                HStack(spacing: ESUI.Space.xs) {
+                    Text(feature.title)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+
+                    if isPrivate {
+                        ESStatusBadge(text: "私密", tone: .accent)
+                    }
+                }
+
+                Text(feature.summary)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: ESUI.Space.xs)
+
+            if !isPrivate {
+                let status = statusCenter.summary(for: feature.id)
+                ESStatusBadge(text: status.text, tone: .from(kind: status.kind))
+            }
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
+        }
+        .padding(ESUI.Space.md)
+        .background(
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
+                .fill(ESUI.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
+                .stroke(isPrivate ? Color.accentColor.opacity(0.18) : Color.clear, lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Actions
+
+    private func unlockHiddenModulesIfNeeded() {
+        dashboardTapCount += 1
+        guard dashboardTapCount >= 5 else { return }
+        dashboardTapCount = 0
+        hiddenModulesUnlocked = true
     }
 
     private func lockHiddenModulesForPrivacyIfNeeded() {
@@ -188,28 +271,42 @@ public struct DashboardView: View {
     }
 
     private func shouldRestoreHiddenSpacePath(for feature: any AppFeature) -> Bool {
-        feature.id == hiddenSpaceFeatureID && hasSavedHiddenSpacePath
+        feature.placement == .hiddenModule && hasSavedHiddenSpacePath
     }
 
     private func openFeature(_ feature: any AppFeature) {
-        if feature.id == hiddenSpaceFeatureID, restoreHiddenSpacePathIfPossible() {
+        selectedFeatureID = feature.id
+        if shouldRestoreHiddenSpacePath(for: feature), restoreHiddenSpacePathIfPossible() {
             return
         }
         path.append(feature.id)
     }
 
     private func restoreHiddenSpacePathIfPossible() -> Bool {
-        guard hasSavedHiddenSpacePath, savedHiddenSpacePath.count > 0 else {
-            return false
-        }
+        guard hasSavedHiddenSpacePath else { return false }
         path = savedHiddenSpacePath
+        hasSavedHiddenSpacePath = false
+        savedHiddenSpacePath = NavigationPath()
         return true
     }
 
     private func saveHiddenSpaceSnapshotIfNeeded() {
-        guard isInsideHiddenFeature, path.count > 0 else { return }
+        guard isInsideHiddenFeature, !path.isEmpty else { return }
         savedHiddenSpacePath = path
         hasSavedHiddenSpacePath = true
+    }
+
+    private func resetNavigationStack() {
+        path = NavigationPath()
+        navigationStackIdentity = UUID()
+    }
+
+    private func moveFeature(_ feature: any AppFeature, in group: AppFeatureGroup, by offset: Int) {
+        let features = registry.moduleFeatures(in: group)
+        guard let index = features.firstIndex(where: { $0.id == feature.id }) else { return }
+        let target = index + offset
+        guard features.indices.contains(target) else { return }
+        registry.moveModuleFeatures(in: group, fromOffsets: IndexSet(integer: index), toOffset: offset > 0 ? target + 1 : target)
     }
 
     @ViewBuilder
@@ -235,93 +332,9 @@ public struct DashboardView: View {
             HiddenJavDBMovieDetailView(movie: movie, viewModel: hiddenJavDBViewModel, presentationState: hiddenPresentationState)
         }
     }
-
-    private func resetNavigationStack() {
-        path = NavigationPath()
-        navigationStackIdentity = UUID()
-    }
-
-    @ViewBuilder
-    private func featureRow(for feature: any AppFeature, locked: Bool) -> some View {
-        if shouldRestoreHiddenSpacePath(for: feature) {
-            Button {
-                openFeature(feature)
-            } label: {
-                FeatureRow(feature: feature, tone: locked ? .privateSpace : .standard, showsDisclosureIndicator: true)
-            }
-            .buttonStyle(ESCardButtonStyle())
-        } else {
-            NavigationLink(value: feature.id) {
-                FeatureRow(feature: feature, tone: locked ? .privateSpace : .standard)
-            }
-            .buttonStyle(ESCardButtonStyle())
-        }
-    }
-
-    private func moveModuleFeatures(fromOffsets: IndexSet, toOffset: Int) {
-        registry.moveModuleFeatures(fromOffsets: fromOffsets, toOffset: toOffset)
-    }
 }
 
-private struct FeatureRow: View {
-    enum Tone {
-        case standard
-        case privateSpace
-    }
-
-    let feature: any AppFeature
-    var tone: Tone = .standard
-    var showsDisclosureIndicator = false
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            featureIcon
-
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 8) {
-                    Text(feature.title)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-
-                    if tone == .privateSpace {
-                        ESStatusPill(text: "私密", tone: .accent)
-                    }
-                }
-
-                Text(feature.summary)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer()
-
-            Image(systemName: showsDisclosureIndicator ? "arrow.uturn.forward.circle.fill" : "chevron.right")
-                .font(.system(size: showsDisclosureIndicator ? 20 : 13, weight: .semibold))
-                .foregroundStyle(showsDisclosureIndicator ? Color.accentColor.opacity(0.75) : Color(.tertiaryLabel))
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
-                .fill(ESUI.elevatedBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
-                .stroke(tone == .privateSpace ? Color.accentColor.opacity(0.16) : Color.primary.opacity(0.05), lineWidth: 1)
-        )
-    }
-
-    @ViewBuilder
-    private var featureIcon: some View {
-        if feature.id == "uttracker" {
-            UTModuleProgressIcon(color: feature.color)
-        } else {
-            ESFeatureIcon(systemName: feature.iconName, color: feature.color, size: 48)
-        }
-    }
-}
+// MARK: - UT Progress Icon
 
 private struct UTModuleProgressIcon: View {
     let color: Color
@@ -351,37 +364,30 @@ private struct UTModuleProgressIcon: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(color.opacity(0.08))
-                .frame(width: 44, height: 44)
+                .fill(color.opacity(0.1))
+                .frame(width: 40, height: 40)
 
             Circle()
-                .stroke(Color.primary.opacity(0.08), lineWidth: 4)
-                .frame(width: 36, height: 36)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 3)
+                .frame(width: 32, height: 32)
 
             Circle()
                 .trim(from: 0, to: progress)
-                .stroke(
-                    ringColor,
-                    style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                )
-                .frame(width: 36, height: 36)
+                .stroke(ringColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .frame(width: 32, height: 32)
                 .rotationEffect(.degrees(-90))
 
             Text(displayText)
-                .font(.system(size: displayText.count >= 3 ? 10 : 11, weight: .bold, design: .rounded))
+                .font(.system(size: displayText.count >= 3 ? 9 : 10, weight: .bold, design: .rounded))
                 .foregroundStyle(summary.totalHours <= 0.01 ? .secondary : .primary)
         }
-        .frame(width: 44, height: 44)
-        .onAppear {
-            refreshSummary()
-        }
+        .frame(width: 40, height: 40)
+        .onAppear { refreshSummary() }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
             refreshSummary()
         }
         .onChange(of: scenePhase) { phase in
-            if phase == .active {
-                refreshSummary()
-            }
+            if phase == .active { refreshSummary() }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("UT 本月进度")
@@ -392,6 +398,8 @@ private struct UTModuleProgressIcon: View {
         summary = UTTrackerSnapshot.currentMonthSummary()
     }
 }
+
+// MARK: - Shared Preview Model (used by Hidden modules)
 
 struct PreviewImage: Identifiable, Hashable {
     let index: Int

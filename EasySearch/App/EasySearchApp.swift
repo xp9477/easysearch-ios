@@ -3,7 +3,7 @@ import SwiftUI
 
 enum AppTab: Hashable {
     case search
-    case dashboard
+    case workbench
     case settings
 }
 
@@ -32,12 +32,14 @@ final class AppNavigationState: ObservableObject {
 struct EasySearchApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var registry = FeatureRegistry()
+    @StateObject private var statusCenter = FeatureStatusCenter.shared
 
     var body: some Scene {
         WindowGroup {
             AppShellView()
                 .environmentObject(registry)
-                .tint(Color(red: 0.24, green: 0.47, blue: 0.96)) // EasySearch 蓝色主题
+                .environmentObject(statusCenter)
+                .tint(Color.accentColor)
                 .task {
                     await UTNotificationManager.shared.configure()
                     await UTNotificationManager.shared.refreshSchedulesIfAuthorized()
@@ -46,6 +48,7 @@ struct EasySearchApp: App {
                     await GitHubUpdatesNotificationManager.shared.configure()
                     await HiddenCloudSyncViewModel.shared.prepareIfNeeded()
                     await GitHubUpdatesBackgroundRefreshManager.scheduleNextRefresh()
+                    await statusCenter.refresh()
                 }
                 .onChange(of: scenePhase) { phase in
                     guard phase == .active else { return }
@@ -62,6 +65,7 @@ struct EasySearchApp: App {
                         }
                         await HiddenCloudSyncViewModel.shared.syncIfPossible()
                         await GitHubUpdatesBackgroundRefreshManager.scheduleNextRefresh()
+                        await statusCenter.refresh()
                     }
                 }
         }
@@ -83,10 +87,10 @@ private struct AppShellView: View {
                     Label("搜索", systemImage: "magnifyingglass")
                 }
 
-            DashboardView(isTabActive: navigationState.selectedTab == .dashboard)
-                .tag(AppTab.dashboard)
+            DashboardView(isTabActive: navigationState.selectedTab == .workbench)
+                .tag(AppTab.workbench)
                 .tabItem {
-                    Label("模块", systemImage: "square.grid.2x2")
+                    Label("工作台", systemImage: "square.grid.2x2")
                 }
 
             SettingsView()

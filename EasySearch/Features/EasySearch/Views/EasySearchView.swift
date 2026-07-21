@@ -7,61 +7,68 @@ struct EasySearchView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    searchCommandCard
-                    engineSection
+                VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
+                    searchSection
+                    enginesSection
                 }
                 .padding(.horizontal, ESUI.screenHorizontalPadding)
-                .padding(.top, 14)
+                .padding(.top, ESUI.Space.md)
+                .padding(.bottom, ESUI.Space.lg)
             }
             .esBottomTabPadding()
             .esScreenBackground()
             .navigationTitle("搜索")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .scrollDismissesKeyboard(.interactively)
         }
     }
 
-    private var searchCommandCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
+    private var searchSection: some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             ESSectionHeader(
-                title: "搜索内容",
-                trailing: viewModel.selectedCategory.displayName
+                title: "快速搜索",
+                subtitle: "输入关键词，一键打开目标平台"
             )
 
-            SearchBar(text: $viewModel.searchQuery, isFocused: $isSearchFieldFocused) {
-                if viewModel.performDefaultSearch() {
-                    isSearchFieldFocused = false
-                } else {
-                    isSearchFieldFocused = true
+            SearchBar(
+                text: $viewModel.searchQuery,
+                isFocused: $isSearchFieldFocused,
+                onSubmit: {
+                    _ = viewModel.performDefaultSearch()
                 }
-            }
+            )
 
-            Picker("分类", selection: $viewModel.selectedCategory) {
-                ForEach(SearchCategory.allCases, id: \.self) { category in
-                    Text(category.displayName).tag(category)
-                }
-            }
-            .pickerStyle(.segmented)
+            CategoryTabBar(
+                categories: SearchCategory.allCases,
+                selectedCategory: $viewModel.selectedCategory
+            )
         }
-        .esCard()
     }
 
-    private var engineSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+    private var enginesSection: some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             ESSectionHeader(
                 title: "平台入口",
-                trailing: "\(viewModel.filteredEngines.count)"
+                trailing: viewModel.filteredEngines.isEmpty ? nil : "\(viewModel.filteredEngines.count)"
             )
 
-            EngineGridView(
-                engines: viewModel.filteredEngines
-            ) { engine in
-                if viewModel.hasValidQuery {
-                    viewModel.performSearch(engine: engine)
-                } else {
-                    isSearchFieldFocused = true
-                }
+            if viewModel.filteredEngines.isEmpty {
+                ESEmptyState(
+                    title: "暂无可用平台",
+                    message: viewModel.searchEngines.isEmpty
+                        ? "搜索引擎配置尚未加载，请稍后重试。"
+                        : "当前分类下没有匹配的平台。",
+                    systemImage: "globe"
+                )
+                .esCard()
+            } else {
+                EngineGridView(
+                    engines: viewModel.filteredEngines,
+                    isEnabled: viewModel.hasValidQuery,
+                    onSelect: { engine in
+                        viewModel.performSearch(engine: engine)
+                    }
+                )
             }
         }
     }

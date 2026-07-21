@@ -38,27 +38,51 @@ struct HiddenSpaceView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                ESInfoBanner(
-                    title: "私密入口已开启",
+            VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
+                ESStatusBanner(
+                    title: "私密空间已解锁",
+                    message: "离开工作台或退到后台后会自动锁定。",
                     systemImage: "lock.shield",
                     tone: .accent
                 )
 
-                NavigationLink(value: HiddenSpaceRoute.fourKHD) {
-                    fourKHDFeatureCard
-                }
-                .buttonStyle(ESCardButtonStyle())
+                VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+                    ESSectionHeader(title: "入口")
 
-                NavigationLink(value: HiddenSpaceRoute.javDB) {
-                    javDBFeatureCard
-                }
-                .buttonStyle(ESCardButtonStyle())
+                    NavigationLink(value: HiddenSpaceRoute.fourKHD) {
+                        hiddenEntryCard(
+                            title: "4khd",
+                            summary: "随机封面、专辑全图与喜欢列表",
+                            systemImage: "photo.stack",
+                            color: .blue,
+                            badges: [
+                                settings.fourKHDRandomMode.title,
+                                "\(fourKHDFavoritesCount) 喜欢"
+                            ]
+                        )
+                    }
+                    .buttonStyle(ESCardButtonStyle())
 
+                    NavigationLink(value: HiddenSpaceRoute.javDB) {
+                        hiddenEntryCard(
+                            title: "javdb",
+                            summary: "随机影片、喜欢列表与详情播放",
+                            systemImage: "film.stack",
+                            color: .purple,
+                            badges: [
+                                settings.javDBRandomMode.title,
+                                "\(javDBFavoritesCount) 喜欢",
+                                "\(javDBPlaybackCount) 点位"
+                            ],
+                            footer: "MissAV：\(HiddenMissAVDomainConfiguration.resolvedHost(from: settings.missAVDomain))"
+                        )
+                    }
+                    .buttonStyle(ESCardButtonStyle())
+                }
             }
             .padding(.horizontal, ESUI.screenHorizontalPadding)
-            .padding(.top, 14)
-            .esBottomTabPadding()
+            .padding(.top, ESUI.Space.md)
+            .padding(.bottom, ESUI.Space.lg)
         }
         .esScreenBackground()
         .navigationTitle("隐藏空间")
@@ -68,6 +92,7 @@ struct HiddenSpaceView: View {
                 NavigationLink(value: HiddenSpaceRoute.settings) {
                     Image(systemName: "gearshape")
                 }
+                .accessibilityLabel("隐藏空间设置")
             }
         }
         .onAppear(perform: refreshSummary)
@@ -79,66 +104,48 @@ struct HiddenSpaceView: View {
         }
     }
 
-    private var fourKHDFeatureCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 14) {
-                ESFeatureIcon(systemName: "photo.stack", color: .blue, size: 54)
+    private func hiddenEntryCard(
+        title: String,
+        summary: String,
+        systemImage: String,
+        color: Color,
+        badges: [String],
+        footer: String? = nil
+    ) -> some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            HStack(spacing: ESUI.Space.sm) {
+                ESFeatureIcon(systemName: systemImage, color: color, size: 44)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("4khd")
-                        .font(.headline)
+                VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
+                    Text(title)
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(.primary)
-                    Text("随机封面、album 全图、喜欢列表")
-                        .font(.subheadline)
+                    Text(summary)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Spacer()
+                Spacer(minLength: ESUI.Space.xs)
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
 
-            HStack(spacing: 8) {
-                ESStatusPill(text: settings.fourKHDRandomMode.title, tone: .accent)
-                ESStatusPill(text: "\(fourKHDFavoritesCount) 喜欢", tone: fourKHDFavoritesCount > 0 ? .success : .neutral)
-            }
-        }
-        .esCard()
-    }
-
-    private var javDBFeatureCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 14) {
-                ESFeatureIcon(systemName: "film.stack", color: .purple, size: 54)
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("javdb")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text("随机影片、喜欢影片、详情信息")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+            HStack(spacing: ESUI.Space.xs) {
+                ForEach(badges, id: \.self) { badge in
+                    ESStatusBadge(text: badge, tone: .accent)
                 }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.tertiary)
             }
 
-            HStack(spacing: 8) {
-                ESStatusPill(text: settings.javDBRandomMode.title, tone: .accent)
-                ESStatusPill(text: "\(javDBFavoritesCount) 喜欢", tone: javDBFavoritesCount > 0 ? .success : .neutral)
-                ESStatusPill(text: "\(javDBPlaybackCount) 点位", tone: javDBPlaybackCount > 0 ? .success : .neutral)
+            if let footer, !footer.isEmpty {
+                Text(footer)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-
-            Text("MissAV：\(HiddenMissAVDomainConfiguration.resolvedHost(from: settings.missAVDomain))")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
         }
         .esCard()
     }
@@ -149,5 +156,4 @@ struct HiddenSpaceView: View {
         javDBFavoritesCount = HiddenJavDBLocalStore.loadFavoriteMovies().count
         javDBPlaybackCount = HiddenJavDBLocalStore.loadFavoritePlaybacks().count
     }
-
 }

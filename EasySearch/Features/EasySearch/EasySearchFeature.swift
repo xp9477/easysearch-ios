@@ -7,6 +7,7 @@ public struct EasySearchFeature: AppFeature {
     public var iconName: String = "magnifyingglass"
     public var color: Color = Color(red: 0.24, green: 0.47, blue: 0.96)
     public var placement: AppFeaturePlacement = .primaryTab
+    public var group: AppFeatureGroup? = nil
     
     public init() {}
     

@@ -12,8 +12,8 @@ struct HiddenJavDBFeatureView: View {
     @State private var webPageItem: HiddenSharedWebPageItem?
 
     private let searchColumns = [
-        GridItem(.flexible(), spacing: 10),
-        GridItem(.flexible(), spacing: 10)
+        GridItem(.flexible(), spacing: ESUI.Space.sm),
+        GridItem(.flexible(), spacing: ESUI.Space.sm)
     ]
 
     init(viewModel: HiddenJavDBViewModel) {
@@ -25,33 +25,35 @@ struct HiddenJavDBFeatureView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
                 searchMovieCard
                 randomMovieCard
 
                 NavigationLink(value: HiddenSpaceRoute.javDBFavorites) {
-                    HStack {
-                        Label("喜欢影片", systemImage: "heart.text.square")
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        Text("\(viewModel.favoriteMovies.count)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: ESUI.Space.sm) {
+                        ESFeatureIcon(systemName: "heart.text.square", color: .pink, size: 40)
+                        VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
+                            Text("喜欢影片")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text("收藏与快速随机播放")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: ESUI.Space.xs)
+                        ESStatusBadge(text: "\(viewModel.favoriteMovies.count)", tone: .accent)
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(.tertiary)
+                            .accessibilityHidden(true)
                     }
-                    .padding(16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color(.secondarySystemBackground))
-                    )
+                    .esCard()
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(ESCardButtonStyle())
             }
             .padding(.horizontal, ESUI.screenHorizontalPadding)
-            .padding(.top, 14)
+            .padding(.top, ESUI.Space.md)
+            .padding(.bottom, ESUI.Space.lg)
             .esBottomTabPadding()
         }
         .esScreenBackground()
@@ -84,10 +86,10 @@ struct HiddenJavDBFeatureView: View {
 
     @ViewBuilder
     private var searchMovieCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             ESSectionHeader(title: "搜索影片")
 
-            HStack(spacing: 10) {
+            HStack(spacing: ESUI.Space.sm) {
                 TextField("输入番号或标题", text: $searchQuery)
                     .textInputAutocapitalization(.never)
                     .disableAutocorrection(true)
@@ -121,12 +123,12 @@ struct HiddenJavDBFeatureView: View {
                     performMovieSearch()
                 }
             } else if let lastQuery = viewModel.lastSearchedMovieQuery, !viewModel.searchedMovies.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: ESUI.Space.sm) {
                     Text("“\(lastQuery)” · \(viewModel.searchedMovies.count) 个结果")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    LazyVGrid(columns: searchColumns, spacing: 10) {
+                    LazyVGrid(columns: searchColumns, spacing: ESUI.Space.sm) {
                         ForEach(viewModel.searchedMovies) { movie in
                             NavigationLink(value: HiddenSpaceRoute.javDBMovie(movie)) {
                                 HiddenJavDBFavoriteMovieTile(
@@ -142,9 +144,11 @@ struct HiddenJavDBFeatureView: View {
                     }
                 }
             } else if let lastQuery = viewModel.lastSearchedMovieQuery {
-                Text("“\(lastQuery)” 没有搜索到影片")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                ESEmptyState(
+                    title: "没有搜索到影片",
+                    message: "“\(lastQuery)” 暂无匹配结果，可换关键词重试。",
+                    systemImage: "film"
+                )
             }
         }
         .esCard()
@@ -152,14 +156,11 @@ struct HiddenJavDBFeatureView: View {
 
     @ViewBuilder
     private var randomMovieCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                ESSectionHeader(title: "随机影片", trailing: randomMode.title)
-                Spacer()
-                if viewModel.isLoadingRandomMovie {
-                    ProgressView()
-                }
-            }
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(
+                title: "随机影片",
+                trailing: viewModel.isLoadingRandomMovie ? "加载中" : randomMode.title
+            )
 
             Picker("随机模式", selection: $randomMode) {
                 ForEach(HiddenJavDBRandomMode.allCases) { mode in
@@ -170,16 +171,16 @@ struct HiddenJavDBFeatureView: View {
 
             if randomMode == .single {
                 if viewModel.isLoadingRandomMovie {
-                    ESMediaPlaceholder(mode: .loading(randomMode.loadingText), systemImage: "film.stack")
+                    HiddenMediaPlaceholder(mode: .loading(randomMode.loadingText), systemImage: "film.stack")
                         .frame(height: 230)
                 } else if let movie = viewModel.randomMovie {
                     NavigationLink(value: HiddenSpaceRoute.javDBMovie(movie)) {
-                        VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
                             AsyncCoverImage(url: movie.coverURL, fitToContainer: true)
                                 .frame(height: 230)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .clipShape(RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous))
 
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                                 Text(movie.displayTitle)
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(.primary)
@@ -192,7 +193,7 @@ struct HiddenJavDBFeatureView: View {
                     }
                     .buttonStyle(.plain)
 
-                    HStack(spacing: 12) {
+                    HStack(spacing: ESUI.Space.sm) {
                         Button {
                             Task {
                                 await viewModel.loadRandomMovies(mode: randomMode)
@@ -241,7 +242,7 @@ struct HiddenJavDBFeatureView: View {
                 }
             } else {
                 if !viewModel.randomMovies.isEmpty {
-                    LazyVStack(spacing: 10) {
+                    LazyVStack(spacing: ESUI.Space.sm) {
                         ForEach(Array(viewModel.randomMovies.prefix(9))) { movie in
                             NavigationLink(value: HiddenSpaceRoute.javDBMovie(movie)) {
                                 HiddenJavDBRandomListMovieTile(movie: movie, isFavorite: viewModel.isFavorite(movie))
@@ -251,7 +252,7 @@ struct HiddenJavDBFeatureView: View {
                     }
 
                     if viewModel.isLoadingRandomMovie {
-                        HStack(spacing: 8) {
+                        HStack(spacing: ESUI.Space.xs) {
                             ProgressView()
                                 .controlSize(.small)
                             Text("已加载 \(viewModel.randomMovies.count)/9")
@@ -272,7 +273,7 @@ struct HiddenJavDBFeatureView: View {
                     .buttonStyle(.borderedProminent)
                     .disabled(viewModel.isLoadingRandomMovie)
                 } else if viewModel.isLoadingRandomMovie {
-                    ESMediaPlaceholder(mode: .loading(randomMode.loadingText), systemImage: "film.stack")
+                    HiddenMediaPlaceholder(mode: .loading(randomMode.loadingText), systemImage: "film.stack")
                         .frame(height: 230)
                 } else {
                     playbackIssueView(message: viewModel.randomErrorMessage ?? "暂时没有拿到影片") {
@@ -289,7 +290,7 @@ struct HiddenJavDBFeatureView: View {
     private func playbackIssueView(message: String, retry: @escaping () -> Void) -> some View {
         let issue = HiddenPlaybackIssuePresentation(message: message)
 
-        return VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             ESInfoBanner(
                 title: issue.title,
                 message: issue.message,
@@ -297,7 +298,7 @@ struct HiddenJavDBFeatureView: View {
                 tone: issue.tone
             )
 
-            HStack(spacing: 10) {
+            HStack(spacing: ESUI.Space.sm) {
                 Button(issue.primaryActionTitle) {
                     retry()
                 }
@@ -341,8 +342,8 @@ struct HiddenJavDBFavoriteMoviesView: View {
     @State private var randomPlaybackErrorMessage: String?
 
     private let columns = [
-        GridItem(.flexible(), spacing: 10),
-        GridItem(.flexible(), spacing: 10)
+        GridItem(.flexible(), spacing: ESUI.Space.sm),
+        GridItem(.flexible(), spacing: ESUI.Space.sm)
     ]
 
     init(viewModel: HiddenJavDBViewModel, presentationState: HiddenSpacePresentationState) {
@@ -354,24 +355,21 @@ struct HiddenJavDBFavoriteMoviesView: View {
     var body: some View {
         ScrollView {
             if viewModel.favoriteMovies.isEmpty {
-                VStack(spacing: 10) {
-                    Image(systemName: "heart")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Text("还没有喜欢的影片")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 220)
+                ESEmptyState(
+                    title: "还没有喜欢的影片",
+                    message: "在随机列表或详情页点喜欢后会出现在这里。",
+                    systemImage: "heart"
+                )
+                .frame(maxWidth: .infinity, minHeight: 280)
             } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: ESUI.Space.md) {
+                    HStack(spacing: ESUI.Space.sm) {
                         Button {
                             Task {
                                 await playRandomFavoriteMovie()
                             }
                         } label: {
-                            HStack(spacing: 8) {
+                            HStack(spacing: ESUI.Space.xs) {
                                 if isResolvingRandomPlayback {
                                     ProgressView()
                                         .controlSize(.small)
@@ -399,7 +397,7 @@ struct HiddenJavDBFavoriteMoviesView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    LazyVGrid(columns: columns, spacing: 10) {
+                    LazyVGrid(columns: columns, spacing: ESUI.Space.sm) {
                         ForEach(viewModel.favoriteMovies) { movie in
                             NavigationLink(value: HiddenSpaceRoute.javDBMovie(movie)) {
                                 HiddenJavDBFavoriteMovieTile(
@@ -418,11 +416,12 @@ struct HiddenJavDBFavoriteMoviesView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.top, 12)
+                .padding(.horizontal, ESUI.screenHorizontalPadding)
+                .padding(.top, ESUI.Space.md)
+                .padding(.bottom, ESUI.Space.lg)
             }
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .esScreenBackground()
         .navigationTitle("喜欢影片")
         .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(item: inAppPlayerItemBinding) { item in
@@ -586,15 +585,15 @@ struct HiddenJavDBMovieDetailView: View {
     @State private var missAVDomainDisplay = HiddenMissAVDomainConfiguration.currentHost()
 
     private let columns = [
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8)
+        GridItem(.flexible(), spacing: ESUI.Space.xs),
+        GridItem(.flexible(), spacing: ESUI.Space.xs),
+        GridItem(.flexible(), spacing: ESUI.Space.xs)
     ]
     private let favoritePlaybackColumns = [
-        GridItem(.adaptive(minimum: 150), spacing: 8)
+        GridItem(.adaptive(minimum: 150), spacing: ESUI.Space.xs)
     ]
     private let relatedMovieColumns = [
-        GridItem(.adaptive(minimum: 146), spacing: 10)
+        GridItem(.adaptive(minimum: 146), spacing: ESUI.Space.sm)
     ]
     private var favoritePlaybackEntries: [HiddenJavDBFavoritePlayback] {
         viewModel.favoritePlaybacks(for: movie)
@@ -619,10 +618,10 @@ struct HiddenJavDBMovieDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
                 AsyncCoverImage(url: movie.coverURL, fitToContainer: true)
                     .frame(height: 260)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous))
 
                 Button(showDetails ? "隐藏详细信息" : "显示详细信息") {
                     showDetails.toggle()
@@ -643,10 +642,10 @@ struct HiddenJavDBMovieDetailView: View {
                 screenshotsSection
                 relatedMovieSections
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 12)
+            .padding(.horizontal, ESUI.screenHorizontalPadding)
+            .padding(.vertical, ESUI.Space.md)
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .esScreenBackground()
         .navigationTitle(movie.code)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -710,7 +709,7 @@ struct HiddenJavDBMovieDetailView: View {
     }
 
     private var watchSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             ESSectionHeader(title: "播放", trailing: missAVDomainDisplay)
 
             if let url = HiddenJavDBWatchSite.missAV.url(for: movie.code) {
@@ -719,7 +718,7 @@ struct HiddenJavDBMovieDetailView: View {
                         await openWatchSite(site: .missAV, pageURL: url)
                     }
                 } label: {
-                    HStack(spacing: 12) {
+                    HStack(spacing: ESUI.Space.sm) {
                         Group {
                             if isResolvingWatchPlayback && resolvingWatchSiteName == HiddenJavDBWatchSite.missAV.name {
                                 ProgressView()
@@ -747,11 +746,11 @@ struct HiddenJavDBMovieDetailView: View {
                             .foregroundStyle(.tertiary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, ESUI.Space.md)
+                    .padding(.vertical, ESUI.Space.sm)
                     .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color(.tertiarySystemFill))
+                        RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                            .fill(ESUI.fill)
                     )
                 }
                 .buttonStyle(.plain)
@@ -768,7 +767,7 @@ struct HiddenJavDBMovieDetailView: View {
     private func watchPlaybackIssueView(message: String, pageURL: URL) -> some View {
         let issue = HiddenPlaybackIssuePresentation(message: message)
 
-        return VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             ESInfoBanner(
                 title: issue.title,
                 message: issue.message,
@@ -776,7 +775,7 @@ struct HiddenJavDBMovieDetailView: View {
                 tone: issue.tone
             )
 
-            HStack(spacing: 10) {
+            HStack(spacing: ESUI.Space.sm) {
                 Button(issue.primaryActionTitle) {
                     Task {
                         await openWatchSite(site: .missAV, pageURL: pageURL)
@@ -809,17 +808,10 @@ struct HiddenJavDBMovieDetailView: View {
     @ViewBuilder
     private var favoritePlaybackSection: some View {
         if !favoritePlaybackEntries.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("喜欢点")
-                        .font(.headline)
-                    Spacer()
-                    Text("\(favoritePlaybackEntries.count) 个")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+            VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+                ESSectionHeader(title: "喜欢点", trailing: "\(favoritePlaybackEntries.count) 个")
 
-                LazyVGrid(columns: favoritePlaybackColumns, spacing: 8) {
+                LazyVGrid(columns: favoritePlaybackColumns, spacing: ESUI.Space.xs) {
                     ForEach(favoritePlaybackEntries) { playback in
                         HiddenJavDBFavoritePlaybackTile(
                             playback: playback,
@@ -833,57 +825,37 @@ struct HiddenJavDBMovieDetailView: View {
                     }
                 }
             }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(.secondarySystemBackground))
-            )
+            .esCard(cornerRadius: ESUI.compactCornerRadius)
         }
     }
 
     private var screenshotsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("截图")
-                    .font(.headline)
-                Spacer()
-                if isLoadingImages {
-                    ProgressView()
-                }
-            }
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(
+                title: "截图",
+                trailing: isLoadingImages ? "加载中" : nil
+            )
 
             if isLoadingImages {
-                VStack(spacing: 10) {
-                    ProgressView()
-                    Text("正在加载截图...")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 180)
+                ESLoadingState(message: "正在加载截图…")
+                    .frame(minHeight: 180)
             } else if let imageErrorMessage {
-                VStack(spacing: 10) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 22, weight: .semibold))
-                        .foregroundStyle(.orange)
-                    Text(imageErrorMessage)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                    Button("重试") {
+                ESErrorState(
+                    title: "截图加载失败",
+                    message: imageErrorMessage,
+                    retryTitle: "重试",
+                    retry: {
                         Task {
                             await loadImages(force: true)
                         }
                     }
-                    .buttonStyle(.bordered)
-                }
-                .frame(maxWidth: .infinity, minHeight: 180)
+                )
+                .frame(minHeight: 180)
             } else if imageURLs.isEmpty {
-                Text("没有拿到可用截图")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 120)
+                ESEmptyState(title: "没有拿到可用截图", systemImage: "photo.on.rectangle")
+                    .frame(minHeight: 120)
             } else {
-                LazyVGrid(columns: columns, spacing: 8) {
+                LazyVGrid(columns: columns, spacing: ESUI.Space.xs) {
                     ForEach(Array(imageURLs.enumerated()), id: \.offset) { index, imageURL in
                         Button {
                             previewImage = HiddenJavDBPreviewImage(index: index, urls: imageURLs)
@@ -895,16 +867,12 @@ struct HiddenJavDBMovieDetailView: View {
                 }
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .esCard(cornerRadius: ESUI.compactCornerRadius)
     }
 
     @ViewBuilder
     private var relatedMovieSections: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ESUI.Space.md) {
             relatedMovieSection(
                 title: "她还演过",
                 movies: movieDetail?.otherActressMovies ?? [],
@@ -931,33 +899,16 @@ struct HiddenJavDBMovieDetailView: View {
         isLoading: Bool,
         errorMessage: String?
     ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(title)
-                    .font(.headline)
-                Spacer()
-
-                if !isLoading {
-                    Text("\(movies.count) 部")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(
+                title: title,
+                trailing: isLoading ? nil : "\(movies.count) 部"
+            )
 
             if !hasCompletedInitialImagePhase {
-                HStack(spacing: 8) {
-                    ProgressView()
-                    Text("截图加载完成后开始加载 \(title)...")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                ESLoadingState(message: "截图加载完成后开始加载 \(title)…")
             } else if isLoading {
-                HStack(spacing: 8) {
-                    ProgressView()
-                    Text("正在加载 \(title)...")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+                ESLoadingState(message: "正在加载 \(title)…")
             } else if let errorMessage, movies.isEmpty {
                 Text(errorMessage)
                     .font(.subheadline)
@@ -968,7 +919,7 @@ struct HiddenJavDBMovieDetailView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } else {
-                LazyVGrid(columns: relatedMovieColumns, alignment: .leading, spacing: 10) {
+                LazyVGrid(columns: relatedMovieColumns, alignment: .leading, spacing: ESUI.Space.sm) {
                     ForEach(movies) { relatedMovie in
                         NavigationLink(value: HiddenSpaceRoute.javDBMovie(relatedMovie)) {
                             HiddenJavDBRelatedMovieTile(movie: relatedMovie)
@@ -978,11 +929,7 @@ struct HiddenJavDBMovieDetailView: View {
                 }
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .esCard(cornerRadius: ESUI.compactCornerRadius)
     }
 
     private func loadImages(force: Bool) async {
@@ -1135,11 +1082,11 @@ private struct HiddenJavDBMovieDetailSummaryView: View {
     let isLoading: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
             if isLoading {
-                HStack(spacing: 8) {
+                HStack(spacing: ESUI.Space.xs) {
                     ProgressView()
-                    Text("正在加载详细信息...")
+                    Text("正在加载详细信息…")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -1160,11 +1107,7 @@ private struct HiddenJavDBMovieDetailSummaryView: View {
                 HiddenJavDBDetailRow(title: "演员", value: movie.actressesText)
             }
         }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .esCard(cornerRadius: ESUI.compactCornerRadius)
     }
 }
 
@@ -1173,7 +1116,7 @@ private struct HiddenJavDBDetailRow: View {
     let value: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: ESUI.Space.xs) {
             Text(title)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -1224,8 +1167,8 @@ private struct HiddenPlaybackThumbnailView: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .fill(ESUI.fill)
 
             if let image {
                 Image(uiImage: image)
@@ -1264,8 +1207,8 @@ private struct HiddenPlaybackThumbnailView: View {
         }
         .frame(maxWidth: .infinity)
         .aspectRatio(thumbnailAspectRatio, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
         .task(id: playback.id) {
             await loadThumbnailIfNeeded()
         }
@@ -1294,7 +1237,7 @@ private struct HiddenPlaybackThumbnailView: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
-                .background(Color.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .background(Color.black.opacity(0.3), in: RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1323,10 +1266,10 @@ private struct HiddenJavDBFavoriteMovieTile: View {
     let showDetails: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
             AsyncCoverImage(url: movie.coverURL)
                 .frame(height: 126)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
 
             Text(movie.code)
                 .font(.caption.weight(.semibold))
@@ -1356,11 +1299,7 @@ private struct HiddenJavDBFavoriteMovieTile: View {
                 }
             }
         }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
+        .esCard(cornerRadius: ESUI.compactCornerRadius)
     }
 }
 
@@ -1368,12 +1307,12 @@ private struct HiddenJavDBRelatedMovieTile: View {
     let movie: HiddenJavDBMovie
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
             ZStack(alignment: .topLeading) {
                 AsyncCoverImage(url: movie.coverURL, fitToContainer: true)
                     .frame(maxWidth: .infinity)
                     .frame(height: 172)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
 
                 Text(movie.code)
                     .font(.caption2.weight(.semibold))
@@ -1397,10 +1336,10 @@ private struct HiddenJavDBRelatedMovieTile: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .padding(10)
+        .padding(ESUI.Space.sm)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
+                .fill(ESUI.fill)
         )
     }
 }
@@ -1414,7 +1353,7 @@ private struct HiddenJavDBRandomListMovieTile: View {
             AsyncCoverImage(url: movie.coverURL, fitToContainer: true)
                 .frame(maxWidth: .infinity)
                 .frame(height: 226)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
 
             if isFavorite {
                 Image(systemName: "heart.fill")
@@ -1436,6 +1375,6 @@ private struct HiddenJavDBRandomListMovieTile: View {
                 Spacer()
             }
         }
-        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
     }
 }

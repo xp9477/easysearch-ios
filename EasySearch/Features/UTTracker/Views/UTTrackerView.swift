@@ -10,7 +10,7 @@ public struct UTTrackerView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
                 overviewCard
                 addEntryCard
                 if !viewModel.currentMonthEntries.isEmpty {
@@ -20,45 +20,49 @@ public struct UTTrackerView: View {
                     recentMonthsCard
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 32)
+            .padding(.horizontal, ESUI.screenHorizontalPadding)
+            .padding(.top, ESUI.Space.md)
+            .padding(.bottom, ESUI.Space.xxl)
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .esScreenBackground()
         .navigationTitle("UT 记录")
         .navigationBarTitleDisplayMode(.inline)
     }
+
+    // MARK: - Overview
 
     private var overviewCard: some View {
         let summary = viewModel.currentMonthSummary
         let exceededTargetHours = max(0, summary.totalHours - summary.targetHours)
 
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            HStack(alignment: .top, spacing: ESUI.Space.sm) {
+                VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                     Text("本月")
-                        .font(.system(size: 22, weight: .bold))
+                        .font(.title3.weight(.semibold))
                         .foregroundStyle(.primary)
 
                     Text(monthRangeText(for: summary))
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
 
-                Spacer()
+                Spacer(minLength: ESUI.Space.xs)
 
                 Text(percentText(for: summary.fullMonthProgress))
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(.system(.title, design: .rounded).weight(.semibold))
                     .foregroundStyle(.primary)
+                    .accessibilityLabel("整月进度 \(percentText(for: summary.fullMonthProgress))")
             }
 
-            HStack(spacing: 8) {
-                Text(summary.isTargetMet ? "已达标" : "待补足")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.primary)
+            HStack(spacing: ESUI.Space.xs) {
+                ESStatusBadge(
+                    text: summary.isTargetMet ? "已达标" : "待补足",
+                    tone: summary.isTargetMet ? .success : .warning
+                )
 
                 Text("\(hoursText(summary.totalHours)) / \(hoursText(summary.targetHours))h")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
             }
 
@@ -67,33 +71,19 @@ public struct UTTrackerView: View {
                 progress: summary.targetProgress,
                 detail: summary.isTargetMet
                     ? "已达标，超出 \(hoursText(exceededTargetHours))h"
-                    : "还差 \(hoursText(summary.remainingToTarget))h"
+                    : "还差 \(hoursText(summary.remainingToTarget))h",
+                isMet: summary.isTargetMet
             )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(.secondarySystemGroupedBackground),
-                            Color.green.opacity(0.12)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-        )
+        .esCard()
     }
 
+    // MARK: - Quick Log
+
     private var addEntryCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(title: "快速记录")
+        VStack(alignment: .leading, spacing: ESUI.Space.md) {
+            ESSectionHeader(title: "快速记录", subtitle: "选择日期与工时后保存")
 
             quickDatePicker
             quickHourPresets
@@ -102,41 +92,38 @@ public struct UTTrackerView: View {
 
             TextField("备注（可选）", text: $draftNote, axis: .vertical)
                 .lineLimit(3, reservesSpace: false)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                .padding(.horizontal, ESUI.Space.sm)
+                .padding(.vertical, ESUI.Space.sm)
                 .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(.tertiarySystemFill))
+                    RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                        .fill(ESUI.fill)
                 )
 
             Button(action: saveEntry) {
                 Label(saveButtonTitle, systemImage: "plus.circle.fill")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                    .padding(.vertical, ESUI.Space.xs)
             }
             .buttonStyle(.borderedProminent)
-            .tint(.green)
+            .controlSize(.large)
             .disabled(draftHours <= 0)
         }
-        .padding(24)
-        .cardStyle()
+        .esCard()
     }
 
     private var quickDatePicker: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             HStack {
                 Text("日期")
-                    .font(.system(size: 15, weight: .semibold))
-
+                    .font(.subheadline.weight(.semibold))
                 Spacer()
-
                 Text(selectedDateTitle)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: 10) {
+            HStack(spacing: ESUI.Space.xs) {
                 dateShortcutButton(
                     title: "今天",
                     subtitle: dateShortcutSubtitle(for: Date()),
@@ -162,14 +149,14 @@ public struct UTTrackerView: View {
     }
 
     private var quickHourPresets: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             Text("常用工时")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
 
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 72), spacing: 10)],
+                columns: [GridItem(.adaptive(minimum: 72), spacing: ESUI.Space.xs)],
                 alignment: .leading,
-                spacing: 10
+                spacing: ESUI.Space.xs
             ) {
                 ForEach(quickHourOptions, id: \.self) { hours in
                     presetButton(
@@ -193,19 +180,19 @@ public struct UTTrackerView: View {
     }
 
     private var hoursAdjuster: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
             HStack {
                 Text("工时微调")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                 Spacer()
                 Text("\(hoursText(draftHours))h")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
             }
 
             Stepper(value: $draftHours, in: 0.5...16, step: 0.5) {
                 Text("每次以 0.5h 增减")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
             }
         }
@@ -215,34 +202,24 @@ public struct UTTrackerView: View {
         let summary = selectedMonthSummary
         let isProjectedTargetMet = projectedMonthTotalHours >= summary.targetHours
 
-        return HStack(spacing: 12) {
-            Image(systemName: isProjectedTargetMet ? "checkmark.seal.fill" : "scope")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(isProjectedTargetMet ? .green : .orange)
-
-            Text(projectedMonthLabel)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.secondary)
-
-            Spacer(minLength: 0)
-
-            Text(projectedMonthSummaryText)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.primary)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 11)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill((isProjectedTargetMet ? Color.green : Color.orange).opacity(0.12))
+        return ESStatusBanner(
+            title: "\(projectedMonthLabel)预估 \(projectedMonthSummaryText)",
+            message: isProjectedTargetMet ? "保存后可达到 70% 目标" : "保存后仍未达标",
+            systemImage: isProjectedTargetMet ? "checkmark.seal.fill" : "scope",
+            tone: isProjectedTargetMet ? .success : .warning
         )
     }
 
-    private var currentMonthEntriesCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(title: "本月记录", detail: "\(viewModel.currentMonthEntries.count) 条")
+    // MARK: - Entries
 
-            VStack(spacing: 12) {
+    private var currentMonthEntriesCard: some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.md) {
+            ESSectionHeader(
+                title: "本月记录",
+                trailing: "\(viewModel.currentMonthEntries.count)"
+            )
+
+            VStack(spacing: ESUI.Space.xs) {
                 ForEach(viewModel.currentMonthEntries) { entry in
                     UTEntryRow(
                         title: entryTitle(for: entry),
@@ -255,65 +232,65 @@ public struct UTTrackerView: View {
                 }
             }
         }
-        .padding(24)
-        .cardStyle()
+        .esCard()
     }
 
     private var recentMonthsCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            sectionHeader(title: "近 4 月")
+        VStack(alignment: .leading, spacing: ESUI.Space.md) {
+            ESSectionHeader(title: "近 4 月", subtitle: "按目标进度回顾")
 
-            VStack(spacing: 14) {
+            VStack(spacing: ESUI.Space.md) {
                 ForEach(viewModel.recentMonthSummaries(limit: 4)) { summary in
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(alignment: .top, spacing: 12) {
-                            VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+                        HStack(alignment: .top, spacing: ESUI.Space.sm) {
+                            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                                 Text(monthRangeText(for: summary))
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(.primary)
 
                                 Text(summary.isTargetMet ? "达标" : "差 \(hoursText(summary.remainingToTarget))h")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(summary.isTargetMet ? .green : .secondary)
+                                    .font(.footnote)
+                                    .foregroundStyle(summary.isTargetMet ? Color.green : Color.secondary)
                             }
 
-                            Spacer()
+                            Spacer(minLength: ESUI.Space.xs)
 
-                            VStack(alignment: .trailing, spacing: 4) {
+                            VStack(alignment: .trailing, spacing: ESUI.Space.xxs) {
                                 Text("\(hoursText(summary.totalHours))h")
-                                    .font(.system(size: 17, weight: .bold))
+                                    .font(.body.weight(.semibold))
                                     .foregroundStyle(.primary)
 
-                                Text(summary.isTargetMet ? "已达标" : "未达标")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(summary.isTargetMet ? .green : .secondary)
+                                ESStatusBadge(
+                                    text: summary.isTargetMet ? "已达标" : "未达标",
+                                    tone: summary.isTargetMet ? .success : .neutral
+                                )
                             }
                         }
 
                         ProgressView(value: clamped(summary.targetProgress))
                             .tint(summary.isTargetMet ? .green : .orange)
                     }
-                    .padding(.bottom, 2)
                 }
             }
         }
-        .padding(24)
-        .cardStyle()
+        .esCard()
     }
 
-    private func progressBlock(title: String, progress: Double, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+    // MARK: - Helpers
+
+    private func progressBlock(title: String, progress: Double, detail: String, isMet: Bool) -> some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
             HStack {
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.footnote.weight(.semibold))
                 Spacer()
                 Text(detail)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             ProgressView(value: clamped(progress))
-                .tint(.green)
+                .tint(isMet ? .green : .orange)
         }
     }
 
@@ -361,22 +338,6 @@ public struct UTTrackerView: View {
         return selectedDate.formatted(.dateTime.month().day())
     }
 
-    private func sectionHeader(title: String, detail: String? = nil) -> some View {
-        HStack(alignment: .lastTextBaseline, spacing: 12) {
-            Text(title)
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(.primary)
-
-            Spacer()
-
-            if let detail {
-                Text(detail)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
     private func dateShortcutButton(
         title: String,
         subtitle: String,
@@ -384,25 +345,25 @@ public struct UTTrackerView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(isSelected ? .green : .primary)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
 
                 Text(subtitle)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
+            .padding(.horizontal, ESUI.Space.sm)
+            .padding(.vertical, ESUI.Space.sm)
             .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(isSelected ? Color.green.opacity(0.12) : Color(.tertiarySystemFill))
+                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                    .fill(isSelected ? Color.accentColor.opacity(0.12) : ESUI.fill)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(isSelected ? Color.green.opacity(0.35) : Color.clear, lineWidth: 1)
+                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -411,18 +372,18 @@ public struct UTTrackerView: View {
     private func presetButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(isSelected ? .green : .primary)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 12)
+                .padding(.horizontal, ESUI.Space.sm)
+                .padding(.vertical, ESUI.Space.sm)
                 .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(isSelected ? Color.green.opacity(0.12) : Color(.tertiarySystemFill))
+                    RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                        .fill(isSelected ? Color.accentColor.opacity(0.12) : ESUI.fill)
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(isSelected ? Color.green.opacity(0.35) : Color.clear, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                        .stroke(isSelected ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
                 )
         }
         .buttonStyle(.plain)
@@ -478,43 +439,41 @@ private struct UTEntryRow: View {
     let deleteAction: () -> Void
 
     var body: some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
+        HStack(spacing: ESUI.Space.sm) {
+            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
 
                 Text(subtitle)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            Spacer(minLength: 12)
+            Spacer(minLength: ESUI.Space.sm)
 
-            VStack(alignment: .trailing, spacing: 8) {
+            VStack(alignment: .trailing, spacing: ESUI.Space.xs) {
                 Text(trailing)
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(.primary)
 
                 Button(role: .destructive, action: deleteAction) {
                     Image(systemName: "trash")
-                        .font(.system(size: 12, weight: .bold))
-                        .padding(8)
+                        .font(.caption.weight(.semibold))
+                        .padding(ESUI.Space.xs)
                 }
                 .buttonStyle(.borderless)
-                .background(
-                    Circle()
-                        .fill(Color.red.opacity(0.12))
-                )
+                .background(Circle().fill(Color.red.opacity(0.12)))
                 .foregroundStyle(.red)
+                .accessibilityLabel("删除记录")
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.horizontal, ESUI.Space.md)
+        .padding(.vertical, ESUI.Space.sm)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .fill(ESUI.fill)
         )
     }
 }

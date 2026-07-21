@@ -119,7 +119,7 @@ struct QingLongSubscriptionWorkspaceCard: View {
     let toggleEnabledAction: (QingLongSubscription) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             if viewModel.profile == nil {
                 QingLongEmptyState(
                     icon: "arrow.down.circle",
@@ -135,8 +135,7 @@ struct QingLongSubscriptionWorkspaceCard: View {
                 )
             }
         }
-        .padding(14)
-        .cardStyle()
+        .esCard()
     }
 }
 
@@ -147,16 +146,8 @@ private struct QingLongSubscriptionWorkspace: View {
     let toggleEnabledAction: (QingLongSubscription) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("订阅管理")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(.primary)
-
-                Text(summaryText)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(title: "订阅管理", subtitle: summaryText)
 
             QingLongSearchField(text: $viewModel.subscriptionSearchText, placeholder: "搜索订阅")
 
@@ -178,7 +169,7 @@ private struct QingLongSubscriptionWorkspace: View {
                     title: "无匹配结果"
                 )
             } else {
-                LazyVStack(spacing: 10) {
+                LazyVStack(spacing: ESUI.Space.sm) {
                     ForEach(viewModel.filteredSubscriptions) { subscription in
                         QingLongSubscriptionRow(
                             subscription: subscription,
@@ -215,16 +206,16 @@ private struct QingLongSubscriptionRow: View {
     let toggleEnabledAction: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 10) {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            HStack(alignment: .top, spacing: ESUI.Space.sm) {
                 RoundedRectangle(cornerRadius: 3, style: .continuous)
                     .fill(statusColor)
                     .frame(width: 4, height: 42)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(alignment: .center, spacing: 8) {
+                VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+                    HStack(alignment: .center, spacing: ESUI.Space.xs) {
                         Text(subscription.titleText)
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
 
@@ -247,14 +238,14 @@ private struct QingLongSubscriptionRow: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: ESUI.Space.xs) {
                         Label(subscription.scheduleText, systemImage: "clock")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(.secondary)
 
                         if !subscription.detailText.isEmpty {
                             Text(subscription.detailText)
-                                .font(.system(size: 11, weight: .medium))
+                                .font(.caption2)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
@@ -262,10 +253,10 @@ private struct QingLongSubscriptionRow: View {
                 }
             }
 
-            HStack(spacing: 10) {
+            HStack(spacing: ESUI.Space.sm) {
                 Button(action: primaryAction) {
                     Label(primaryButtonTitle, systemImage: primaryButtonSymbol)
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.caption.weight(.semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 9)
                 }
@@ -274,7 +265,7 @@ private struct QingLongSubscriptionRow: View {
                 .disabled(isPending || (!subscription.isEnabled && !subscription.isRunning && !subscription.isQueued))
 
                 Button(action: logAction) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: ESUI.Space.xs) {
                         if isLogLoading {
                             ProgressView()
                                 .scaleEffect(0.8)
@@ -286,12 +277,12 @@ private struct QingLongSubscriptionRow: View {
 
                         Text("日志")
                     }
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.caption.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 9)
                 }
                 .buttonStyle(.bordered)
-                .tint(.green)
+                .tint(.accentColor)
                 .disabled(isPending || isLogLoading || !subscription.hasLog)
 
                 Menu {
@@ -300,7 +291,7 @@ private struct QingLongSubscriptionRow: View {
                     }
                 } label: {
                     Label("更多", systemImage: "ellipsis.circle")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.caption.weight(.semibold))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
                 }
@@ -309,13 +300,13 @@ private struct QingLongSubscriptionRow: View {
                 .disabled(isPending)
             }
         }
-        .padding(14)
+        .padding(ESUI.Space.md)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
+                .fill(ESUI.surface)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
                 .stroke(statusColor.opacity(0.12), lineWidth: 1)
         )
     }
@@ -349,17 +340,17 @@ private struct QingLongSubscriptionStateBadge: View {
     let subscription: QingLongSubscription
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: ESUI.Space.xs) {
             Circle()
                 .fill(statusColor)
                 .frame(width: 7, height: 7)
 
             Text(subscription.statusText)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(statusColor)
         }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
+        .padding(.horizontal, ESUI.Space.sm)
+        .padding(.vertical, ESUI.Space.xs)
         .background(
             Capsule(style: .continuous)
                 .fill(statusColor.opacity(0.12))
@@ -395,7 +386,7 @@ struct QingLongWorkspaceCard: View {
     let logAction: (QingLongCron) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             if viewModel.profile == nil {
                 QingLongEmptyState(
                     icon: "server.rack",
@@ -416,8 +407,7 @@ struct QingLongWorkspaceCard: View {
                 )
             }
         }
-        .padding(14)
-        .cardStyle()
+        .esCard()
     }
 }
 
@@ -432,32 +422,26 @@ private struct QingLongCronWorkspace: View {
     let logAction: (QingLongCron) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            HStack(alignment: .top, spacing: ESUI.Space.sm) {
+                VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                     Text("任务列表")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.headline)
                         .foregroundStyle(.primary)
 
                     Text(summaryText)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Spacer(minLength: 0)
+                Spacer(minLength: ESUI.Space.xs)
 
                 Button(action: openSharedEnvironmentsAction) {
                     Label(sharedButtonTitle, systemImage: "shippingbox")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.blue)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(Color.blue.opacity(0.12))
-                        )
+                        .font(.caption.weight(.semibold))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.bordered)
             }
 
             QingLongSearchField(text: $viewModel.cronSearchText, placeholder: "搜索任务")
@@ -479,7 +463,7 @@ private struct QingLongCronWorkspace: View {
                     title: "无匹配结果"
                 )
             } else {
-                LazyVStack(spacing: 8) {
+                LazyVStack(spacing: ESUI.Space.xs) {
                     ForEach(viewModel.filteredCrons) { cron in
                         QingLongCronListRow(
                             cron: cron,
@@ -525,31 +509,31 @@ private struct QingLongCronListRow<Destination: View>: View {
     let logAction: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: ESUI.Space.sm) {
             RoundedRectangle(cornerRadius: 3, style: .continuous)
                 .fill(statusColor)
                 .frame(width: 4, height: 34)
 
             NavigationLink(destination: destination()) {
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: ESUI.Space.sm) {
+                    VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                         Text(cron.primaryTitle)
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
 
                         HStack(spacing: 5) {
                             Image(systemName: "clock")
-                                .font(.system(size: 9, weight: .bold))
+                                .font(.caption2.weight(.bold))
                                 .foregroundStyle(.secondary)
 
                             if let lastExecutedAt = cron.lastExecutedAt {
                                 Text(relativeDateText(lastExecutedAt))
-                                    .font(.system(size: 10, weight: .medium))
+                                    .font(.caption2)
                                     .foregroundStyle(.secondary)
                             } else {
                                 Text("未执行")
-                                    .font(.system(size: 10, weight: .medium))
+                                    .font(.caption2)
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -557,7 +541,7 @@ private struct QingLongCronListRow<Destination: View>: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.caption2.weight(.bold))
                         .foregroundStyle(Color.secondary.opacity(0.7))
                 }
             }
@@ -574,12 +558,12 @@ private struct QingLongCronListRow<Destination: View>: View {
                             .frame(width: 14, height: 14)
                     }
                 }
-                .font(.system(size: 12, weight: .bold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(cron.hasLog ? Color.green : Color.secondary)
                 .frame(width: 32, height: 32)
                 .background(
                     Circle()
-                        .fill(cron.hasLog ? Color.green.opacity(0.12) : Color(.quaternarySystemFill))
+                        .fill(cron.hasLog ? Color.accentColor.opacity(0.12) : Color(.quaternarySystemFill))
                 )
             }
             .buttonStyle(.plain)
@@ -588,11 +572,11 @@ private struct QingLongCronListRow<Destination: View>: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .fill(ESUI.surface)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
                 .stroke(statusColor.opacity(0.14), lineWidth: 1)
         )
     }
@@ -619,9 +603,9 @@ private struct QingLongLinkedEnvironmentSummary: View {
     let editAction: () -> Void
 
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .center, spacing: ESUI.Space.xs) {
             Image(systemName: "shippingbox")
-                .font(.system(size: 11, weight: .bold))
+                .font(.caption2.weight(.bold))
                 .foregroundStyle(.blue)
 
             Text(linkedEnvironment.scriptKey)
@@ -647,17 +631,17 @@ private struct QingLongLinkedEnvironmentSummary: View {
 
             Button(action: editAction) {
                 Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.caption.weight(.semibold))
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
+                    .padding(.vertical, ESUI.Space.xs)
             }
             .buttonStyle(.bordered)
             .tint(.blue)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(.horizontal, ESUI.Space.sm)
+        .padding(.vertical, ESUI.Space.xs)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
                 .fill(Color.white.opacity(0.58))
         )
     }
@@ -723,16 +707,16 @@ struct QingLongEnvironmentEditorSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: ESUI.Space.md) {
                     if let subtitle = context.subtitle {
                         Text(subtitle)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
 
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: ESUI.Space.xs) {
                         Text("变量名")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
 
                         TextField("变量名", text: $name)
@@ -743,15 +727,15 @@ struct QingLongEnvironmentEditorSheet: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)
                             .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color(.secondarySystemGroupedBackground))
+                                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                                    .fill(ESUI.surface)
                             )
                     }
 
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: ESUI.Space.xs) {
                         HStack {
                             Text("变量值")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.caption.weight(.semibold))
                                 .foregroundStyle(.secondary)
 
                             Spacer()
@@ -759,38 +743,38 @@ struct QingLongEnvironmentEditorSheet: View {
                             Button("格式化") {
                                 value = QingLongJSONFormatter.editorFormatted(value) ?? value
                             }
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.caption2.weight(.semibold))
                             .disabled(value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                             Text("可留空")
-                                .font(.system(size: 11, weight: .medium))
+                                .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
 
                         TextEditor(text: $value)
                             .font(.system(size: 13, weight: .semibold, design: .monospaced))
                             .frame(minHeight: 180)
-                            .padding(10)
+                            .padding(ESUI.Space.sm)
                             .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color(.secondarySystemGroupedBackground))
+                                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                                    .fill(ESUI.surface)
                             )
                     }
 
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: ESUI.Space.xs) {
                         Text("备注")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(.secondary)
 
                         TextField("可选", text: $remarks)
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.subheadline)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)
                             .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color(.secondarySystemGroupedBackground))
+                                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                                    .fill(ESUI.surface)
                             )
                     }
 
@@ -804,7 +788,7 @@ struct QingLongEnvironmentEditorSheet: View {
                                         .scaleEffect(0.85)
                                 }
                             }
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                         }
@@ -813,9 +797,9 @@ struct QingLongEnvironmentEditorSheet: View {
                         .disabled(isExistingEnvironmentPending || isSaving)
                     }
                 }
-                .padding(16)
+                .padding(ESUI.Space.md)
             }
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .background(ESUI.appBackground.ignoresSafeArea())
             .navigationTitle(context.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -871,14 +855,14 @@ struct QingLongCronEditorSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: ESUI.Space.md) {
                 Text(context.title)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
 
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: ESUI.Space.xs) {
                     Text("Cron")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
 
                     TextField("例如 */5 * * * *", text: $schedule, axis: .vertical)
@@ -888,19 +872,19 @@ struct QingLongCronEditorSheet: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 10)
                         .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color(.secondarySystemGroupedBackground))
+                            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                                .fill(ESUI.surface)
                         )
                 }
 
                 Text("只修改主 cron 表达式，命令和其它配置保持不变。")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
 
                 Spacer(minLength: 0)
             }
-            .padding(16)
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .padding(ESUI.Space.md)
+            .background(ESUI.appBackground.ignoresSafeArea())
             .navigationTitle("编辑调度")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -943,7 +927,7 @@ private struct QingLongCronDetailView: View {
         Group {
             if let cron = currentCron {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: ESUI.Space.md) {
                         QingLongCronSummaryCard(
                             cron: cron,
                             linkedEnvironment: viewModel.linkedEnvironment(for: cron),
@@ -982,15 +966,15 @@ private struct QingLongCronDetailView: View {
                             }
                         )
                     }
-                    .padding(16)
+                    .padding(ESUI.Space.md)
                 }
-                .background(Color(.systemGroupedBackground).ignoresSafeArea())
+                .background(ESUI.appBackground.ignoresSafeArea())
                 .navigationTitle(cron.primaryTitle)
                 .navigationBarTitleDisplayMode(.inline)
             } else {
                 QingLongEmptyState(icon: "clock.arrow.circlepath", title: "任务不存在")
-                    .padding(16)
-                    .background(Color(.systemGroupedBackground).ignoresSafeArea())
+                    .padding(ESUI.Space.md)
+                    .background(ESUI.appBackground.ignoresSafeArea())
             }
         }
     }
@@ -1013,8 +997,8 @@ private struct QingLongCronSummaryCard: View {
     let logAction: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: ESUI.Space.md) {
+            HStack(spacing: ESUI.Space.xs) {
                 QingLongCronStateBadge(cron: cron)
 
                 if cron.isPinned {
@@ -1029,15 +1013,15 @@ private struct QingLongCronSummaryCard: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: ESUI.Space.xs) {
                 Text(cron.primaryTitle)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.title2.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(3)
 
                 if !cron.secondaryTitle.isEmpty {
                     Text(cron.secondaryTitle)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(3)
                 }
@@ -1045,10 +1029,10 @@ private struct QingLongCronSummaryCard: View {
 
             LazyVGrid(
                 columns: [
-                    GridItem(.flexible(), spacing: 10),
-                    GridItem(.flexible(), spacing: 10)
+                    GridItem(.flexible(), spacing: ESUI.Space.sm),
+                    GridItem(.flexible(), spacing: ESUI.Space.sm)
                 ],
-                spacing: 10
+                spacing: ESUI.Space.sm
             ) {
                 QingLongDetailMetricTile(
                     title: "上次执行",
@@ -1062,8 +1046,8 @@ private struct QingLongCronSummaryCard: View {
             }
 
             if let linkedEnvironment {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+                    HStack(spacing: ESUI.Space.xs) {
                         Text(linkedEnvironment.scriptKey)
                             .font(.system(size: 13, weight: .bold, design: .monospaced))
                             .foregroundStyle(.primary)
@@ -1093,7 +1077,7 @@ private struct QingLongCronSummaryCard: View {
 
                     Button(action: editScriptEnvironmentAction) {
                         Label(linkedEnvironment.primaryEnvironment == nil ? "新建变量" : "编辑变量", systemImage: "slider.horizontal.3")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.footnote.weight(.semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                     }
@@ -1101,22 +1085,22 @@ private struct QingLongCronSummaryCard: View {
                     .tint(.blue)
                     .disabled(isEnvironmentPending)
                 }
-                .padding(12)
+                .padding(ESUI.Space.sm)
                 .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color(.tertiarySystemFill))
+                    RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                        .fill(ESUI.fill)
                 )
             }
 
             ViewThatFits(in: .vertical) {
-                HStack(spacing: 10) {
+                HStack(spacing: ESUI.Space.sm) {
                     primaryButton
                     logButton
                     actionMenu
                 }
 
-                VStack(spacing: 10) {
-                    HStack(spacing: 10) {
+                VStack(spacing: ESUI.Space.sm) {
+                    HStack(spacing: ESUI.Space.sm) {
                         primaryButton
                         logButton
                     }
@@ -1128,14 +1112,13 @@ private struct QingLongCronSummaryCard: View {
                 }
             }
         }
-        .padding(16)
-        .cardStyle()
+        .esCard()
     }
 
     private var primaryButton: some View {
         Button(action: primaryAction) {
             Label(cron.isRunning ? "停止" : "运行", systemImage: cron.isRunning ? "stop.fill" : "play.fill")
-                .font(.system(size: 13, weight: .bold))
+                .font(.footnote.weight(.semibold))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
         }
@@ -1146,7 +1129,7 @@ private struct QingLongCronSummaryCard: View {
 
     private var logButton: some View {
         Button(action: logAction) {
-            HStack(spacing: 6) {
+            HStack(spacing: ESUI.Space.xs) {
                 if isLogLoading {
                     ProgressView()
                         .scaleEffect(0.85)
@@ -1158,12 +1141,12 @@ private struct QingLongCronSummaryCard: View {
 
                 Text("查看日志")
             }
-            .font(.system(size: 13, weight: .bold))
+            .font(.footnote.weight(.semibold))
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
         }
         .buttonStyle(.bordered)
-        .tint(.green)
+        .tint(.accentColor)
         .disabled(isPending || !cron.hasLog || isLogLoading)
     }
 
@@ -1174,7 +1157,7 @@ private struct QingLongCronSummaryCard: View {
             }
         } label: {
             Label("更多", systemImage: "ellipsis.circle")
-                .font(.system(size: 13, weight: .bold))
+                .font(.footnote.weight(.semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
         }
@@ -1220,13 +1203,13 @@ private struct QingLongCronScheduleCard: View {
 
     var body: some View {
         QingLongDetailCard(title: "调度") {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: ESUI.Space.sm) {
                 HStack {
                     Spacer(minLength: 0)
 
                     Button(action: editAction) {
                         Label("编辑", systemImage: "square.and.pencil")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.caption.weight(.semibold))
                     }
                     .buttonStyle(.bordered)
                     .tint(.blue)
@@ -1266,7 +1249,7 @@ private struct QingLongCronScriptCard<Destination: View>: View {
     var body: some View {
         QingLongDetailCard(title: "脚本文件") {
             if let scriptLocation = cron.scriptLocation {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: ESUI.Space.sm) {
                     QingLongDetailField(title: "文件", value: scriptLocation.fileName, monospaced: true)
 
                     if let path = scriptLocation.path, !path.isEmpty {
@@ -1275,7 +1258,7 @@ private struct QingLongCronScriptCard<Destination: View>: View {
 
                     NavigationLink(destination: destination()) {
                         Label("查看脚本文件", systemImage: "doc.text.magnifyingglass")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.footnote.weight(.semibold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                     }
@@ -1300,9 +1283,9 @@ private struct QingLongCronScriptFileView: View {
     var body: some View {
         Group {
             if let scriptLocation = cron.scriptLocation {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: ESUI.Space.md) {
                     QingLongDetailCard(title: "文件") {
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
                             QingLongDetailField(title: "文件名", value: scriptLocation.fileName, monospaced: true)
 
                             if let path = scriptLocation.path, !path.isEmpty {
@@ -1313,10 +1296,10 @@ private struct QingLongCronScriptFileView: View {
 
                     QingLongDetailCard(title: "脚本内容") {
                         if isLoading && scriptFile == nil {
-                            HStack(spacing: 10) {
+                            HStack(spacing: ESUI.Space.sm) {
                                 ProgressView()
                                 Text("加载中")
-                                    .font(.system(size: 13, weight: .medium))
+                                    .font(.footnote)
                                     .foregroundStyle(.secondary)
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -1336,9 +1319,9 @@ private struct QingLongCronScriptFileView: View {
                     }
                     .frame(maxHeight: .infinity, alignment: .top)
                 }
-                .padding(16)
+                .padding(ESUI.Space.md)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .background(Color(.systemGroupedBackground).ignoresSafeArea())
+                .background(ESUI.appBackground.ignoresSafeArea())
                 .navigationTitle(scriptLocation.fileName)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -1355,8 +1338,8 @@ private struct QingLongCronScriptFileView: View {
                 }
             } else {
                 QingLongEmptyState(icon: "doc.text", title: "未识别脚本路径")
-                    .padding(16)
-                    .background(Color(.systemGroupedBackground).ignoresSafeArea())
+                    .padding(ESUI.Space.md)
+                    .background(ESUI.appBackground.ignoresSafeArea())
             }
         }
     }
@@ -1417,8 +1400,8 @@ private struct QingLongScriptCodeView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .fill(ESUI.fill)
         )
     }
 
@@ -1437,15 +1420,14 @@ private struct QingLongDetailCard<Content: View>: View {
     @ViewBuilder let content: () -> Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             Text(title)
-                .font(.system(size: 15, weight: .bold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
 
             content()
         }
-        .padding(16)
-        .cardStyle()
+        .esCard()
     }
 }
 
@@ -1457,7 +1439,7 @@ private struct QingLongDetailField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
 
             if monospaced {
@@ -1468,7 +1450,7 @@ private struct QingLongDetailField: View {
                     .textSelection(.enabled)
             } else {
                 Text(value)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.footnote)
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -1483,11 +1465,11 @@ private struct QingLongDetailMetricTile: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(title)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
 
             Text(value)
-                .font(.system(size: 14, weight: .bold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(2)
         }
@@ -1495,8 +1477,8 @@ private struct QingLongDetailMetricTile: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .fill(ESUI.fill)
         )
     }
 }
@@ -1505,17 +1487,17 @@ private struct QingLongCronStateBadge: View {
     let cron: QingLongCron
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: ESUI.Space.xs) {
             Circle()
                 .fill(statusColor)
                 .frame(width: 7, height: 7)
 
             Text(cron.statusText)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(statusColor)
         }
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
+        .padding(.horizontal, ESUI.Space.sm)
+        .padding(.vertical, ESUI.Space.xs)
         .background(
             Capsule(style: .continuous)
                 .fill(statusColor.opacity(0.12))
@@ -1550,7 +1532,7 @@ struct QingLongSharedEnvironmentsSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: ESUI.Space.md) {
                     QingLongSharedEnvironmentHeaderCard(
                         totalCount: viewModel.sharedEnvironments.count,
                         filteredCount: filteredSharedEnvironments.count,
@@ -1576,7 +1558,7 @@ struct QingLongSharedEnvironmentsSheet: View {
                             title: "无匹配结果"
                         )
                     } else {
-                        LazyVStack(spacing: 10) {
+                        LazyVStack(spacing: ESUI.Space.sm) {
                             ForEach(filteredSharedEnvironments) { environment in
                                 QingLongSharedEnvironmentRow(
                                     environment: environment,
@@ -1592,9 +1574,9 @@ struct QingLongSharedEnvironmentsSheet: View {
                         }
                     }
                 }
-                .padding(16)
+                .padding(ESUI.Space.md)
             }
-            .background(Color(.systemGroupedBackground).ignoresSafeArea())
+            .background(ESUI.appBackground.ignoresSafeArea())
             .navigationTitle("共享变量")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -1636,14 +1618,14 @@ private struct QingLongSharedEnvironmentHeaderCard: View {
     let createAction: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: ESUI.Space.sm) {
             VStack(alignment: .leading, spacing: 5) {
                 Text("共享变量")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.headline)
                     .foregroundStyle(.primary)
 
                 Text(summaryText)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
@@ -1651,24 +1633,24 @@ private struct QingLongSharedEnvironmentHeaderCard: View {
 
             Button(action: createAction) {
                 Label("新建", systemImage: "plus")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(.green)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
                     .padding(.horizontal, 11)
                     .padding(.vertical, 9)
                     .background(
                         Capsule(style: .continuous)
-                            .fill(Color.green.opacity(0.12))
+                            .fill(Color.accentColor.opacity(0.12))
                     )
             }
             .buttonStyle(.plain)
         }
-        .padding(14)
+        .padding(ESUI.Space.md)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
+                .fill(ESUI.surface)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
                 .stroke(Color.primary.opacity(0.06), lineWidth: 1)
         )
     }
@@ -1685,12 +1667,12 @@ private struct QingLongSharedEnvironmentRow: View {
     let toggleEnabledAction: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 10) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            HStack(alignment: .top, spacing: ESUI.Space.sm) {
+                VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+                    HStack(spacing: ESUI.Space.xs) {
                         Text(environment.titleText)
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
 
@@ -1699,7 +1681,7 @@ private struct QingLongSharedEnvironmentRow: View {
 
                     if !environment.remarks.isEmpty {
                         Text(environment.remarks)
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -1713,9 +1695,9 @@ private struct QingLongSharedEnvironmentRow: View {
                 }
             }
 
-            HStack(spacing: 8) {
+            HStack(spacing: ESUI.Space.xs) {
                 Image(systemName: environment.isEmptyValue ? "minus.circle" : "key.horizontal.fill")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.caption2.weight(.bold))
                     .foregroundStyle(environment.isEmptyValue ? Color.secondary : Color.blue)
 
                 Text(environment.isEmptyValue ? "空值" : environment.maskedValue)
@@ -1725,19 +1707,19 @@ private struct QingLongSharedEnvironmentRow: View {
 
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, ESUI.Space.sm)
             .padding(.vertical, 9)
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(.tertiarySystemFill))
+                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                    .fill(ESUI.fill)
             )
 
-            HStack(spacing: 8) {
+            HStack(spacing: ESUI.Space.xs) {
                 Button(action: toggleEnabledAction) {
                     Label(environment.isEnabled ? "禁用" : "启用", systemImage: environment.isEnabled ? "pause.circle" : "play.circle")
-                        .font(.system(size: 11, weight: .bold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, ESUI.Space.sm)
+                        .padding(.vertical, ESUI.Space.xs)
                 }
                 .buttonStyle(.bordered)
                 .tint(environment.isEnabled ? .orange : .green)
@@ -1745,9 +1727,9 @@ private struct QingLongSharedEnvironmentRow: View {
 
                 Button(action: editAction) {
                     Text("编辑")
-                        .font(.system(size: 11, weight: .bold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, ESUI.Space.sm)
+                        .padding(.vertical, ESUI.Space.xs)
                 }
                 .buttonStyle(.bordered)
                 .tint(.blue)
@@ -1755,13 +1737,13 @@ private struct QingLongSharedEnvironmentRow: View {
                 Spacer(minLength: 0)
             }
         }
-        .padding(14)
+        .padding(ESUI.Space.md)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
+                .fill(ESUI.surface)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
                 .stroke(statusColor.opacity(0.12), lineWidth: 1)
         )
     }

@@ -7,6 +7,7 @@ public struct EmailAssistantFeature: AppFeature {
     public var iconName: String = "envelope.badge"
     public var color: Color = .blue
     public var placement: AppFeaturePlacement = .moduleList
+    public var group: AppFeatureGroup? = .aiAndContent
 
     public init() {}
 

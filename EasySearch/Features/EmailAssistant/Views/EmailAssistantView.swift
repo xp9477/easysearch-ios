@@ -3,26 +3,25 @@ import SwiftUI
 import UIKit
 
 public struct EmailAssistantView: View {
+    @EnvironmentObject private var navigationState: AppNavigationState
     @StateObject private var viewModel = EmailAssistantViewModel()
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var cropSource: EmailAssistantCropSource?
     @State private var screenshotPreviewImage: UIImage?
 
-    private let accentColor = Color.blue
-
     public init() {}
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
                 contextCard
                 conversationCard
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 32)
+            .padding(.horizontal, ESUI.screenHorizontalPadding)
+            .padding(.top, ESUI.Space.md)
+            .padding(.bottom, ESUI.Space.xxxl)
         }
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .esScreenBackground()
         .navigationTitle("邮件助手")
         .navigationBarTitleDisplayMode(.inline)
         .scrollDismissesKeyboard(.interactively)
@@ -45,13 +44,15 @@ public struct EmailAssistantView: View {
         }
     }
 
+    // MARK: - Context
+
     private var contextCard: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            sectionTitle("写邮件")
+        VStack(alignment: .leading, spacing: ESUI.Space.md) {
+            ESSectionHeader(title: "写邮件")
             modeSelector
             preferenceStrip
 
-            VStack(spacing: 14) {
+            VStack(spacing: ESUI.Space.sm) {
                 if viewModel.mode == .reply {
                     TextEditorCard(
                         title: "来信",
@@ -73,40 +74,50 @@ public struct EmailAssistantView: View {
                     minHeight: viewModel.mode == .reply ? 112 : 148
                 )
             }
+
+            Button {
+                navigationState.openSettings(.emailAssistant)
+            } label: {
+                Label("AI 配置", systemImage: "slider.horizontal.3")
+                    .font(.footnote.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
         }
-        .padding(20)
-        .cardStyle()
+        .esCard()
     }
 
     private var modeSelector: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: ESUI.Space.sm) {
             ForEach(EmailAssistantMode.allCases) { mode in
                 Button {
                     withAnimation(.easeInOut(duration: 0.18)) {
                         viewModel.mode = mode
                     }
                 } label: {
-                    VStack(spacing: 8) {
+                    VStack(spacing: ESUI.Space.xs) {
                         Image(systemName: mode.iconName)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(viewModel.mode == mode ? accentColor : .secondary)
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(viewModel.mode == mode ? Color.accentColor : .secondary)
 
                         Text(mode.title)
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(viewModel.mode == mode ? .primary : .secondary)
                             .multilineTextAlignment(.center)
                             .lineLimit(2)
                             .frame(maxWidth: .infinity)
                     }
                     .frame(maxWidth: .infinity, minHeight: 72)
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, ESUI.Space.sm)
                     .background(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(viewModel.mode == mode ? accentColor.opacity(0.14) : Color(.tertiarySystemFill))
+                        RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
+                            .fill(viewModel.mode == mode ? Color.accentColor.opacity(0.12) : ESUI.fill)
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(viewModel.mode == mode ? accentColor.opacity(0.45) : Color.primary.opacity(0.06), lineWidth: viewModel.mode == mode ? 1.5 : 1)
+                        RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
+                            .stroke(
+                                viewModel.mode == mode ? Color.accentColor.opacity(0.35) : Color.primary.opacity(0.06),
+                                lineWidth: viewModel.mode == mode ? 1.5 : 1
+                            )
                     )
                 }
                 .buttonStyle(.plain)
@@ -115,8 +126,8 @@ public struct EmailAssistantView: View {
     }
 
     private var preferenceStrip: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 10) {
+        VStack(spacing: ESUI.Space.sm) {
+            HStack(spacing: ESUI.Space.sm) {
                 toneMenu
                 lengthMenu
             }
@@ -145,7 +156,7 @@ public struct EmailAssistantView: View {
                 }
             }
         } label: {
-            controlPill(title: "长度", value: viewModel.length.title, systemImage: "ruler")
+            controlPill(title: "长度", value: viewModel.length.title, systemImage: "text.alignleft")
         }
         .buttonStyle(.plain)
     }
@@ -178,59 +189,63 @@ public struct EmailAssistantView: View {
 
                 Text(isRecognizing ? "识别中" : "截图")
             }
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(accentColor)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Color.accentColor)
+            .padding(.horizontal, ESUI.Space.sm)
+            .padding(.vertical, ESUI.Space.xs)
             .background(
                 Capsule(style: .continuous)
-                    .fill(accentColor.opacity(0.12))
+                    .fill(Color.accentColor.opacity(0.12))
             )
         }
         .buttonStyle(.plain)
         .disabled(viewModel.isRecognizingScreenshot)
     }
 
-    private var conversationCard: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 12) {
-                sectionTitle("对话")
+    // MARK: - Conversation
 
-                Spacer(minLength: 12)
+    private var conversationCard: some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.md) {
+            HStack(alignment: .center, spacing: ESUI.Space.sm) {
+                Text("对话")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                Spacer(minLength: ESUI.Space.sm)
 
                 if viewModel.hasConversation {
                     Button(role: .destructive) {
                         viewModel.clearConversation()
                     } label: {
                         Label("清空对话", systemImage: "trash")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.caption.weight(.semibold))
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red.opacity(0.82))
+                    .buttonStyle(.bordered)
+                    .tint(.red)
                 }
             }
 
             if viewModel.completedConversation.isEmpty {
                 emptyConversationState
             } else {
-                VStack(spacing: 12) {
+                VStack(spacing: ESUI.Space.sm) {
                     ForEach(viewModel.completedConversation) { message in
                         messageRow(message)
                     }
                 }
             }
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: ESUI.Space.sm) {
                 TextField("输入要求或继续修改", text: $viewModel.messageDraft, axis: .vertical)
                     .lineLimit(2 ... 5)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, ESUI.Space.sm)
+                    .padding(.vertical, ESUI.Space.sm)
                     .background(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(Color(.tertiarySystemFill))
+                        RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                            .fill(ESUI.fill)
                     )
 
-                HStack(spacing: 12) {
+                HStack(spacing: ESUI.Space.sm) {
                     Button("重置全部") {
                         screenshotPreviewImage = nil
                         viewModel.resetAll()
@@ -249,27 +264,29 @@ public struct EmailAssistantView: View {
                                 ProgressView()
                             }
                         }
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.body.weight(.semibold))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                        .padding(.vertical, ESUI.Space.xs)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(accentColor)
                     .disabled(!viewModel.canSend)
                 }
 
                 if let message = cautionNoticeMessage {
-                    inlineErrorMessage(message)
+                    ESStatusBanner(
+                        title: message,
+                        systemImage: "exclamationmark.triangle.fill",
+                        tone: .warning
+                    )
                 }
             }
-            .padding(14)
+            .padding(ESUI.Space.sm)
             .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color(.tertiarySystemFill).opacity(0.72))
+                RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
+                    .fill(ESUI.fill.opacity(0.72))
             )
         }
-        .padding(20)
-        .cardStyle()
+        .esCard()
     }
 
     private func messageRow(_ message: EmailAssistantThreadMessage) -> some View {
@@ -314,52 +331,45 @@ public struct EmailAssistantView: View {
         await viewModel.importScreenshotText(from: croppedData)
     }
 
-    private func sectionTitle(_ title: String) -> some View {
-        Text(title)
-            .font(.system(size: 20, weight: .bold))
-            .foregroundStyle(.primary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     private func controlPill(title: String, value: String, systemImage: String) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: ESUI.Space.sm) {
             Image(systemName: systemImage)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(accentColor)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Color.accentColor)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Text(value)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
             }
 
-            Spacer(minLength: 8)
+            Spacer(minLength: ESUI.Space.xs)
 
             Image(systemName: "chevron.down")
-                .font(.system(size: 11, weight: .bold))
+                .font(.caption2.weight(.bold))
                 .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 11)
+        .padding(.horizontal, ESUI.Space.sm)
+        .padding(.vertical, ESUI.Space.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .fill(ESUI.fill)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
                 .stroke(Color.primary.opacity(0.05), lineWidth: 1)
         )
     }
 
     private func cropPreviewCard(_ image: UIImage) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             Text("OCR 预览")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
             Image(uiImage: image)
@@ -367,29 +377,19 @@ public struct EmailAssistantView: View {
                 .scaledToFit()
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(maxHeight: 170)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
                         .stroke(Color.primary.opacity(0.08), lineWidth: 1)
                 )
         }
     }
 
     private var emptyConversationState: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "bubble.left.and.text.bubble.right")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(accentColor)
-
-            Text("生成后会显示在这里")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.secondary)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
+        ESEmptyState(
+            title: "还没有生成内容",
+            message: "填写上下文后点「生成邮件」，结果会显示在这里。",
+            systemImage: "bubble.left.and.text.bubble.right"
         )
     }
 
@@ -401,85 +401,72 @@ public struct EmailAssistantView: View {
         return notice.message
     }
 
-    private func inlineErrorMessage(_ message: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(.orange)
-
-            Text(message)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.horizontal, 2)
-    }
-
     private func assistantBubble(_ message: EmailAssistantThreadMessage) -> some View {
         let text = message.structuredOutput?.formattedText ?? message.content
 
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 10) {
+        return VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            HStack(alignment: .center, spacing: ESUI.Space.sm) {
                 Label("邮件", systemImage: "sparkles")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(accentColor)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
 
-                Spacer(minLength: 8)
+                Spacer(minLength: ESUI.Space.xs)
 
                 Text(message.createdAt.formatted(.dateTime.hour().minute()))
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
 
                 Button("复制") {
                     UIPasteboard.general.string = text
                     viewModel.presentNotice(tone: .success, message: "已复制。")
                 }
-                .font(.system(size: 12, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .buttonStyle(.bordered)
             }
 
             Text(text)
-                .font(.system(size: 15, weight: .medium))
+                .font(.body)
                 .foregroundStyle(.primary)
                 .textSelection(.enabled)
         }
-        .padding(16)
+        .padding(ESUI.Space.md)
         .frame(maxWidth: 460, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color(.tertiarySystemFill))
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
+                .fill(ESUI.fill)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
                 .stroke(Color.primary.opacity(0.06), lineWidth: 1)
         )
     }
 
     private func userBubble(_ message: EmailAssistantThreadMessage) -> some View {
-        VStack(alignment: .trailing, spacing: 8) {
+        VStack(alignment: .trailing, spacing: ESUI.Space.xs) {
             Text(message.createdAt.formatted(.dateTime.hour().minute()))
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
 
             Text(message.content)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.primary)
                 .textSelection(.enabled)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                .padding(.horizontal, ESUI.Space.sm)
+                .padding(.vertical, ESUI.Space.sm)
                 .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(accentColor.opacity(0.14))
+                    RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.12))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(accentColor.opacity(0.2), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                        .stroke(Color.accentColor.opacity(0.2), lineWidth: 1)
                 )
         }
         .frame(maxWidth: 320, alignment: .trailing)
     }
-
 }
+
+// MARK: - Supporting
 
 private struct EmailAssistantCropSource: Identifiable {
     let id = UUID()
@@ -508,13 +495,13 @@ private struct TextEditorCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 10) {
+        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+            HStack {
                 Text(title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.primary)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
 
-                Spacer(minLength: 8)
+                Spacer()
 
                 if let accessory {
                     accessory
@@ -522,28 +509,24 @@ private struct TextEditorCard: View {
             }
 
             ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Color(.tertiarySystemFill))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(Color.primary.opacity(0.05), lineWidth: 1)
-                    )
-
                 if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     Text(placeholder)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 14)
+                        .font(.body)
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 8)
+                        .padding(.leading, 5)
                 }
 
                 TextEditor(text: $text)
-                    .scrollContentBackground(.hidden)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
+                    .font(.body)
                     .frame(minHeight: minHeight)
-                    .background(Color.clear)
+                    .scrollContentBackground(.hidden)
             }
+            .padding(ESUI.Space.xs)
+            .background(
+                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                    .fill(ESUI.fill)
+            )
         }
     }
 }
@@ -560,20 +543,13 @@ private struct EmailAssistantCropImageEditor: View {
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
-                let resolvedCanvasSize = aspectFitSize(
-                    for: image.size,
-                    in: CGSize(
-                        width: max(proxy.size.width - 40, 0),
-                        height: max(proxy.size.height - 40, 0)
-                    )
-                )
+                let resolvedCanvasSize = aspectFitSize(for: image.size, in: proxy.size)
 
                 ZStack {
-                    Color(.systemGroupedBackground)
-                        .ignoresSafeArea()
+                    Color.black.ignoresSafeArea()
 
                     VStack {
-                        Spacer(minLength: 20)
+                        Spacer()
 
                         ZStack(alignment: .topLeading) {
                             Image(uiImage: image)
@@ -589,7 +565,7 @@ private struct EmailAssistantCropImageEditor: View {
 
                             if let selectionRect {
                                 Rectangle()
-                                    .stroke(Color.blue, style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
+                                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
                                     .frame(width: selectionRect.width, height: selectionRect.height)
                                     .offset(x: selectionRect.minX, y: selectionRect.minY)
                             }
@@ -599,15 +575,15 @@ private struct EmailAssistantCropImageEditor: View {
                         Spacer()
 
                         Text("拖动调整区域")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.secondary)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
+                            .padding(.horizontal, ESUI.Space.md)
+                            .padding(.vertical, ESUI.Space.sm)
                             .background(
                                 Capsule(style: .continuous)
-                                    .fill(Color(.secondarySystemGroupedBackground))
+                                    .fill(ESUI.surface)
                             )
-                            .padding(.bottom, 20)
+                            .padding(.bottom, ESUI.Space.lg)
                     }
                 }
                 .onAppear {

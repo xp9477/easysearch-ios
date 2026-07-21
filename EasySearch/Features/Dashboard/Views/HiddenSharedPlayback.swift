@@ -776,8 +776,8 @@ struct HiddenSharedVideoPlayerView: View {
 
                     Spacer()
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 14)
+                .padding(.horizontal, ESUI.Space.md)
+                .padding(.top, ESUI.Space.md)
             }
         }
         .allowsHitTesting(true)
@@ -843,7 +843,7 @@ struct HiddenSharedVideoPlayerView: View {
                                 markerPositions: markerPositions,
                                 duration: duration
                             )
-                            .padding(.horizontal, 12)
+                            .padding(.horizontal, ESUI.Space.sm)
                             .allowsHitTesting(false)
                         }
                     }
@@ -878,8 +878,8 @@ struct HiddenSharedVideoPlayerView: View {
                             Label(isMuted ? "开启声音" : "静音", systemImage: isMuted ? "speaker.wave.2.fill" : "speaker.slash.fill")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 10)
+                                .padding(.horizontal, ESUI.Space.md)
+                                .padding(.vertical, ESUI.Space.sm)
                                 .background(Color.white.opacity(0.12), in: Capsule())
                         }
                         .buttonStyle(.plain)
@@ -896,15 +896,15 @@ struct HiddenSharedVideoPlayerView: View {
                             }
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
+                            .padding(.horizontal, ESUI.Space.sm)
+                            .padding(.vertical, ESUI.Space.xs)
                             .background(Color.white.opacity(0.14), in: Capsule())
                             .buttonStyle(.plain)
                         }
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 20)
+                .padding(.horizontal, ESUI.Space.md)
+                .padding(.bottom, ESUI.Space.lg)
             }
         }
         .allowsHitTesting(true)
@@ -915,8 +915,8 @@ struct HiddenSharedVideoPlayerView: View {
         Text(text)
             .font(.caption2.weight(.semibold))
             .foregroundStyle(.white.opacity(0.9))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.horizontal, ESUI.Space.xs)
+            .padding(.vertical, ESUI.Space.xxs)
             .background(Color.white.opacity(0.12), in: Capsule())
     }
 
@@ -991,17 +991,17 @@ struct HiddenSharedVideoPlayerView: View {
                     }
                     .frame(width: 8, height: 88)
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 16)
-                .background(Color.black.opacity(0.58), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .padding(.horizontal, ESUI.Space.md)
+                .padding(.vertical, ESUI.Space.md)
+                .background(Color.black.opacity(0.58), in: RoundedRectangle(cornerRadius: ESUI.Space.lg, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    RoundedRectangle(cornerRadius: ESUI.Space.lg, style: .continuous)
                         .stroke(Color.white.opacity(0.16), lineWidth: 1)
                 )
 
                 Spacer()
             }
-            .padding(.leading, 18)
+            .padding(.leading, ESUI.Space.lg)
             .padding(.bottom, controlsVisible ? 168 : 84)
         }
         .allowsHitTesting(false)
@@ -1019,7 +1019,7 @@ struct HiddenSharedVideoPlayerView: View {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
-            .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(Color.white.opacity(0.12), in: RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -1518,13 +1518,13 @@ struct HiddenSharedWebPageView: View {
                             }
                             .buttonStyle(.plain)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 14)
+                        .padding(.horizontal, ESUI.Space.md)
+                        .padding(.top, ESUI.Space.md)
 
                         if webState.isLoading {
                             ProgressView(value: webState.progress)
                                 .tint(.white)
-                                .padding(.horizontal, 16)
+                                .padding(.horizontal, ESUI.Space.md)
                         }
                     }
                 }

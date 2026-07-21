@@ -7,6 +7,7 @@ public struct ImageTranslateFeature: AppFeature {
     public var iconName: String = "globe"
     public var color: Color = .cyan
     public var placement: AppFeaturePlacement = .moduleList
+    public var group: AppFeatureGroup? = .aiAndContent
 
     public init() {}
 

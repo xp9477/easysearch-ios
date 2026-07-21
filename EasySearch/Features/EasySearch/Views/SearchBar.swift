@@ -1,64 +1,40 @@
 import SwiftUI
 
-/// 自定义搜索框组件
 struct SearchBar: View {
     @Binding var text: String
     var isFocused: FocusState<Bool>.Binding
-    var onSubmit: () -> Void = {}
+    var onSubmit: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: ESUI.Space.sm) {
             Image(systemName: "magnifyingglass")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(isFocused.wrappedValue ? Color.accentColor : .secondary)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
 
-            TextField("输入要搜索的内容", text: $text)
-                .font(.body)
-                .focused(isFocused)
-                .submitLabel(.done)
-                .autocorrectionDisabled()
+            TextField("输入搜索内容", text: $text)
                 .textInputAutocapitalization(.never)
+                .disableAutocorrection(true)
+                .submitLabel(.search)
+                .focused(isFocused)
                 .onSubmit(onSubmit)
 
             if !text.isEmpty {
                 Button {
                     text = ""
-                    isFocused.wrappedValue = true
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.tertiary)
                 }
-                .transition(.scale.combined(with: .opacity))
+                .buttonStyle(.plain)
+                .accessibilityLabel("清除")
             }
         }
-        .padding(.horizontal, 16)
-        .frame(minHeight: 54)
+        .padding(.horizontal, ESUI.Space.md)
+        .padding(.vertical, ESUI.Space.sm)
         .background(
             RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                .fill(Color(.tertiarySystemGroupedBackground))
+                .fill(ESUI.surface)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                .stroke(isFocused.wrappedValue ? Color.accentColor.opacity(0.45) : Color.primary.opacity(0.06), lineWidth: 1)
-        )
-        .shadow(color: isFocused.wrappedValue ? Color.accentColor.opacity(0.08) : .clear, radius: 12, x: 0, y: 6)
-        .animation(.easeInOut(duration: 0.15), value: isFocused.wrappedValue)
-        .animation(.easeInOut(duration: 0.15), value: text.isEmpty)
-    }
-}
-
-#Preview {
-    PreviewSearchBar()
-        .padding()
-        .background(Color(.systemGroupedBackground))
-}
-
-private struct PreviewSearchBar: View {
-    @State private var text = ""
-    @FocusState private var isFocused: Bool
-
-    var body: some View {
-        SearchBar(text: $text, isFocused: $isFocused)
+        .accessibilityElement(children: .contain)
     }
 }
