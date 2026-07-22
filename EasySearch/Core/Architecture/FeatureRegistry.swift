@@ -30,6 +30,7 @@ public class FeatureRegistry: ObservableObject {
     public init() {
         features.append(EasySearchFeature())
         features.append(UTTrackerFeature())
+        features.append(TrainingLogFeature())
         features.append(ExpenseAssistantFeature())
         features.append(QingLongFeature())
         features.append(ImageTranslateFeature())
@@ -163,6 +164,21 @@ public final class FeatureStatusCenter: ObservableObject {
             next["uttracker"] = FeatureStatusSummary(kind: .empty, text: "暂无记录")
         } else {
             next["uttracker"] = FeatureStatusSummary(kind: .ready, text: "本月可记录")
+        }
+
+        // Training log
+        let trainingSnapshot = TrainingLogLocalStore().loadSnapshot()
+        let trainingMonthStart = TrainingLogCalendar.startOfMonth(Date())
+        let trainingDaysThisMonth = trainingSnapshot.days.values.filter { day in
+            day.hasTraining && TrainingLogCalendar.calendar.isDate(day.dayStart, equalTo: trainingMonthStart, toGranularity: .month)
+        }.count
+        if trainingSnapshot.days.values.contains(where: \.hasTraining) {
+            next["training-log"] = FeatureStatusSummary(
+                kind: .ready,
+                text: trainingDaysThisMonth > 0 ? "本月 \(trainingDaysThisMonth) 天" : "有历史"
+            )
+        } else {
+            next["training-log"] = FeatureStatusSummary(kind: .empty, text: "暂无训练")
         }
 
         // Expense

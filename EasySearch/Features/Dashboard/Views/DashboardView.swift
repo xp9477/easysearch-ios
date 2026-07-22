@@ -25,7 +25,7 @@ public struct DashboardView: View {
     public var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: ESUI.Space.md) {
+                VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
                     if moduleFeatures.isEmpty && unlockedHiddenFeatures.isEmpty {
                         ESEmptyState(
                             title: "暂无模块",
@@ -138,17 +138,17 @@ public struct DashboardView: View {
 
     private func moduleGroupSection(group: AppFeatureGroup, features: [any AppFeature]) -> some View {
         let columns = [
-            GridItem(.flexible(), spacing: ESUI.Space.xs),
-            GridItem(.flexible(), spacing: ESUI.Space.xs)
+            GridItem(.flexible(), spacing: ESUI.Space.sm),
+            GridItem(.flexible(), spacing: ESUI.Space.sm)
         ]
 
-        return VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+        return VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             Text(group.title)
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 2)
 
-            LazyVGrid(columns: columns, spacing: ESUI.Space.xs) {
+            LazyVGrid(columns: columns, spacing: ESUI.Space.sm) {
                 ForEach(Array(features.enumerated()), id: \.element.id) { index, feature in
                     Button {
                         openFeature(feature)

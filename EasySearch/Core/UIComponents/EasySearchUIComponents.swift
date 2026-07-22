@@ -5,22 +5,22 @@ import SwiftUI
 enum ESUI {
     enum Space {
         static let xxs: CGFloat = 4
-        static let xs: CGFloat = 8
-        static let sm: CGFloat = 12
-        static let md: CGFloat = 16
-        static let lg: CGFloat = 20
-        static let xl: CGFloat = 24
-        static let xxl: CGFloat = 32
-        static let xxxl: CGFloat = 40
-        static let huge: CGFloat = 48
+        static let xs: CGFloat = 10
+        static let sm: CGFloat = 14
+        static let md: CGFloat = 18
+        static let lg: CGFloat = 22
+        static let xl: CGFloat = 28
+        static let xxl: CGFloat = 36
+        static let xxxl: CGFloat = 44
+        static let huge: CGFloat = 52
     }
 
     static let screenHorizontalPadding: CGFloat = Space.md
     static let sectionSpacing: CGFloat = Space.xl
-    static let rowSpacing: CGFloat = Space.sm
-    static let cardCornerRadius: CGFloat = 18
-    static let compactCornerRadius: CGFloat = 14
-    static let tileCornerRadius: CGFloat = 20
+    static let rowSpacing: CGFloat = Space.sm + 2
+    static let cardCornerRadius: CGFloat = 20
+    static let compactCornerRadius: CGFloat = 16
+    static let tileCornerRadius: CGFloat = 22
     static let bottomTabSpacing: CGFloat = 88
 
     static var appBackground: Color { Color(.systemGroupedBackground) }
@@ -45,10 +45,12 @@ enum ESUI {
         static let webdav = (Color(red: 0.16, green: 0.42, blue: 0.88), Color(red: 0.28, green: 0.62, blue: 0.98))
         static let utilities = (Color(red: 0.35, green: 0.40, blue: 0.48), Color(red: 0.55, green: 0.60, blue: 0.68))
         static let hidden = (Color(red: 0.48, green: 0.32, blue: 0.90), Color(red: 0.70, green: 0.45, blue: 0.98))
+        static let training = (Color(red: 0.95, green: 0.38, blue: 0.48), Color(red: 1.0, green: 0.58, blue: 0.42))
 
         static func pair(for featureID: String) -> (Color, Color) {
             switch featureID {
             case "uttracker": return ut
+            case "training-log": return training
             case "expense-assistant": return expense
             case "qinglong-management": return qingLong
             case "image-translate": return translate
@@ -284,15 +286,15 @@ struct ESModuleTile: View {
                 customIcon
             } else {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: 13, style: .continuous)
                         .fill(
                             LinearGradient(colors: [pair.0, pair.1], startPoint: .topLeading, endPoint: .bottomTrailing)
                         )
-                        .frame(width: 36, height: 36)
-                        .shadow(color: pair.0.opacity(0.22), radius: 6, y: 2)
+                        .frame(width: 40, height: 40)
+                        .shadow(color: pair.0.opacity(0.22), radius: 7, y: 2)
 
                     Image(systemName: systemImage)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.white)
                 }
             }
@@ -315,8 +317,8 @@ struct ESModuleTile: View {
             }
         }
         .padding(.horizontal, ESUI.Space.sm + 2)
-        .padding(.vertical, ESUI.Space.sm)
-        .frame(maxWidth: .infinity, minHeight: isWide ? 52 : 56, alignment: .leading)
+        .padding(.vertical, ESUI.Space.sm + 2)
+        .frame(maxWidth: .infinity, minHeight: isWide ? 58 : 64, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
                 .fill(ESUI.surface)
@@ -350,16 +352,16 @@ struct ESModuleHero: View {
 
         HStack(spacing: ESUI.Space.sm) {
             ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(LinearGradient(colors: [pair.0, pair.1], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 46, height: 46)
+                    .frame(width: 48, height: 48)
 
                 Image(systemName: systemImage)
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 19, weight: .semibold))
                     .foregroundStyle(.white)
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headline.weight(.bold))
                 if let subtitle, !subtitle.isEmpty {
@@ -372,7 +374,7 @@ struct ESModuleHero: View {
 
             Spacer(minLength: 0)
         }
-        .padding(ESUI.Space.md)
+        .padding(ESUI.Space.md + 2)
         .background(
             RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
                 .fill(ESUI.surface)

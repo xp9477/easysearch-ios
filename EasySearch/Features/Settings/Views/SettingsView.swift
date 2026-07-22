@@ -90,8 +90,8 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.horizontal, ESUI.screenHorizontalPadding)
-                .padding(.top, ESUI.Space.sm)
-                .padding(.bottom, ESUI.Space.lg)
+                .padding(.top, ESUI.Space.md)
+                .padding(.bottom, ESUI.Space.xxl)
             }
             .esBottomTabPadding()
             .esScreenBackground()

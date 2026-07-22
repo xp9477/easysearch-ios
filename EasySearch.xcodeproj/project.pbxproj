@@ -112,6 +112,11 @@
 		E362E51FD8833EE073E17BDE /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DE58CC4FBE5DDA9B8E6C8416 /* Foundation.framework */; };
 		E3CE5ADE8C75D1F8EE33B52A /* ImageTranslateSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEE5D4584B694CD5678242E5 /* ImageTranslateSessionStore.swift */; };
 		FE398CDB8405CA4107E65C61 /* CategoryTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795E17200E5B98842C811DAF /* CategoryTabBar.swift */; };
+		F50000000000000000000001 /* TrainingLogFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000101 /* TrainingLogFeature.swift */; };
+		F50000000000000000000002 /* TrainingLogModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000102 /* TrainingLogModels.swift */; };
+		F50000000000000000000003 /* TrainingLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000103 /* TrainingLogStore.swift */; };
+		F50000000000000000000004 /* TrainingLogViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000104 /* TrainingLogViewModel.swift */; };
+		F50000000000000000000005 /* TrainingLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000105 /* TrainingLogView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -256,6 +261,11 @@
 		DEE5D4584B694CD5678242E5 /* ImageTranslateSessionStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateSessionStore.swift; path = EasySearch/Features/ImageTranslate/Models/ImageTranslateSessionStore.swift; sourceTree = SOURCE_ROOT; };
 		E53A9599509BBCA5DB03ABC4 /* SearchViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchViewModel.swift; path = EasySearch/Features/EasySearch/ViewModels/SearchViewModel.swift; sourceTree = SOURCE_ROOT; };
 		E9AD7A5FC3ED0A3372776E30 /* AppRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppRouter.swift; path = EasySearch/Core/Navigation/AppRouter.swift; sourceTree = SOURCE_ROOT; };
+		F50000000000000000000101 /* TrainingLogFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrainingLogFeature.swift; path = EasySearch/Features/TrainingLog/TrainingLogFeature.swift; sourceTree = SOURCE_ROOT; };
+		F50000000000000000000102 /* TrainingLogModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrainingLogModels.swift; path = EasySearch/Features/TrainingLog/Models/TrainingLogModels.swift; sourceTree = SOURCE_ROOT; };
+		F50000000000000000000103 /* TrainingLogStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrainingLogStore.swift; path = EasySearch/Features/TrainingLog/Models/TrainingLogStore.swift; sourceTree = SOURCE_ROOT; };
+		F50000000000000000000104 /* TrainingLogViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrainingLogViewModel.swift; path = EasySearch/Features/TrainingLog/ViewModels/TrainingLogViewModel.swift; sourceTree = SOURCE_ROOT; };
+		F50000000000000000000105 /* TrainingLogView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrainingLogView.swift; path = EasySearch/Features/TrainingLog/Views/TrainingLogView.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -515,6 +525,7 @@
 				E100000000000000000000201 /* ExpenseAssistant */,
 				6454E79B9B44E6FA2F45817D /* Settings */,
 				D1A000000000000000000201 /* UTTracker */,
+				F50000000000000000000201 /* TrainingLog */,
 				D400000000000000000000201 /* QingLong */,
 				D500000000000000000000201 /* ImageTranslate */,
 				D600000000000000000000201 /* EmailAssistant */,
@@ -835,6 +846,42 @@
 			path = EasySearchShare;
 			sourceTree = "<group>";
 		};
+		F50000000000000000000201 /* TrainingLog */ = {
+			isa = PBXGroup;
+			children = (
+				F50000000000000000000202 /* Models */,
+				F50000000000000000000203 /* ViewModels */,
+				F50000000000000000000204 /* Views */,
+				F50000000000000000000101 /* TrainingLogFeature.swift */,
+			);
+			path = TrainingLog;
+			sourceTree = "<group>";
+		};
+		F50000000000000000000202 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				F50000000000000000000102 /* TrainingLogModels.swift */,
+				F50000000000000000000103 /* TrainingLogStore.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		F50000000000000000000203 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				F50000000000000000000104 /* TrainingLogViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		F50000000000000000000204 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				F50000000000000000000105 /* TrainingLogView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -1087,6 +1134,11 @@
 				D1A000000000000000000002 /* UTTrackerViewModel.swift in Sources */,
 				D1A000000000000000000003 /* UTTrackerView.swift in Sources */,
 				D1A000000000000000000004 /* UTTrackerFeature.swift in Sources */,
+				F50000000000000000000001 /* TrainingLogFeature.swift in Sources */,
+				F50000000000000000000002 /* TrainingLogModels.swift in Sources */,
+				F50000000000000000000003 /* TrainingLogStore.swift in Sources */,
+				F50000000000000000000004 /* TrainingLogViewModel.swift in Sources */,
+				F50000000000000000000005 /* TrainingLogView.swift in Sources */,
 				D1A000000000000000000005 /* UTNotificationManager.swift in Sources */,
 				E100000000000000000000001 /* ExpenseAssistantFeature.swift in Sources */,
 				E100000000000000000000002 /* ExpenseAssistantModels.swift in Sources */,
