@@ -761,14 +761,14 @@ struct ESSettingsRow: View {
     var showsChevron: Bool = true
 
     var body: some View {
-        HStack(spacing: ESUI.Space.sm) {
+        HStack(spacing: ESUI.Space.md) {
             if let systemImage {
-                ESFeatureIcon(systemName: systemImage, color: iconColor, size: 36)
+                ESFeatureIcon(systemName: systemImage, color: iconColor, size: 42)
             }
 
-            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.body.weight(.medium))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
@@ -780,7 +780,7 @@ struct ESSettingsRow: View {
                 }
             }
 
-            Spacer(minLength: ESUI.Space.xs)
+            Spacer(minLength: ESUI.Space.sm)
 
             if let statusText, !statusText.isEmpty {
                 ESStatusBadge(text: statusText, tone: statusTone)
@@ -788,12 +788,14 @@ struct ESSettingsRow: View {
 
             if showsChevron {
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
+                    .font(.footnote.weight(.semibold))
                     .foregroundStyle(.tertiary)
                     .accessibilityHidden(true)
             }
         }
-        .padding(ESUI.Space.md)
+        .padding(.horizontal, ESUI.Space.md + 2)
+        .padding(.vertical, ESUI.Space.md + 4)
+        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
         .esSurface()
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)

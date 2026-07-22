@@ -38,7 +38,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: ESUI.Space.md) {
+                VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
                     simpleListSection(title: "通用") {
                         NavigationLink(value: SettingsRoute.cloudSync) {
                             ESSettingsRow(title: "云端同步", systemImage: "icloud", iconColor: .blue)
@@ -90,8 +90,8 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.horizontal, ESUI.screenHorizontalPadding)
-                .padding(.top, ESUI.Space.md)
-                .padding(.bottom, ESUI.Space.xxl)
+                .padding(.top, ESUI.Space.lg)
+                .padding(.bottom, ESUI.Space.huge)
             }
             .esBottomTabPadding()
             .esScreenBackground()
@@ -138,13 +138,14 @@ struct SettingsView: View {
     }
 
     private func simpleListSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             Text(title)
-                .font(.footnote.weight(.semibold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
-                .padding(.horizontal, 2)
+                .padding(.horizontal, 4)
+                .padding(.bottom, 2)
 
-            VStack(spacing: 0) {
+            VStack(spacing: ESUI.Space.sm) {
                 content()
             }
         }
