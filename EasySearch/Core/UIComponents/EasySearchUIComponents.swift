@@ -267,84 +267,77 @@ struct ESStatusStrip: View {
 
 struct ESModuleTile: View {
     let title: String
-    var summary: String?
+    var summary: String? = nil
     var systemImage: String
     var featureID: String
-    var status: FeatureStatusSummary?
+    var status: FeatureStatusSummary? = nil
+    /// Compact numeric badge (e.g. overdue expense count). Preferred over status text.
+    var badgeCount: Int? = nil
     var isWide: Bool = false
     var customIcon: AnyView? = nil
 
     var body: some View {
         let pair = ESUI.ModuleAccent.pair(for: featureID)
 
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            HStack(alignment: .top) {
-                if let customIcon {
-                    customIcon
-                } else {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(
-                                LinearGradient(colors: [pair.0, pair.1], startPoint: .topLeading, endPoint: .bottomTrailing)
-                            )
-                            .frame(width: 44, height: 44)
-                            .shadow(color: pair.0.opacity(0.28), radius: 8, y: 3)
+        HStack(spacing: ESUI.Space.sm) {
+            if let customIcon {
+                customIcon
+            } else {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(
+                            LinearGradient(colors: [pair.0, pair.1], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        )
+                        .frame(width: 36, height: 36)
+                        .shadow(color: pair.0.opacity(0.22), radius: 6, y: 2)
 
-                        Image(systemName: systemImage)
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
-                    .accessibilityHidden(true)
-                }
-
-                Spacer(minLength: 0)
-
-                if let status {
-                    ESStatusBadge(text: status.text, tone: .from(kind: status.kind))
+                    Image(systemName: systemImage)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
                 }
             }
 
-            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
-                Text(title)
-                    .font(.body.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-
-                if let summary, !summary.isEmpty {
-                    Text(summary)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(isWide ? 2 : 2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
 
             Spacer(minLength: 0)
+
+            if let badgeCount, badgeCount > 0 {
+                Text(badgeCount > 99 ? "99+" : "\(badgeCount)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(ESUI.danger))
+            }
         }
-        .padding(ESUI.Space.md)
-        .frame(maxWidth: .infinity, minHeight: isWide ? 112 : 132, alignment: .topLeading)
+        .padding(.horizontal, ESUI.Space.sm + 2)
+        .padding(.vertical, ESUI.Space.sm)
+        .frame(maxWidth: .infinity, minHeight: isWide ? 52 : 56, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: ESUI.tileCornerRadius, style: .continuous)
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
                 .fill(ESUI.surface)
-                .shadow(color: Color.black.opacity(0.05), radius: 12, y: 5)
+                .shadow(color: Color.black.opacity(0.035), radius: 6, y: 2)
         )
         .overlay(
-            RoundedRectangle(cornerRadius: ESUI.tileCornerRadius, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: [pair.0.opacity(0.28), pair.1.opacity(0.12)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .stroke(pair.0.opacity(0.14), lineWidth: 1)
         )
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabelText)
+    }
+
+    private var accessibilityLabelText: String {
+        if let badgeCount, badgeCount > 0 {
+            return "\(title)，\(badgeCount)"
+        }
+        return title
     }
 }
-
-// MARK: - Module Page Chrome
 
 struct ESModuleHero: View {
     let title: String

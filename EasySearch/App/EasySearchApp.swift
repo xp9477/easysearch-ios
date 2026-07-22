@@ -14,6 +14,7 @@ enum SettingsRoute: Hashable {
     case emailAssistant
     case qingLong
     case webDAV
+    case hiddenSpace
 }
 
 @MainActor

@@ -25,14 +25,10 @@ public struct DashboardView: View {
     public var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
-                    workbenchHero
-                    statusStrip
-
+                VStack(alignment: .leading, spacing: ESUI.Space.md) {
                     if moduleFeatures.isEmpty && unlockedHiddenFeatures.isEmpty {
                         ESEmptyState(
                             title: "暂无模块",
-                            message: "功能模块会显示在这里。",
                             systemImage: "square.grid.2x2"
                         )
                         .esCard()
@@ -50,7 +46,7 @@ public struct DashboardView: View {
                     }
                 }
                 .padding(.horizontal, ESUI.screenHorizontalPadding)
-                .padding(.top, ESUI.Space.md)
+                .padding(.top, ESUI.Space.sm)
                 .padding(.bottom, ESUI.Space.lg)
             }
             .esBottomTabPadding()
@@ -138,65 +134,21 @@ public struct DashboardView: View {
         return false
     }
 
-    private var greetingText: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 5..<12: return "上午好"
-        case 12..<18: return "下午好"
-        default: return "晚上好"
-        }
-    }
-
     // MARK: - Sections
-
-    private var workbenchHero: some View {
-        ESHeroHeader(
-            eyebrow: greetingText,
-            title: "工作台",
-            subtitle: "模块入口 · 状态一眼可见"
-        )
-        .contentShape(Rectangle())
-        .onTapGesture {
-            unlockHiddenModulesIfNeeded()
-        }
-        .esAppearSoft()
-        .accessibilityHint("连点可解锁私密入口")
-    }
-
-    private var statusStrip: some View {
-        ESStatusStrip(items: [
-            ESStatusStripItem(
-                id: "cloud",
-                title: "云同步",
-                value: statusCenter.cloudSummary.text,
-                tone: .from(kind: statusCenter.cloudSummary.kind)
-            ),
-            ESStatusStripItem(
-                id: "ai",
-                title: "AI",
-                value: statusCenter.deepSeekSummary.text,
-                tone: .from(kind: statusCenter.deepSeekSummary.kind)
-            ),
-            ESStatusStripItem(
-                id: "ops",
-                title: "青龙",
-                value: statusCenter.qingLongSummary.text,
-                tone: .from(kind: statusCenter.qingLongSummary.kind)
-            )
-        ])
-        .esAppearSoft(0.03)
-    }
 
     private func moduleGroupSection(group: AppFeatureGroup, features: [any AppFeature]) -> some View {
         let columns = [
-            GridItem(.flexible(), spacing: ESUI.Space.sm),
-            GridItem(.flexible(), spacing: ESUI.Space.sm)
+            GridItem(.flexible(), spacing: ESUI.Space.xs),
+            GridItem(.flexible(), spacing: ESUI.Space.xs)
         ]
 
-        return VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            ESSectionHeader(title: group.title, trailing: "\(features.count)")
+        return VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+            Text(group.title)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 2)
 
-            LazyVGrid(columns: columns, spacing: ESUI.Space.sm) {
+            LazyVGrid(columns: columns, spacing: ESUI.Space.xs) {
                 ForEach(Array(features.enumerated()), id: \.element.id) { index, feature in
                     Button {
                         openFeature(feature)
@@ -220,8 +172,11 @@ public struct DashboardView: View {
     }
 
     private var privateSection: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            ESSectionHeader(title: "私密", subtitle: "离开后自动锁定", trailing: "已解锁")
+        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+            Text("私密")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 2)
 
             ForEach(unlockedHiddenFeatures, id: \.id) { feature in
                 Button {
@@ -232,28 +187,24 @@ public struct DashboardView: View {
                 .buttonStyle(ESCardButtonStyle())
             }
         }
-        .esAppearSoft(0.05)
     }
 
     private func moduleTile(for feature: any AppFeature, isPrivate: Bool, isWide: Bool = false) -> some View {
-        let status = isPrivate ? nil : statusCenter.summary(for: feature.id)
         let customIcon: AnyView? = feature.id == "uttracker"
             ? AnyView(UTModuleProgressIcon(color: feature.color))
             : nil
+        let badge: Int? = feature.id == "expense-assistant" ? expensePendingCount : nil
 
         return ESModuleTile(
             title: feature.title,
-            summary: isPrivate ? "已解锁 · 点此进入" : feature.summary,
             systemImage: feature.iconName,
             featureID: feature.id,
-            status: isPrivate
-                ? FeatureStatusSummary(kind: .processing, text: "私密")
-                : status,
+            badgeCount: isPrivate ? nil : badge,
             isWide: isWide,
             customIcon: customIcon
         )
         .overlay(
-            RoundedRectangle(cornerRadius: ESUI.tileCornerRadius, style: .continuous)
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
                 .stroke(
                     isPrivate
                         ? LinearGradient(
@@ -262,9 +213,16 @@ public struct DashboardView: View {
                             endPoint: .bottomTrailing
                           )
                         : LinearGradient(colors: [.clear, .clear], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    style: StrokeStyle(lineWidth: isPrivate ? 1.5 : 0, dash: isPrivate ? [6, 4] : [])
+                    style: StrokeStyle(lineWidth: isPrivate ? 1.2 : 0, dash: isPrivate ? [5, 4] : [])
                 )
         )
+    }
+
+    private var expensePendingCount: Int {
+        let snapshot = ExpenseAssistantLocalStore().loadSnapshot()
+        let monthly = ExpenseAssistantReminderEngine.overdueMonthlyClaims(in: snapshot, asOf: Date()).count
+        let travel = ExpenseAssistantReminderEngine.overdueTravelClaims(in: snapshot, asOf: Date()).count
+        return monthly + travel
     }
 
     // MARK: - Actions

@@ -3,6 +3,7 @@ import UIKit
 import UserNotifications
 
 struct SettingsView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var navigationState: AppNavigationState
     @EnvironmentObject private var registry: FeatureRegistry
     @EnvironmentObject private var statusCenter: FeatureStatusCenter
@@ -11,6 +12,8 @@ struct SettingsView: View {
     @StateObject private var expenseAssistantNotificationManager = ExpenseAssistantNotificationManager.shared
     @StateObject private var webDAVSettingsStore = WebDAVSettingsStore.shared
     @State private var path = NavigationPath()
+    @State private var settingsTapCount = 0
+    @State private var hiddenSettingsUnlocked = false
 
     private var appVersionText: String {
         let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
@@ -35,23 +38,76 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
-                    accountSyncSection
-                    permissionsSection
-                    servicesSection
-                    if !orderedModuleSettingsItems.isEmpty {
-                        moduleSettingsSection
+                VStack(alignment: .leading, spacing: ESUI.Space.md) {
+                    simpleListSection(title: "通用") {
+                        NavigationLink(value: SettingsRoute.cloudSync) {
+                            ESSettingsRow(title: "云端同步", systemImage: "icloud", iconColor: .blue)
+                        }
+                        .buttonStyle(.plain)
+
+                        NavigationLink(value: SettingsRoute.imageTranslate) {
+                            ESSettingsRow(title: "AI 服务", systemImage: "sparkles", iconColor: .cyan)
+                        }
+                        .buttonStyle(.plain)
+
+                        NavigationLink(value: SettingsRoute.qingLong) {
+                            ESSettingsRow(title: "青龙", systemImage: "server.rack", iconColor: .green)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    aboutSection
+
+                    if !orderedModuleSettingsItems.isEmpty {
+                        simpleListSection(title: "模块") {
+                            ForEach(orderedModuleSettingsItems) { item in
+                                NavigationLink(value: item.route) {
+                                    ESSettingsRow(
+                                        title: item.title,
+                                        systemImage: item.systemImage,
+                                        iconColor: item.color
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+
+                    if hiddenSettingsUnlocked {
+                        simpleListSection(title: "私密") {
+                            NavigationLink(value: SettingsRoute.hiddenSpace) {
+                                ESSettingsRow(title: "隐藏空间", systemImage: "lock.shield", iconColor: .purple)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    simpleListSection(title: "关于") {
+                        ESSettingsRow(
+                            title: "版本 \(appVersionText)",
+                            systemImage: "info.circle",
+                            iconColor: .secondary,
+                            showsChevron: false
+                        )
+                    }
                 }
                 .padding(.horizontal, ESUI.screenHorizontalPadding)
-                .padding(.top, ESUI.Space.md)
+                .padding(.top, ESUI.Space.sm)
                 .padding(.bottom, ESUI.Space.lg)
             }
             .esBottomTabPadding()
             .esScreenBackground()
             .navigationTitle("设置")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("设置")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .frame(minWidth: 160, minHeight: 44)
+                        .contentShape(Rectangle())
+                        .onTapGesture { unlockHiddenSettingsIfNeeded() }
+                        .accessibilityLabel("设置")
+                }
+            }
             .navigationDestination(for: SettingsRoute.self) { route in
                 settingsDestination(for: route)
             }
@@ -69,155 +125,41 @@ struct SettingsView: View {
                 if tab == .settings {
                     Task { await statusCenter.refresh() }
                     handlePendingRouteIfNeeded()
+                } else {
+                    lockHiddenSettings()
+                }
+            }
+            .onChange(of: scenePhase) { phase in
+                if phase != .active {
+                    lockHiddenSettings()
                 }
             }
         }
     }
 
-    // MARK: - Sections
+    private func simpleListSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 2)
 
-    private var accountSyncSection: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            ESHeroHeader(
-                eyebrow: "设置",
-                title: "个人工作台",
-                subtitle: "同步 · 权限 · 服务连接",
-                trailing: AnyView(
-                    ESStatusBadge(
-                        text: statusCenter.cloudSummary.text,
-                        tone: .from(kind: statusCenter.cloudSummary.kind)
-                    )
-                )
-            )
-
-            NavigationLink(value: SettingsRoute.cloudSync) {
-                ESSettingsRow(
-                    title: "云端同步",
-                    subtitle: statusCenter.cloudSummary.text,
-                    systemImage: "icloud",
-                    iconColor: .blue,
-                    statusText: statusCenter.cloudSummary.text,
-                    statusTone: .from(kind: statusCenter.cloudSummary.kind)
-                )
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private var permissionsSection: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            ESSectionHeader(title: "权限与通知", subtitle: "系统授权状态摘要")
-
-            VStack(spacing: ESUI.Space.xs) {
-                notificationSummaryRow(
-                    title: "UT 记录",
-                    status: utNotificationManager.authorizationStatus
-                )
-                notificationSummaryRow(
-                    title: "报销助手",
-                    status: expenseAssistantNotificationManager.authorizationStatus
-                )
+            VStack(spacing: 0) {
+                content()
             }
         }
     }
 
-    private var servicesSection: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            ESSectionHeader(title: "服务连接", subtitle: "跨模块依赖的服务配置")
-
-            VStack(spacing: ESUI.Space.xs) {
-                NavigationLink(value: SettingsRoute.imageTranslate) {
-                    ESSettingsRow(
-                        title: "AI 服务",
-                        subtitle: "DeepSeek / 翻译与邮件共用",
-                        systemImage: "sparkles",
-                        iconColor: .cyan,
-                        statusText: statusCenter.deepSeekSummary.text,
-                        statusTone: .from(kind: statusCenter.deepSeekSummary.kind)
-                    )
-                }
-                .buttonStyle(.plain)
-
-                NavigationLink(value: SettingsRoute.qingLong) {
-                    ESSettingsRow(
-                        title: "青龙面板",
-                        subtitle: "自建面板连接",
-                        systemImage: "server.rack",
-                        iconColor: .green,
-                        statusText: statusCenter.qingLongSummary.text,
-                        statusTone: .from(kind: statusCenter.qingLongSummary.kind)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-        }
+    private func unlockHiddenSettingsIfNeeded() {
+        settingsTapCount += 1
+        guard settingsTapCount >= 5 else { return }
+        settingsTapCount = 0
+        hiddenSettingsUnlocked = true
     }
 
-    private var moduleSettingsSection: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            ESSectionHeader(title: "模块配置", trailing: "\(orderedModuleSettingsItems.count)")
-
-            VStack(spacing: ESUI.Space.xs) {
-                ForEach(orderedModuleSettingsItems) { item in
-                    NavigationLink(value: item.route) {
-                        ESSettingsRow(
-                            title: item.title,
-                            subtitle: item.subtitle,
-                            systemImage: item.systemImage,
-                            iconColor: item.color,
-                            statusText: item.status.text,
-                            statusTone: .from(kind: item.status.kind)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
-    private var aboutSection: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            ESSectionHeader(title: "关于")
-
-            VStack(alignment: .leading, spacing: ESUI.Space.xs) {
-                Text("EasySearch")
-                    .font(.body.weight(.semibold))
-                Text("版本 \(appVersionText)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text("轻量多功能个人工作台")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(ESUI.Space.md)
-            .esSurface()
-        }
-    }
-
-    private func notificationSummaryRow(title: String, status: UNAuthorizationStatus) -> some View {
-        let summary = notificationSummary(for: status)
-        return ESSettingsRow(
-            title: title,
-            systemImage: "bell.badge",
-            iconColor: .orange,
-            statusText: summary.text,
-            statusTone: .from(kind: summary.kind),
-            showsChevron: false
-        )
-    }
-
-    private func notificationSummary(for status: UNAuthorizationStatus) -> FeatureStatusSummary {
-        switch status {
-        case .authorized, .provisional, .ephemeral:
-            return FeatureStatusSummary(kind: .ready, text: "已授权")
-        case .denied:
-            return FeatureStatusSummary(kind: .needsAuthorization, text: "未授权")
-        case .notDetermined:
-            return FeatureStatusSummary(kind: .needsAuthorization, text: "未请求")
-        @unknown default:
-            return FeatureStatusSummary(kind: .empty, text: "未知")
-        }
+    private func lockHiddenSettings() {
+        settingsTapCount = 0
+        hiddenSettingsUnlocked = false
     }
 
     // MARK: - Navigation
@@ -239,6 +181,8 @@ struct SettingsView: View {
             QingLongSettingsDetailView()
         case .webDAV:
             WebDAVSettingsView(store: webDAVSettingsStore)
+        case .hiddenSpace:
+            HiddenSpaceSettingsDetailView()
         }
     }
 
@@ -270,36 +214,6 @@ struct SettingsView: View {
                 color: feature.color,
                 status: status,
                 route: .expenseAssistant
-            )
-        case "qinglong-management":
-            return ModuleSettingsItem(
-                id: feature.id,
-                title: feature.title,
-                subtitle: "面板连接",
-                systemImage: feature.iconName,
-                color: feature.color,
-                status: status,
-                route: .qingLong
-            )
-        case "image-translate":
-            return ModuleSettingsItem(
-                id: feature.id,
-                title: feature.title,
-                subtitle: "AI 与目标语言",
-                systemImage: feature.iconName,
-                color: feature.color,
-                status: status,
-                route: .imageTranslate
-            )
-        case "email-assistant":
-            return ModuleSettingsItem(
-                id: feature.id,
-                title: feature.title,
-                subtitle: "AI 配置",
-                systemImage: feature.iconName,
-                color: feature.color,
-                status: status,
-                route: .emailAssistant
             )
         case "webdav":
             return ModuleSettingsItem(
