@@ -1,4 +1,3 @@
-import BackgroundTasks
 import SwiftUI
 
 enum AppTab: Hashable {
@@ -11,10 +10,10 @@ enum SettingsRoute: Hashable {
     case cloudSync
     case utTracker
     case expenseAssistant
-    case gitHubUpdates
     case imageTranslate
     case emailAssistant
     case qingLong
+    case webDAV
 }
 
 @MainActor
@@ -45,9 +44,7 @@ struct EasySearchApp: App {
                     await UTNotificationManager.shared.refreshSchedulesIfAuthorized()
                     await ExpenseAssistantNotificationManager.shared.configure()
                     await ExpenseAssistantNotificationManager.shared.refreshSchedulesIfAuthorized()
-                    await GitHubUpdatesNotificationManager.shared.configure()
                     await HiddenCloudSyncViewModel.shared.prepareIfNeeded()
-                    await GitHubUpdatesBackgroundRefreshManager.scheduleNextRefresh()
                     await statusCenter.refresh()
                 }
                 .onChange(of: scenePhase) { phase in
@@ -55,29 +52,19 @@ struct EasySearchApp: App {
                     Task {
                         await UTNotificationManager.shared.refreshStateAndSchedules()
                         await ExpenseAssistantNotificationManager.shared.refreshStateAndSchedules()
-                        await GitHubUpdatesNotificationManager.shared.refreshAuthorizationStatus()
-                        let summary = await GitHubUpdatesService.shared.refreshRepositories(trigger: .foreground)
-                        if summary.didPersistChanges {
-                            let repositories = await GitHubUpdatesService.shared.loadRepositories()
-                            if !repositories.isEmpty {
-                                await HiddenCloudSyncViewModel.shared.syncGitHubRepoWatchesIfPossible(repositories)
-                            }
-                        }
                         await HiddenCloudSyncViewModel.shared.syncIfPossible()
-                        await GitHubUpdatesBackgroundRefreshManager.scheduleNextRefresh()
                         await statusCenter.refresh()
                     }
                 }
-        }
-        .backgroundTask(.appRefresh(GitHubUpdatesBackgroundRefreshManager.taskIdentifier)) {
-            await GitHubUpdatesBackgroundRefreshManager.handleBackgroundRefresh()
         }
     }
 }
 
 private struct AppShellView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var searchViewModel = SearchViewModel()
     @StateObject private var navigationState = AppNavigationState()
+    @StateObject private var shareInboxCoordinator = ShareInboxCoordinator()
 
     var body: some View {
         TabView(selection: $navigationState.selectedTab) {
@@ -102,7 +89,21 @@ private struct AppShellView: View {
         .appTabBarBehavior()
         .environmentObject(navigationState)
         .task {
+            shareInboxCoordinator.refreshIfNeeded()
             await searchViewModel.refreshConfigIfNeededOnLaunch()
+        }
+        .onOpenURL { url in
+            shareInboxCoordinator.handleIncomingURL(url)
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
+                shareInboxCoordinator.refreshIfNeeded()
+            }
+        }
+        .sheet(item: $shareInboxCoordinator.presentedBatch) { batch in
+            IncomingShareActionsView(items: batch.items) { _ in
+                shareInboxCoordinator.consume(batch)
+            }
         }
     }
 }

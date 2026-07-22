@@ -11,6 +11,12 @@ public struct UTTrackerView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
+                ESModuleHero(
+                    title: "UT 记录",
+                    subtitle: "本月进度与快速登记",
+                    featureID: "uttracker",
+                    systemImage: "chart.bar.doc.horizontal"
+                )
                 overviewCard
                 addEntryCard
                 if !viewModel.currentMonthEntries.isEmpty {
@@ -49,10 +55,10 @@ public struct UTTrackerView: View {
 
                 Spacer(minLength: ESUI.Space.xs)
 
-                Text(percentText(for: summary.fullMonthProgress))
+                Text(percentText(for: summary.elapsedMonthProgress))
                     .font(.system(.title, design: .rounded).weight(.semibold))
                     .foregroundStyle(.primary)
-                    .accessibilityLabel("整月进度 \(percentText(for: summary.fullMonthProgress))")
+                    .accessibilityLabel("进度 \(percentText(for: summary.elapsedMonthProgress))")
             }
 
             HStack(spacing: ESUI.Space.xs) {
@@ -99,15 +105,12 @@ public struct UTTrackerView: View {
                         .fill(ESUI.fill)
                 )
 
-            Button(action: saveEntry) {
-                Label(saveButtonTitle, systemImage: "plus.circle.fill")
-                    .font(.body.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, ESUI.Space.xs)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(draftHours <= 0)
+            ESPrimaryCTA(
+                title: saveButtonTitle,
+                systemImage: "plus.circle.fill",
+                enabled: draftHours > 0,
+                action: saveEntry
+            )
         }
         .esCard()
     }

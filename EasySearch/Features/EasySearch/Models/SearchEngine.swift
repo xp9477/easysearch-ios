@@ -14,6 +14,26 @@ struct SearchEngine: Codable, Identifiable, Equatable {
         case urlScheme = "url_scheme"
         case category
     }
+
+    var websiteHost: String? {
+        URL(string: url.replacingOccurrences(of: "{query}", with: ""))?.host?.lowercased()
+    }
+
+    var displayHost: String {
+        guard let websiteHost else { return "" }
+        return websiteHost.hasPrefix("www.") ? String(websiteHost.dropFirst(4)) : websiteHost
+    }
+
+    var faviconURL: URL? {
+        guard let websiteHost else { return nil }
+
+        var components = URLComponents(string: "https://www.google.com/s2/favicons")
+        components?.queryItems = [
+            URLQueryItem(name: "domain_url", value: "https://\(websiteHost)"),
+            URLQueryItem(name: "sz", value: "128")
+        ]
+        return components?.url
+    }
 }
 
 /// 搜索引擎分类

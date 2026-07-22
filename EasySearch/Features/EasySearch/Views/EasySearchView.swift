@@ -25,18 +25,33 @@ struct EasySearchView: View {
 
     private var searchSection: some View {
         VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            ESSectionHeader(
-                title: "快速搜索",
-                subtitle: "输入关键词，一键打开目标平台"
+            ESHeroHeader(
+                eyebrow: "搜索",
+                title: "快速打开平台",
+                subtitle: "输入关键词，一点即达"
             )
 
-            SearchBar(
-                text: $viewModel.searchQuery,
-                isFocused: $isSearchFieldFocused,
-                onSubmit: {
+            HStack(spacing: ESUI.Space.sm) {
+                SearchBar(
+                    text: $viewModel.searchQuery,
+                    isFocused: $isSearchFieldFocused,
+                    onSubmit: { _ = viewModel.performDefaultSearch() }
+                )
+
+                Button {
                     _ = viewModel.performDefaultSearch()
+                } label: {
+                    Image(systemName: "arrow.right")
+                        .font(.body.weight(.bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 52, height: 52)
+                        .background(ESBrandGradient.fill(cornerRadius: 14))
                 }
-            )
+                .buttonStyle(ESCardButtonStyle())
+                .disabled(!viewModel.hasValidQuery)
+                .opacity(viewModel.hasValidQuery ? 1 : 0.45)
+                .accessibilityLabel("默认搜索")
+            }
 
             CategoryTabBar(
                 categories: SearchCategory.allCases,
@@ -48,7 +63,7 @@ struct EasySearchView: View {
     private var enginesSection: some View {
         VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             ESSectionHeader(
-                title: "平台入口",
+                title: viewModel.selectedCategory.displayName,
                 trailing: viewModel.filteredEngines.isEmpty ? nil : "\(viewModel.filteredEngines.count)"
             )
 
@@ -56,8 +71,8 @@ struct EasySearchView: View {
                 ESEmptyState(
                     title: "暂无可用平台",
                     message: viewModel.searchEngines.isEmpty
-                        ? "搜索引擎配置尚未加载，请稍后重试。"
-                        : "当前分类下没有匹配的平台。",
+                        ? "搜索引擎配置尚未加载。"
+                        : "当前分类下没有匹配平台。",
                     systemImage: "globe"
                 )
                 .esCard()

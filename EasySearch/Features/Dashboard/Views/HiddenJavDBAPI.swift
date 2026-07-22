@@ -117,6 +117,13 @@ enum HiddenJavDBAPI {
 
     static func fetchMovieDetail(for movie: HiddenJavDBMovie) async throws -> HiddenJavDBMovieDetail {
         let html = try await fetchHTML(from: movie.url)
+        return parseMovieDetail(from: html, movie: movie)
+    }
+
+    static func parseMovieDetail(from html: String, movie: HiddenJavDBMovie) -> HiddenJavDBMovieDetail {
+        if html.contains("Markdown Content:") {
+            return parseMovieDetailFromMarkdown(html, movie: movie)
+        }
 
         let parsedTitle = firstNonEmpty([
             regexFirstCapture(pattern: #"<strong[^>]*class="[^"]*current-title[^"]*"[^>]*>(.*?)</strong>"#, in: html, dotMatchesLine: true),
@@ -415,7 +422,16 @@ enum HiddenJavDBAPI {
             request.setValue(cookieField, forHTTPHeaderField: "Cookie")
         }
 
-        let (data, response) = try await session.data(for: request)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            if let markdown = try? await fetchJinaMarkdown(for: url) {
+                return markdown
+            }
+            throw error
+        }
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NSError(
                 domain: "HiddenJavDBAPI",
@@ -426,6 +442,10 @@ enum HiddenJavDBAPI {
         let finalURL = httpResponse.url ?? url
 
         guard (200...299).contains(httpResponse.statusCode) else {
+            if let markdown = try? await fetchJinaMarkdown(for: url) {
+                return markdown
+            }
+
             if httpResponse.statusCode == 403 || httpResponse.statusCode == 503 {
                 if let webHTML = try? await HiddenJavDBWebHTMLFetcher.shared.fetchHTML(from: url),
                    !isCloudflareChallengeHTML(webHTML) {
@@ -472,6 +492,10 @@ enum HiddenJavDBAPI {
     }
 
     static func parseMovies(from html: String, baseURL: URL) -> [HiddenJavDBMovie] {
+        if html.contains("Markdown Content:") {
+            return parseMoviesFromMarkdown(html)
+        }
+
         let resolvedBaseURL = preferredBaseURL(from: html, fallbackURL: baseURL)
         let blocks = regexCapturePairs(
             pattern: #"<a[^>]+href=["'](/v/[^"'?#]+)["'][^>]*>(.*?)</a>"#,
@@ -521,6 +545,186 @@ enum HiddenJavDBAPI {
         }
 
         return movies
+    }
+
+    private static func fetchJinaMarkdown(for sourceURL: URL) async throws -> String {
+        guard sourceURL.host?.lowercased().contains("javdb.com") == true else {
+            throw URLError(.unsupportedURL)
+        }
+
+        let escapedSource = sourceURL.absoluteString.replacingOccurrences(of: "&", with: "%26")
+        guard let proxyURL = URL(string: "https://r.jina.ai/\(escapedSource)") else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: proxyURL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30)
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("text/plain", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode),
+              let markdown = String(data: data, encoding: .utf8),
+              markdown.contains("Markdown Content:") else {
+            throw URLError(.badServerResponse)
+        }
+        return markdown
+    }
+
+    private static func parseMoviesFromMarkdown(_ markdown: String) -> [HiddenJavDBMovie] {
+        let pattern = #"!\[Image[^\]]*\]\((https?://[^)\s]+)\)\s+\*\*([^*]+)\*\*.*?\]\((https?://javdb\.com/v/[^)\s\"]+)(?:\s+\"([^\"]*)\")?\)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return []
+        }
+
+        let range = NSRange(markdown.startIndex..<markdown.endIndex, in: markdown)
+        var movies: [HiddenJavDBMovie] = []
+        var seen = Set<String>()
+
+        for match in regex.matches(in: markdown, options: [], range: range) {
+            guard match.numberOfRanges >= 4,
+                  let coverRange = Range(match.range(at: 1), in: markdown),
+                  let codeRange = Range(match.range(at: 2), in: markdown),
+                  let movieRange = Range(match.range(at: 3), in: markdown),
+                  let coverURL = URL(string: String(markdown[coverRange])),
+                  let rawMovieURL = URL(string: String(markdown[movieRange])) else {
+                continue
+            }
+
+            let movieURL = normalizeMovieURL(rawMovieURL)
+            guard seen.insert(movieURL.absoluteString).inserted else { continue }
+
+            let code = cleanTitle(String(markdown[codeRange]))
+            let title: String
+            if match.numberOfRanges > 4,
+               match.range(at: 4).location != NSNotFound,
+               let titleRange = Range(match.range(at: 4), in: markdown) {
+                title = cleanTitle(String(markdown[titleRange]))
+            } else {
+                title = code
+            }
+
+            movies.append(
+                HiddenJavDBMovie(
+                    url: movieURL,
+                    code: code,
+                    title: title,
+                    coverURL: normalizeImageURL(coverURL),
+                    actresses: []
+                )
+            )
+        }
+
+        return movies
+    }
+
+    private static func parseMovieDetailFromMarkdown(
+        _ markdown: String,
+        movie: HiddenJavDBMovie
+    ) -> HiddenJavDBMovieDetail {
+        let headingGroups = regexFirstGroups(
+            pattern: #"##\s+\*\*([^*]+)\*\*\*\*([^*\r\n]+)\*\*"#,
+            in: markdown,
+            dotMatchesLine: false
+        )
+        let parsedCode = headingGroups.flatMap { $0.first }.map(cleanTitle)?.nonEmpty ?? movie.code
+        let parsedTitle = headingGroups.flatMap { $0.dropFirst().first }.map(cleanTitle)?.nonEmpty
+            ?? regexFirstCapture(
+                pattern: #"Title:\s*(.*?)\s*\|\s*JavDB"#,
+                in: markdown,
+                dotMatchesLine: false
+            ).map(cleanTitle)?.nonEmpty
+            ?? movie.displayTitle
+
+        let actresses = regexCaptureAll(
+            pattern: #"\[([^\]]+)\]\(https?://javdb\.com/actors/[^)]+\)"#,
+            in: markdown,
+            dotMatchesLine: false
+        ).map(cleanTitle)
+        let releaseDate = regexFirstCapture(
+            pattern: #"\*\*Released Date:\*\*\s*([^\r\n]+)"#,
+            in: markdown,
+            dotMatchesLine: false
+        ).map(cleanTitle)?.nonEmpty
+        let durationMinutes = regexFirstCapture(
+            pattern: #"\*\*Duration:\*\*\s*(\d+)"#,
+            in: markdown,
+            dotMatchesLine: false
+        ).flatMap(Int.init)
+        let studio = regexFirstCapture(
+            pattern: #"\*\*Maker:\*\*\s*\[([^\]]+)\]"#,
+            in: markdown,
+            dotMatchesLine: false
+        ).map(cleanTitle)?.nonEmpty
+
+        let otherSection = regexFirstCapture(
+            pattern: #"They are also starred\s*(.*?)(?:You may also like|Review rules and regulations|$)"#,
+            in: markdown,
+            dotMatchesLine: true
+        ) ?? ""
+        let recommendedSection = regexFirstCapture(
+            pattern: #"You may also like\s*(.*?)(?:Review rules and regulations|$)"#,
+            in: markdown,
+            dotMatchesLine: true
+        ) ?? ""
+
+        return HiddenJavDBMovieDetail(
+            code: parsedCode,
+            title: parsedTitle,
+            actresses: actresses.isEmpty ? movie.actresses : actresses,
+            releaseDate: releaseDate,
+            durationMinutes: durationMinutes,
+            studio: studio,
+            otherActressMovies: parseRelatedMoviesFromMarkdown(otherSection, excluding: movie),
+            recommendedMovies: parseRelatedMoviesFromMarkdown(recommendedSection, excluding: movie)
+        )
+    }
+
+    private static func parseRelatedMoviesFromMarkdown(
+        _ markdown: String,
+        excluding currentMovie: HiddenJavDBMovie
+    ) -> [HiddenJavDBMovie] {
+        let pattern = #"\[!\[[^\]]*\]\((https?://[^)\s]+)\)\s+([^\]]+)\]\((https?://javdb\.com/v/[^)\s\"]+)(?:\s+\"([^\"]*)\")?\)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else {
+            return []
+        }
+
+        let range = NSRange(markdown.startIndex..<markdown.endIndex, in: markdown)
+        let movies = regex.matches(in: markdown, options: [], range: range).compactMap { match -> HiddenJavDBMovie? in
+            guard match.numberOfRanges >= 4,
+                  let coverRange = Range(match.range(at: 1), in: markdown),
+                  let labelRange = Range(match.range(at: 2), in: markdown),
+                  let movieRange = Range(match.range(at: 3), in: markdown),
+                  let coverURL = URL(string: String(markdown[coverRange])),
+                  let rawMovieURL = URL(string: String(markdown[movieRange])) else {
+                return nil
+            }
+
+            let movieURL = normalizeMovieURL(rawMovieURL)
+            guard movieURL.absoluteString != currentMovie.url.absoluteString else { return nil }
+
+            let label = cleanTitle(String(markdown[labelRange]))
+            guard let code = extractLikelyMovieCode(from: label) else { return nil }
+
+            let title: String
+            if match.numberOfRanges > 4,
+               match.range(at: 4).location != NSNotFound,
+               let titleRange = Range(match.range(at: 4), in: markdown) {
+                title = cleanTitle(String(markdown[titleRange]))
+            } else {
+                title = strippingLeadingMovieCode(label, code: code)
+            }
+
+            return HiddenJavDBMovie(
+                url: movieURL,
+                code: code,
+                title: title,
+                coverURL: normalizeImageURL(coverURL),
+                actresses: []
+            )
+        }
+
+        return dedupedRelatedMovies(movies)
     }
 
     private static func extractMovieCode(from block: String) -> String? {
@@ -675,6 +879,20 @@ enum HiddenJavDBAPI {
     }
 
     static func parseMovieImages(from html: String) -> [URL] {
+        if html.contains("Markdown Content:") {
+            let linkedImages = regexCaptureAll(
+                pattern: #"\[!\[[^\]]*\]\([^)]+\)\]\((https?://[^)\s]+)\)"#,
+                in: html,
+                dotMatchesLine: true
+            )
+            let sampleImages = dedupePreferredMovieSampleImages(
+                linkedImages.compactMap(normalizedURL(from:)).filter(isLikelyMovieSampleImageURL)
+            )
+            if !sampleImages.isEmpty {
+                return sampleImages
+            }
+        }
+
         let anchoredImages = dedupePreferredMovieSampleImages(
             extractAnchoredPreviewImageCandidates(from: html)
                 .compactMap(normalizedURL(from:))

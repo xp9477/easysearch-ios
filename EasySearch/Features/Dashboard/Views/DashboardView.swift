@@ -26,6 +26,9 @@ public struct DashboardView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
+                    workbenchHero
+                    statusStrip
+
                     if moduleFeatures.isEmpty && unlockedHiddenFeatures.isEmpty {
                         ESEmptyState(
                             title: "暂无模块",
@@ -56,9 +59,9 @@ public struct DashboardView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text("工作台")
-                        .font(.headline)
-                        .opacity(0.01)
+                    Color.clear
+                        .frame(width: 140, height: 44)
+                        .contentShape(Rectangle())
                         .onTapGesture {
                             unlockHiddenModulesIfNeeded()
                         }
@@ -131,31 +134,74 @@ public struct DashboardView: View {
         return false
     }
 
+    private var greetingText: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 5..<12: return "上午好"
+        case 12..<18: return "下午好"
+        default: return "晚上好"
+        }
+    }
+
     // MARK: - Sections
 
+    private var workbenchHero: some View {
+        ESHeroHeader(
+            eyebrow: greetingText,
+            title: "工作台",
+            subtitle: "模块入口 · 状态一眼可见"
+        )
+        .esAppearSoft()
+    }
+
+    private var statusStrip: some View {
+        ESStatusStrip(items: [
+            ESStatusStripItem(
+                id: "cloud",
+                title: "云同步",
+                value: statusCenter.cloudSummary.text,
+                tone: .from(kind: statusCenter.cloudSummary.kind)
+            ),
+            ESStatusStripItem(
+                id: "ai",
+                title: "AI",
+                value: statusCenter.deepSeekSummary.text,
+                tone: .from(kind: statusCenter.deepSeekSummary.kind)
+            ),
+            ESStatusStripItem(
+                id: "ops",
+                title: "青龙",
+                value: statusCenter.qingLongSummary.text,
+                tone: .from(kind: statusCenter.qingLongSummary.kind)
+            )
+        ])
+        .esAppearSoft(0.03)
+    }
+
     private func moduleGroupSection(group: AppFeatureGroup, features: [any AppFeature]) -> some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+        let columns = [
+            GridItem(.flexible(), spacing: ESUI.Space.sm),
+            GridItem(.flexible(), spacing: ESUI.Space.sm)
+        ]
+
+        return VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             ESSectionHeader(title: group.title, trailing: "\(features.count)")
 
-            VStack(spacing: ESUI.Space.xs) {
+            LazyVGrid(columns: columns, spacing: ESUI.Space.sm) {
                 ForEach(Array(features.enumerated()), id: \.element.id) { index, feature in
                     Button {
                         openFeature(feature)
                     } label: {
-                        workbenchRow(for: feature, isPrivate: false)
+                        moduleTile(for: feature, isPrivate: false)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(ESCardButtonStyle())
                     .contextMenu {
                         if features.count > 1 {
                             if index > 0 {
-                                Button("上移") {
-                                    moveFeature(feature, in: group, by: -1)
-                                }
+                                Button("上移") { moveFeature(feature, in: group, by: -1) }
                             }
                             if index < features.count - 1 {
-                                Button("下移") {
-                                    moveFeature(feature, in: group, by: 1)
-                                }
+                                Button("下移") { moveFeature(feature, in: group, by: 1) }
                             }
                         }
                     }
@@ -166,71 +212,50 @@ public struct DashboardView: View {
 
     private var privateSection: some View {
         VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            ESSectionHeader(title: "私密", subtitle: "离开后将自动锁定", trailing: "已解锁")
+            ESSectionHeader(title: "私密", subtitle: "离开后自动锁定", trailing: "已解锁")
 
-            VStack(spacing: ESUI.Space.xs) {
-                ForEach(unlockedHiddenFeatures, id: \.id) { feature in
-                    Button {
-                        openFeature(feature)
-                    } label: {
-                        workbenchRow(for: feature, isPrivate: true)
-                    }
-                    .buttonStyle(.plain)
+            ForEach(unlockedHiddenFeatures, id: \.id) { feature in
+                Button {
+                    openFeature(feature)
+                } label: {
+                    moduleTile(for: feature, isPrivate: true, isWide: true)
                 }
+                .buttonStyle(ESCardButtonStyle())
             }
         }
+        .esAppearSoft(0.05)
     }
 
-    private func workbenchRow(for feature: any AppFeature, isPrivate: Bool) -> some View {
-        HStack(spacing: ESUI.Space.sm) {
-            if feature.id == "uttracker" {
-                UTModuleProgressIcon(color: feature.color)
-            } else {
-                ESFeatureIcon(systemName: feature.iconName, color: feature.color, size: 40)
-            }
+    private func moduleTile(for feature: any AppFeature, isPrivate: Bool, isWide: Bool = false) -> some View {
+        let status = isPrivate ? nil : statusCenter.summary(for: feature.id)
+        let customIcon: AnyView? = feature.id == "uttracker"
+            ? AnyView(UTModuleProgressIcon(color: feature.color))
+            : nil
 
-            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
-                HStack(spacing: ESUI.Space.xs) {
-                    Text(feature.title)
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-
-                    if isPrivate {
-                        ESStatusBadge(text: "私密", tone: .accent)
-                    }
-                }
-
-                Text(feature.summary)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: ESUI.Space.xs)
-
-            if !isPrivate {
-                let status = statusCenter.summary(for: feature.id)
-                ESStatusBadge(text: status.text, tone: .from(kind: status.kind))
-            }
-
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
-        }
-        .padding(ESUI.Space.md)
-        .background(
-            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
-                .fill(ESUI.surface)
+        return ESModuleTile(
+            title: feature.title,
+            summary: isPrivate ? "已解锁 · 点此进入" : feature.summary,
+            systemImage: feature.iconName,
+            featureID: feature.id,
+            status: isPrivate
+                ? FeatureStatusSummary(kind: .processing, text: "私密")
+                : status,
+            isWide: isWide,
+            customIcon: customIcon
         )
         .overlay(
-            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
-                .stroke(isPrivate ? Color.accentColor.opacity(0.18) : Color.clear, lineWidth: 1)
+            RoundedRectangle(cornerRadius: ESUI.tileCornerRadius, style: .continuous)
+                .stroke(
+                    isPrivate
+                        ? LinearGradient(
+                            colors: [ESUI.brandStart.opacity(0.45), ESUI.brandEnd.opacity(0.25)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                          )
+                        : LinearGradient(colors: [.clear, .clear], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    style: StrokeStyle(lineWidth: isPrivate ? 1.5 : 0, dash: isPrivate ? [6, 4] : [])
+                )
         )
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Actions
@@ -343,11 +368,11 @@ private struct UTModuleProgressIcon: View {
     @State private var summary = UTTrackerSnapshot.currentMonthSummary()
 
     private var progress: Double {
-        min(max(summary.fullMonthProgress, 0), 1)
+        min(max(summary.elapsedMonthProgress, 0), 1)
     }
 
     private var percentValue: Int {
-        Int((summary.fullMonthProgress * 100).rounded())
+        Int((summary.elapsedMonthProgress * 100).rounded())
     }
 
     private var ringColor: Color {

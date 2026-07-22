@@ -32,10 +32,10 @@ public class FeatureRegistry: ObservableObject {
         features.append(UTTrackerFeature())
         features.append(ExpenseAssistantFeature())
         features.append(QingLongFeature())
-        features.append(GitHubUpdatesFeature())
         features.append(ImageTranslateFeature())
         features.append(EmailAssistantFeature())
         features.append(UtilitiesFeature())
+        features.append(WebDAVFeature())
         features.append(HiddenSpaceFeature())
         reloadModuleFeatureOrder()
     }
@@ -179,18 +179,6 @@ public final class FeatureStatusCenter: ObservableObject {
         } else {
             next["expense-assistant"] = FeatureStatusSummary(kind: .ready, text: "跟踪中")
         }
-
-        // GitHub
-        let repos = await GitHubUpdatesService.shared.loadRepositories()
-        let ghAuth = GitHubUpdatesNotificationManager.shared.authorizationStatus
-        if ghAuth == .denied {
-            next["github-updates"] = FeatureStatusSummary(kind: .needsAuthorization, text: "通知未授权")
-        } else if repos.isEmpty {
-            next["github-updates"] = FeatureStatusSummary(kind: .empty, text: "未关注")
-        } else {
-            next["github-updates"] = FeatureStatusSummary(kind: .ready, text: "\(repos.count) 个仓库")
-        }
-
         // QingLong
         next["qinglong-management"] = qingLongSummary
 
@@ -203,6 +191,17 @@ public final class FeatureStatusCenter: ObservableObject {
             next["email-assistant"] = FeatureStatusSummary(kind: .needsConfiguration, text: "需配置 AI")
         }
 
+        // WebDAV
+        let webdavState = await MainActor.run { () -> (Bool, Int) in
+            let store = WebDAVSettingsStore.shared
+            return (store.configuration != nil, store.locations.count)
+        }
+        if !webdavState.0 {
+            next["webdav"] = FeatureStatusSummary(kind: .needsConfiguration, text: "未配置")
+        } else {
+            let count = webdavState.1
+            next["webdav"] = FeatureStatusSummary(kind: .ready, text: count > 0 ? "\(count) 个位置" : "已连接")
+        }
         // Utilities always ready
         next["utilities"] = FeatureStatusSummary(kind: .ready, text: "可用")
 

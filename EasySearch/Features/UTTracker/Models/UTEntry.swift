@@ -201,6 +201,11 @@ struct UTMonthSummary: Identifiable, Hashable {
         return totalHours / targetHours
     }
 
+    var elapsedMonthProgress: Double {
+        guard elapsedMonthHours > 0 else { return 0 }
+        return totalHours / elapsedMonthHours
+    }
+
     var fullMonthProgress: Double {
         guard fullMonthHours > 0 else { return 0 }
         return totalHours / fullMonthHours

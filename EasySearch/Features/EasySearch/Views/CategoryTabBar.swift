@@ -12,16 +12,18 @@ struct CategoryTabBar: View {
                     Button {
                         selectedCategory = category
                     } label: {
-                        Label(category.displayName, systemImage: category.icon)
-                            .labelStyle(.titleOnly)
-                            .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                            .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-                            .padding(.horizontal, ESUI.Space.sm)
+                        Text(category.displayName)
+                            .font(.subheadline.weight(isSelected ? .semibold : .medium))
+                            .foregroundStyle(isSelected ? Color.white : .secondary)
+                            .padding(.horizontal, ESUI.Space.sm + 2)
                             .padding(.vertical, ESUI.Space.xs)
-                            .background(
-                                Capsule()
-                                    .fill(isSelected ? Color.accentColor.opacity(0.12) : ESUI.fill)
-                            )
+                            .background {
+                                if isSelected {
+                                    Capsule().fill(ESBrandGradient.linear)
+                                } else {
+                                    Capsule().fill(ESUI.fill)
+                                }
+                            }
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(isSelected ? .isSelected : [])

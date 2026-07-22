@@ -7,6 +7,27 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F40000000000000000000001 /* WebDAVFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000101 /* WebDAVFeature.swift */; };
+		F40000000000000000000002 /* WebDAVModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000102 /* WebDAVModels.swift */; };
+		F40000000000000000000003 /* WebDAVSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000103 /* WebDAVSettingsStore.swift */; };
+		F40000000000000000000004 /* WebDAVClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000104 /* WebDAVClient.swift */; };
+		F40000000000000000000005 /* WebDAVLocalFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000105 /* WebDAVLocalFileStore.swift */; };
+		F40000000000000000000006 /* WebDAVView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000106 /* WebDAVView.swift */; };
+		F40000000000000000000007 /* ShareInboxStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000107 /* ShareInboxStore.swift */; };
+		F40000000000000000000008 /* IncomingShareActionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000108 /* IncomingShareActionsView.swift */; };
+		F40000000000000000000009 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000109 /* ShareViewController.swift */; };
+		F40000000000000000000010 /* EasySearchShare.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = F40000000000000000000110 /* EasySearchShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F40000000000000000000011 /* WebDAVClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000114 /* WebDAVClientTests.swift */; };
+		F40000000000000000000012 /* WebDAVSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000115 /* WebDAVSettingsView.swift */; };
+		F40000000000000000000013 /* WebDAVShareUploadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000116 /* WebDAVShareUploadView.swift */; };
+		F40000000000000000000014 /* WebDAVItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000117 /* WebDAVItemRow.swift */; };
+		F40000000000000000000015 /* WebDAVDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000118 /* WebDAVDownloadManager.swift */; };
+		F40000000000000000000016 /* WebDAVDownloadsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000119 /* WebDAVDownloadsView.swift */; };
+		F40000000000000000000017 /* WebDAVPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000120 /* WebDAVPreviewView.swift */; };
+		F40000000000000000000018 /* WebDAVItemDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000121 /* WebDAVItemDetailsView.swift */; };
+		F40000000000000000000019 /* WebDAVStreamResourceLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000122 /* WebDAVStreamResourceLoader.swift */; };
+		F30000000000000000000001 /* SearchEngineIconCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000101 /* SearchEngineIconCache.swift */; };
+		F30000000000000000000002 /* SearchEngineIconCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000102 /* SearchEngineIconCacheTests.swift */; };
 		E800000000000000000000001 /* EasySearchUIComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = E800000000000000000000101 /* EasySearchUIComponents.swift */; };
 		D2A000000000000000000016 /* HiddenJavDBViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000116 /* HiddenJavDBViewModel.swift */; };
 		D2A000000000000000000015 /* HiddenJavDBSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000115 /* HiddenJavDBSettings.swift */; };
@@ -60,12 +81,6 @@
 		D2A000000000000000000002 /* HiddenSyncModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000102 /* HiddenSyncModels.swift */; };
 		D2A000000000000000000003 /* HiddenCloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000103 /* HiddenCloudSync.swift */; };
 		D2A000000000000000000005 /* HiddenSharedPlayback.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000105 /* HiddenSharedPlayback.swift */; };
-		D300000000000000000000001 /* GitHubUpdatesFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000101 /* GitHubUpdatesFeature.swift */; };
-		D300000000000000000000002 /* GitHubUpdatesCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */; };
-		D300000000000000000000003 /* GitHubWatchedRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000103 /* GitHubWatchedRepository.swift */; };
-		D300000000000000000000004 /* GitHubWatchedRepositoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000104 /* GitHubWatchedRepositoryStore.swift */; };
-		D300000000000000000000005 /* GitHubUpdatesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000105 /* GitHubUpdatesViewModel.swift */; };
-		D300000000000000000000006 /* GitHubUpdatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D300000000000000000000106 /* GitHubUpdatesView.swift */; };
 		D400000000000000000000001 /* QingLongFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000101 /* QingLongFeature.swift */; };
 		D400000000000000000000002 /* QingLongPanelProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000102 /* QingLongPanelProfile.swift */; };
 		D400000000000000000000003 /* QingLongPanelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000103 /* QingLongPanelStore.swift */; };
@@ -100,6 +115,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		F40000000000000000000301 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A7000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F40000000000000000000400;
+			remoteInfo = EasySearchShare;
+		};
 		AD7C93F49EAE3E78A8A508FB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A7000000 /* Project object */;
@@ -109,7 +131,45 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		F40000000000000000000500 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F40000000000000000000010 /* EasySearchShare.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		F40000000000000000000101 /* WebDAVFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVFeature.swift; path = EasySearch/Features/WebDAV/WebDAVFeature.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000102 /* WebDAVModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVModels.swift; path = EasySearch/Features/WebDAV/Models/WebDAVModels.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000103 /* WebDAVSettingsStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVSettingsStore.swift; path = EasySearch/Features/WebDAV/Models/WebDAVSettingsStore.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000104 /* WebDAVClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVClient.swift; path = EasySearch/Features/WebDAV/Services/WebDAVClient.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000105 /* WebDAVLocalFileStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVLocalFileStore.swift; path = EasySearch/Features/WebDAV/Services/WebDAVLocalFileStore.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000106 /* WebDAVView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVView.swift; path = EasySearch/Features/WebDAV/Views/WebDAVView.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000107 /* ShareInboxStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ShareInboxStore.swift; path = EasySearch/Core/Sharing/ShareInboxStore.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000108 /* IncomingShareActionsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = IncomingShareActionsView.swift; path = EasySearch/Core/Sharing/IncomingShareActionsView.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000109 /* ShareViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		F40000000000000000000110 /* EasySearchShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = EasySearchShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F40000000000000000000111 /* EasySearch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = EasySearch/EasySearch.entitlements; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000112 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F40000000000000000000113 /* EasySearchShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = EasySearchShare.entitlements; sourceTree = "<group>"; };
+		F40000000000000000000114 /* WebDAVClientTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WebDAVClientTests.swift; sourceTree = "<group>"; };
+		F40000000000000000000115 /* WebDAVSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVSettingsView.swift; path = EasySearch/Features/WebDAV/Views/WebDAVSettingsView.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000116 /* WebDAVShareUploadView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVShareUploadView.swift; path = EasySearch/Features/WebDAV/Views/WebDAVShareUploadView.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000117 /* WebDAVItemRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVItemRow.swift; path = EasySearch/Features/WebDAV/Views/WebDAVItemRow.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000118 /* WebDAVDownloadManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVDownloadManager.swift; path = EasySearch/Features/WebDAV/Services/WebDAVDownloadManager.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000119 /* WebDAVDownloadsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVDownloadsView.swift; path = EasySearch/Features/WebDAV/Views/WebDAVDownloadsView.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000120 /* WebDAVPreviewView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVPreviewView.swift; path = EasySearch/Features/WebDAV/Views/WebDAVPreviewView.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000121 /* WebDAVItemDetailsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVItemDetailsView.swift; path = EasySearch/Features/WebDAV/Views/WebDAVItemDetailsView.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000122 /* WebDAVStreamResourceLoader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVStreamResourceLoader.swift; path = EasySearch/Features/WebDAV/Services/WebDAVStreamResourceLoader.swift; sourceTree = SOURCE_ROOT; };
+		F30000000000000000000101 /* SearchEngineIconCache.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchEngineIconCache.swift; path = EasySearch/Features/EasySearch/Models/SearchEngineIconCache.swift; sourceTree = SOURCE_ROOT; };
+		F30000000000000000000102 /* SearchEngineIconCacheTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SearchEngineIconCacheTests.swift; sourceTree = "<group>"; };
 		E800000000000000000000101 /* EasySearchUIComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EasySearchUIComponents.swift; path = EasySearch/Core/UIComponents/EasySearchUIComponents.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000111 /* HiddenImagePipeline.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenImagePipeline.swift; path = EasySearch/Features/Dashboard/Views/HiddenImagePipeline.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000112 /* HiddenPlaybackThumbnailPipeline.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenPlaybackThumbnailPipeline.swift; path = EasySearch/Features/Dashboard/Views/HiddenPlaybackThumbnailPipeline.swift; sourceTree = SOURCE_ROOT; };
@@ -163,12 +223,6 @@
 		D2A000000000000000000102 /* HiddenSyncModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSyncModels.swift; path = EasySearch/Features/Dashboard/Models/HiddenSyncModels.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000103 /* HiddenCloudSync.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenCloudSync.swift; path = EasySearch/Features/Dashboard/Sync/HiddenCloudSync.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000105 /* HiddenSharedPlayback.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSharedPlayback.swift; path = EasySearch/Features/Dashboard/Views/HiddenSharedPlayback.swift; sourceTree = SOURCE_ROOT; };
-		D300000000000000000000101 /* GitHubUpdatesFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesFeature.swift; path = EasySearch/Features/GitHubUpdates/GitHubUpdatesFeature.swift; sourceTree = SOURCE_ROOT; };
-		D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesCoordinator.swift; path = EasySearch/Features/GitHubUpdates/GitHubUpdatesCoordinator.swift; sourceTree = SOURCE_ROOT; };
-		D300000000000000000000103 /* GitHubWatchedRepository.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubWatchedRepository.swift; path = EasySearch/Features/GitHubUpdates/Models/GitHubWatchedRepository.swift; sourceTree = SOURCE_ROOT; };
-		D300000000000000000000104 /* GitHubWatchedRepositoryStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubWatchedRepositoryStore.swift; path = EasySearch/Features/GitHubUpdates/Models/GitHubWatchedRepositoryStore.swift; sourceTree = SOURCE_ROOT; };
-		D300000000000000000000105 /* GitHubUpdatesViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesViewModel.swift; path = EasySearch/Features/GitHubUpdates/ViewModels/GitHubUpdatesViewModel.swift; sourceTree = SOURCE_ROOT; };
-		D300000000000000000000106 /* GitHubUpdatesView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GitHubUpdatesView.swift; path = EasySearch/Features/GitHubUpdates/Views/GitHubUpdatesView.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000101 /* QingLongFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongFeature.swift; path = EasySearch/Features/QingLong/QingLongFeature.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000102 /* QingLongPanelProfile.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongPanelProfile.swift; path = EasySearch/Features/QingLong/Models/QingLongPanelProfile.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000103 /* QingLongPanelStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongPanelStore.swift; path = EasySearch/Features/QingLong/Models/QingLongPanelStore.swift; sourceTree = SOURCE_ROOT; };
@@ -196,15 +250,22 @@
 		E100000000000000000000105 /* ExpenseAssistantViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantViewModel.swift; path = EasySearch/Features/ExpenseAssistant/ViewModels/ExpenseAssistantViewModel.swift; sourceTree = SOURCE_ROOT; };
 		E100000000000000000000106 /* ExpenseAssistantView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantView.swift; path = EasySearch/Features/ExpenseAssistant/Views/ExpenseAssistantView.swift; sourceTree = SOURCE_ROOT; };
 		E100000000000000000000107 /* ExpenseAssistantTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExpenseAssistantTests.swift; sourceTree = "<group>"; };
-		D736F78B02EC6C18E86147F2 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
+		D736F78B02EC6C18E86147F2 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		DD2DDB34B07E1AF3F585243D /* SettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = EasySearch/Features/Settings/Views/SettingsView.swift; sourceTree = SOURCE_ROOT; };
-		DE58CC4FBE5DDA9B8E6C8416 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		DE58CC4FBE5DDA9B8E6C8416 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		DEE5D4584B694CD5678242E5 /* ImageTranslateSessionStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateSessionStore.swift; path = EasySearch/Features/ImageTranslate/Models/ImageTranslateSessionStore.swift; sourceTree = SOURCE_ROOT; };
 		E53A9599509BBCA5DB03ABC4 /* SearchViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchViewModel.swift; path = EasySearch/Features/EasySearch/ViewModels/SearchViewModel.swift; sourceTree = SOURCE_ROOT; };
 		E9AD7A5FC3ED0A3372776E30 /* AppRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppRouter.swift; path = EasySearch/Core/Navigation/AppRouter.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		F40000000000000000000501 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EEDD261BC3F071CE81848894 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -229,6 +290,7 @@
 		1306B2A371C9CE9DF0C7EB7F /* Core */ = {
 			isa = PBXGroup;
 			children = (
+				F40000000000000000000205 /* Sharing */,
 				D700000000000000000000201 /* AI */,
 				1F0AA6DA19AA7B223C223FA9 /* Navigation */,
 				8C99C0002060773331CA9541 /* Extensions */,
@@ -279,6 +341,7 @@
 			isa = PBXGroup;
 			children = (
 				7E97BF05A1233442C2B30768 /* SearchEngine.swift */,
+				F30000000000000000000101 /* SearchEngineIconCache.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -357,6 +420,7 @@
 			isa = PBXGroup;
 			children = (
 				A5000001 /* EasySearch */,
+				F40000000000000000000206 /* EasySearchShare */,
 				A5000099 /* Products */,
 				B924F2B5DBEE2D8D30100156 /* EasySearchTests */,
 				669A203D6FEC862139AC385F /* Frameworks */,
@@ -371,6 +435,7 @@
 				CABB44AE871E03479E9CEB1F /* Features */,
 				A5000005 /* Resources */,
 				A2000009 /* Assets.xcassets */,
+				F40000000000000000000111 /* EasySearch.entitlements */,
 			);
 			path = EasySearch;
 			sourceTree = "<group>";
@@ -387,6 +452,7 @@
 			isa = PBXGroup;
 			children = (
 				A3000000 /* EasySearch.app */,
+				F40000000000000000000110 /* EasySearchShare.appex */,
 				CC601343648B48283FAC97DF /* EasySearchTests.xctest */,
 			);
 			name = Products;
@@ -395,6 +461,8 @@
 		B924F2B5DBEE2D8D30100156 /* EasySearchTests */ = {
 			isa = PBXGroup;
 			children = (
+				F40000000000000000000114 /* WebDAVClientTests.swift */,
+				F30000000000000000000102 /* SearchEngineIconCacheTests.swift */,
 				E100000000000000000000107 /* ExpenseAssistantTests.swift */,
 				C800000000000000000000104 /* CurrencyConverterViewModelTests.swift */,
 				C800000000000000000000105 /* ExchangeRateServiceTests.swift */,
@@ -447,10 +515,10 @@
 				E100000000000000000000201 /* ExpenseAssistant */,
 				6454E79B9B44E6FA2F45817D /* Settings */,
 				D1A000000000000000000201 /* UTTracker */,
-				D300000000000000000000201 /* GitHubUpdates */,
 				D400000000000000000000201 /* QingLong */,
 				D500000000000000000000201 /* ImageTranslate */,
 				D600000000000000000000201 /* EmailAssistant */,
+				F40000000000000000000201 /* WebDAV */,
 				9184EB6BD9CBA9B4D5FB8E9F /* Utilities */,
 			);
 			name = Features;
@@ -525,43 +593,6 @@
 				D2A000000000000000000103 /* HiddenCloudSync.swift */,
 			);
 			path = Sync;
-			sourceTree = "<group>";
-		};
-		D300000000000000000000201 /* GitHubUpdates */ = {
-			isa = PBXGroup;
-			children = (
-				D300000000000000000000202 /* Models */,
-				D300000000000000000000203 /* ViewModels */,
-				D300000000000000000000204 /* Views */,
-				D300000000000000000000101 /* GitHubUpdatesFeature.swift */,
-				D300000000000000000000102 /* GitHubUpdatesCoordinator.swift */,
-			);
-			path = GitHubUpdates;
-			sourceTree = "<group>";
-		};
-		D300000000000000000000202 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				D300000000000000000000103 /* GitHubWatchedRepository.swift */,
-				D300000000000000000000104 /* GitHubWatchedRepositoryStore.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		D300000000000000000000203 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				D300000000000000000000105 /* GitHubUpdatesViewModel.swift */,
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
-		D300000000000000000000204 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				D300000000000000000000106 /* GitHubUpdatesView.swift */,
-			);
-			path = Views;
 			sourceTree = "<group>";
 		};
 		D400000000000000000000201 /* QingLong */ = {
@@ -740,9 +771,91 @@
 			path = UIComponents;
 			sourceTree = "<group>";
 		};
+		F40000000000000000000201 /* WebDAV */ = {
+			isa = PBXGroup;
+			children = (
+				F40000000000000000000202 /* Models */,
+				F40000000000000000000203 /* Services */,
+				F40000000000000000000204 /* Views */,
+				F40000000000000000000101 /* WebDAVFeature.swift */,
+			);
+			path = WebDAV;
+			sourceTree = "<group>";
+		};
+		F40000000000000000000202 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				F40000000000000000000102 /* WebDAVModels.swift */,
+				F40000000000000000000103 /* WebDAVSettingsStore.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		F40000000000000000000203 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				F40000000000000000000104 /* WebDAVClient.swift */,
+				F40000000000000000000105 /* WebDAVLocalFileStore.swift */,
+				F40000000000000000000118 /* WebDAVDownloadManager.swift */,
+				F40000000000000000000122 /* WebDAVStreamResourceLoader.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		F40000000000000000000204 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				F40000000000000000000106 /* WebDAVView.swift */,
+				F40000000000000000000115 /* WebDAVSettingsView.swift */,
+				F40000000000000000000116 /* WebDAVShareUploadView.swift */,
+				F40000000000000000000117 /* WebDAVItemRow.swift */,
+				F40000000000000000000119 /* WebDAVDownloadsView.swift */,
+				F40000000000000000000120 /* WebDAVPreviewView.swift */,
+				F40000000000000000000121 /* WebDAVItemDetailsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		F40000000000000000000205 /* Sharing */ = {
+			isa = PBXGroup;
+			children = (
+				F40000000000000000000107 /* ShareInboxStore.swift */,
+				F40000000000000000000108 /* IncomingShareActionsView.swift */,
+			);
+			path = Sharing;
+			sourceTree = "<group>";
+		};
+		F40000000000000000000206 /* EasySearchShare */ = {
+			isa = PBXGroup;
+			children = (
+				F40000000000000000000109 /* ShareViewController.swift */,
+				F40000000000000000000112 /* Info.plist */,
+				F40000000000000000000113 /* EasySearchShare.entitlements */,
+			);
+			path = EasySearchShare;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		F40000000000000000000400 /* EasySearchShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F40000000000000000000703 /* Build configuration list for PBXNativeTarget "EasySearchShare" */;
+			buildPhases = (
+				F40000000000000000000502 /* Sources */,
+				F40000000000000000000501 /* Frameworks */,
+				F40000000000000000000503 /* Resources */,
+				F40000000000000000000504 /* Dynamic Build Version */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = EasySearchShare;
+			productName = EasySearchShare;
+			productReference = F40000000000000000000110 /* EasySearchShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		78345ACD5240AE76362DCBB7 /* EasySearchTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3897BD90ABA8A80E5B46D458 /* Build configuration list for PBXNativeTarget "EasySearchTests" */;
@@ -767,11 +880,13 @@
 			buildPhases = (
 				A4000000 /* Sources */,
 				A4000002 /* Resources */,
+				F40000000000000000000500 /* Embed App Extensions */,
 				A4000001 /* Dynamic Build Version */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				F40000000000000000000600 /* PBXTargetDependency */,
 			);
 			name = EasySearch;
 			productName = EasySearch;
@@ -788,8 +903,21 @@
 				LastSwiftUpdateCheck = 1500;
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
+					F40000000000000000000400 = {
+						CreatedOnToolsVersion = 15.0;
+						SystemCapabilities = {
+							com.apple.ApplicationGroups.iOS = {
+								enabled = 1;
+							};
+						};
+					};
 					A6000000 = {
 						CreatedOnToolsVersion = 15.0;
+						SystemCapabilities = {
+							com.apple.ApplicationGroups.iOS = {
+								enabled = 1;
+							};
+						};
 					};
 				};
 			};
@@ -808,12 +936,20 @@
 			projectRoot = "";
 			targets = (
 				A6000000 /* EasySearch */,
+				F40000000000000000000400 /* EasySearchShare */,
 				78345ACD5240AE76362DCBB7 /* EasySearchTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		F40000000000000000000503 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		42571D244B3A8172C5FA4989 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -833,6 +969,22 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		F40000000000000000000504 /* Dynamic Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Dynamic Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/easysearch_versioning/build_number",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"${SRCROOT}/scripts/update_dynamic_build_version.sh\"\n";
+		};
 		A4000001 /* Dynamic Build Version */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -847,15 +999,25 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -eu\nSTAMP_DIR=\"${DERIVED_FILE_DIR}/easysearch_versioning\"\nHASH_FILE=\"${STAMP_DIR}/source_hash\"\nBUILD_FILE=\"${STAMP_DIR}/build_number\"\nAPP_INFO_PLIST=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\nmkdir -p \"${STAMP_DIR}\"\ncollect_version_inputs() {\n  find \"${SRCROOT}/EasySearch\" -type f \\( -name \"*.swift\" -o -name \"*.plist\" -o -name \"*.json\" \\) -print\n  if [ -d \"${SRCROOT}/supabase\" ]; then\n    find \"${SRCROOT}/supabase\" -type f -print\n  fi\n  if [ -f \"${SRCROOT}/scripts/update_dynamic_build_version.sh\" ]; then\n    printf '%s\\n' \"${SRCROOT}/scripts/update_dynamic_build_version.sh\"\n  fi\n  printf '%s\\n' \"${SRCROOT}/EasySearch.xcodeproj/project.pbxproj\"\n}\nCURRENT_HASH=\"$({ collect_version_inputs | LC_ALL=C sort | while IFS= read -r file_path; do [ -f \"${file_path}\" ] || continue; shasum \"${file_path}\"; done; } | shasum | awk '{ print $1 }')\"\nPREVIOUS_HASH=\"\"\nif [ -f \"${HASH_FILE}\" ]; then\n  PREVIOUS_HASH=\"$(cat \"${HASH_FILE}\")\"\nfi\nif [ \"${CURRENT_HASH}\" = \"${PREVIOUS_HASH}\" ] && [ -f \"${BUILD_FILE}\" ]; then\n  BUILD_VERSION=\"$(cat \"${BUILD_FILE}\")\"\nelse\n  YEAR=\"$(date '+%Y')\"\n  MONTH=\"$(date '+%m')\"\n  DAY=\"$(date '+%d')\"\n  HOUR=\"$(date '+%H')\"\n  MINUTE=\"$(date '+%M')\"\n  SEGMENT_TWO=$((10#${MONTH} * 100 + 10#${DAY}))\n  SEGMENT_THREE=$((10#${HOUR} * 100 + 10#${MINUTE}))\n  BUILD_VERSION=\"${YEAR}.${SEGMENT_TWO}.${SEGMENT_THREE}\"\n  printf '%s' \"${CURRENT_HASH}\" > \"${HASH_FILE}\"\n  printf '%s' \"${BUILD_VERSION}\" > \"${BUILD_FILE}\"\nfi\nif [ ! -f \"${APP_INFO_PLIST}\" ]; then\n  echo \"warning: Dynamic versioning skipped because ${APP_INFO_PLIST} does not exist yet.\"\n  exit 0\nfi\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion ${BUILD_VERSION}\" \"${APP_INFO_PLIST}\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Add :CFBundleVersion string ${BUILD_VERSION}\" \"${APP_INFO_PLIST}\"\necho \"Dynamic build version: ${BUILD_VERSION}\"\n";
+			shellScript = "/bin/sh \"${SRCROOT}/scripts/update_dynamic_build_version.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		F40000000000000000000502 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F40000000000000000000009 /* ShareViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		35562CF8C17B7D497379E492 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F40000000000000000000011 /* WebDAVClientTests.swift in Sources */,
+				F30000000000000000000002 /* SearchEngineIconCacheTests.swift in Sources */,
 				E100000000000000000000007 /* ExpenseAssistantTests.swift in Sources */,
 				C800000000000000000000004 /* CurrencyConverterViewModelTests.swift in Sources */,
 				C800000000000000000000005 /* ExchangeRateServiceTests.swift in Sources */,
@@ -874,6 +1036,23 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F40000000000000000000001 /* WebDAVFeature.swift in Sources */,
+				F40000000000000000000002 /* WebDAVModels.swift in Sources */,
+				F40000000000000000000003 /* WebDAVSettingsStore.swift in Sources */,
+				F40000000000000000000004 /* WebDAVClient.swift in Sources */,
+				F40000000000000000000005 /* WebDAVLocalFileStore.swift in Sources */,
+				F40000000000000000000006 /* WebDAVView.swift in Sources */,
+				F40000000000000000000012 /* WebDAVSettingsView.swift in Sources */,
+				F40000000000000000000013 /* WebDAVShareUploadView.swift in Sources */,
+				F40000000000000000000014 /* WebDAVItemRow.swift in Sources */,
+				F40000000000000000000015 /* WebDAVDownloadManager.swift in Sources */,
+				F40000000000000000000016 /* WebDAVDownloadsView.swift in Sources */,
+				F40000000000000000000017 /* WebDAVPreviewView.swift in Sources */,
+				F40000000000000000000018 /* WebDAVItemDetailsView.swift in Sources */,
+				F40000000000000000000019 /* WebDAVStreamResourceLoader.swift in Sources */,
+				F40000000000000000000007 /* ShareInboxStore.swift in Sources */,
+				F40000000000000000000008 /* IncomingShareActionsView.swift in Sources */,
+				F30000000000000000000001 /* SearchEngineIconCache.swift in Sources */,
 				1A145786259D610FACA711A5 /* AppRouter.swift in Sources */,
 				08F64AB6A4B3B085A9FDDA21 /* AppFeature.swift in Sources */,
 				E800000000000000000000001 /* EasySearchUIComponents.swift in Sources */,
@@ -909,18 +1088,12 @@
 				D1A000000000000000000003 /* UTTrackerView.swift in Sources */,
 				D1A000000000000000000004 /* UTTrackerFeature.swift in Sources */,
 				D1A000000000000000000005 /* UTNotificationManager.swift in Sources */,
-				D300000000000000000000003 /* GitHubWatchedRepository.swift in Sources */,
-				D300000000000000000000004 /* GitHubWatchedRepositoryStore.swift in Sources */,
-				D300000000000000000000001 /* GitHubUpdatesFeature.swift in Sources */,
-				D300000000000000000000002 /* GitHubUpdatesCoordinator.swift in Sources */,
 				E100000000000000000000001 /* ExpenseAssistantFeature.swift in Sources */,
 				E100000000000000000000002 /* ExpenseAssistantModels.swift in Sources */,
 				E100000000000000000000003 /* ExpenseAssistantStore.swift in Sources */,
 				E100000000000000000000004 /* ExpenseAssistantNotificationManager.swift in Sources */,
 				E100000000000000000000005 /* ExpenseAssistantViewModel.swift in Sources */,
 				E100000000000000000000006 /* ExpenseAssistantView.swift in Sources */,
-				D300000000000000000000005 /* GitHubUpdatesViewModel.swift in Sources */,
-				D300000000000000000000006 /* GitHubUpdatesView.swift in Sources */,
 				D400000000000000000000001 /* QingLongFeature.swift in Sources */,
 				D400000000000000000000002 /* QingLongPanelProfile.swift in Sources */,
 				D400000000000000000000003 /* QingLongPanelStore.swift in Sources */,
@@ -955,6 +1128,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		F40000000000000000000600 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F40000000000000000000400 /* EasySearchShare */;
+			targetProxy = F40000000000000000000301 /* PBXContainerItemProxy */;
+		};
 		7E1251E9405E38D25C242B4F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = EasySearch;
@@ -964,6 +1142,62 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		F40000000000000000000701 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = EasySearchShare/EasySearchShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 2NTKHNF6H6;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = EasySearchShare/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.easysearch.xp9477.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F40000000000000000000702 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = EasySearchShare/EasySearchShare.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEVELOPMENT_TEAM = 2NTKHNF6H6;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = EasySearchShare/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.easysearch.xp9477.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		13D3D8054E89806665769AA9 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1113,6 +1347,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = EasySearch/EasySearch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEFINES_MODULE = YES;
@@ -1145,6 +1380,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = EasySearch/EasySearch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 2;
 				DEFINES_MODULE = YES;
@@ -1201,6 +1437,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		F40000000000000000000703 /* Build configuration list for PBXNativeTarget "EasySearchShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F40000000000000000000701 /* Debug */,
+				F40000000000000000000702 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		3897BD90ABA8A80E5B46D458 /* Build configuration list for PBXNativeTarget "EasySearchTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

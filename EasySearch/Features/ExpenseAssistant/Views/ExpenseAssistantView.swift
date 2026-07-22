@@ -45,6 +45,12 @@ public struct ExpenseAssistantView: View {
     private var overviewSection: some View {
         Section {
             VStack(alignment: .leading, spacing: ESUI.Space.md) {
+                ESModuleHero(
+                    title: "报销助手",
+                    subtitle: "单据跟踪与提醒",
+                    featureID: "expense-assistant",
+                    systemImage: "receipt"
+                )
                 HStack(alignment: .top, spacing: ESUI.Space.sm) {
                     VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                         Text("逾期概览")

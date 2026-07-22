@@ -1,27 +1,27 @@
 import SwiftUI
 
-public struct UtilitiesView: View {
-    public init() {}
-
-    public var body: some View {
+struct UtilitiesView: View {
+    var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
-                ESSectionHeader(
-                    title: "工具列表",
-                    subtitle: "轻量实用，即开即用"
+                ESModuleHero(
+                    title: "实用工具",
+                    subtitle: "轻量小工具",
+                    featureID: "utilities",
+                    systemImage: "hammer.fill"
                 )
 
                 NavigationLink {
                     CurrencyConverterView()
                 } label: {
                     ESFeatureEntryRow(
-                        title: "汇率换算",
-                        summary: "人民币 ↔ 新台币实时换算",
-                        systemImage: "arrow.left.arrow.right.circle.fill",
-                        color: .orange
+                        title: "人民币 / 新台币",
+                        summary: "实时汇率换算",
+                        systemImage: "yensign.circle",
+                        color: Color(red: 0.35, green: 0.40, blue: 0.48)
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(ESCardButtonStyle())
             }
             .padding(.horizontal, ESUI.screenHorizontalPadding)
             .padding(.top, ESUI.Space.md)
@@ -30,11 +30,5 @@ public struct UtilitiesView: View {
         .esScreenBackground()
         .navigationTitle("实用工具")
         .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-#Preview {
-    NavigationStack {
-        UtilitiesView()
     }
 }

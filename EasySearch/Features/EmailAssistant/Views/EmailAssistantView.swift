@@ -14,6 +14,12 @@ public struct EmailAssistantView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
+                ESModuleHero(
+                    title: "邮件助手",
+                    subtitle: "撰写 · 润色 · 讨论",
+                    featureID: "email-assistant",
+                    systemImage: "envelope.badge"
+                )
                 contextCard
                 conversationCard
             }

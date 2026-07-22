@@ -13,6 +13,12 @@ public struct QingLongView: View {
     public var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
+                ESModuleHero(
+                    title: "青龙管理",
+                    subtitle: "面板总览与运维",
+                    featureID: "qinglong-management",
+                    systemImage: "server.rack"
+                )
                 QingLongOverviewCard(
                     viewModel: viewModel,
                     metrics: overviewMetrics,

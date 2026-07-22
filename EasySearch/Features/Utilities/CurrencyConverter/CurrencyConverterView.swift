@@ -12,6 +12,12 @@ struct CurrencyConverterView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
+                ESModuleHero(
+                    title: "汇率换算",
+                    subtitle: "CNY ↔ TWD",
+                    featureID: "utilities",
+                    systemImage: "yensign.circle"
+                )
                 rateHeaderCard
                 conversionSection
                 dataSourceFooter

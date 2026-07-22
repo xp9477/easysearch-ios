@@ -43,6 +43,12 @@ public struct ImageTranslateView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
+                ESModuleHero(
+                    title: "翻译",
+                    subtitle: "文本 · 图片 · 即用",
+                    featureID: "image-translate",
+                    systemImage: "globe"
+                )
                 if !viewModel.hasConfiguredAPIKey {
                     setupGuidance
                 }
@@ -346,14 +352,21 @@ public struct ImageTranslateView: View {
                     Text(primaryActionTitle)
                     Spacer()
                     if viewModel.isRecognizingText || viewModel.isTranslating {
-                        ProgressView()
+                        ProgressView().tint(.white)
                     }
                 }
                 .font(.body.weight(.semibold))
+                .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, ESUI.Space.sm)
+                .padding(.vertical, ESUI.Space.sm + 2)
+                .padding(.horizontal, ESUI.Space.md)
+                .background(
+                    RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                        .fill(ESBrandGradient.linear)
+                        .opacity(canRunPrimaryAction ? 1 : 0.45)
+                )
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(ESCardButtonStyle())
             .disabled(!canRunPrimaryAction)
         }
         .esCard()

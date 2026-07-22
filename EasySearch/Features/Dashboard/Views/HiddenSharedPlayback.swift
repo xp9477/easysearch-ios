@@ -85,7 +85,8 @@ struct HiddenPlaybackIssuePresentation: Equatable {
             secondaryActionTitle = "打开确认页"
             systemImage = "checkmark.shield"
             tone = .accent
-        } else if statusCode == 451 || normalized.contains("451") || normalized.contains("MISSAV 页面请求失败") {
+        } else if normalized.contains("MISSAV"),
+                  statusCode == 451 || normalized.contains("451") || normalized.contains("页面请求失败") {
             kind = .missAVUnavailable
             title = "当前域名不可用"
             self.message = "已尝试备用域名。仍失败时可切换 MissAV 域名后重试。"
@@ -345,6 +346,7 @@ enum HiddenMissAVPlaybackResolver {
 
     private static func resolvePrimaryStream(pageURL: URL) async throws -> (streamURL: URL, refererURL: URL) {
         var lastError: Error?
+        var parsingError: Error?
 
         for candidateURL in HiddenMissAVDomainConfiguration.playbackCandidateURLs(for: pageURL) {
             do {
@@ -353,7 +355,7 @@ enum HiddenMissAVPlaybackResolver {
                     return (streamURL, candidateURL)
                 }
 
-                lastError = NSError(
+                parsingError = NSError(
                     domain: "HiddenMissAVPlaybackResolver",
                     code: -1,
                     userInfo: [NSLocalizedDescriptionKey: "未解析到 MISSAV 视频流"]
@@ -363,7 +365,7 @@ enum HiddenMissAVPlaybackResolver {
             }
         }
 
-        throw lastError ?? NSError(
+        throw parsingError ?? lastError ?? NSError(
             domain: "HiddenMissAVPlaybackResolver",
             code: -5,
             userInfo: [NSLocalizedDescriptionKey: "MISSAV 页面请求失败"]
@@ -452,7 +454,7 @@ enum HiddenMissAVPlaybackResolver {
         )
     }
 
-    private static func extractPrimaryStreamURL(from html: String, pageURL: URL) -> URL? {
+    static func extractPrimaryStreamURL(from html: String, pageURL: URL) -> URL? {
         var candidates: [String] = []
 
         let direct = HiddenMissAVHTMLParser.regexCaptureAll(
@@ -552,15 +554,30 @@ enum HiddenMissAVPlaybackResolver {
             return host.contains("surrit.com") || path.contains("/playlist")
         }
 
-        let playlistFirst = filtered.sorted { lhs, rhs in
+        let highestQualityFirst = filtered.sorted { lhs, rhs in
             let lhsPath = lhs.path.lowercased()
             let rhsPath = rhs.path.lowercased()
-            let lhsScore = (lhsPath.contains("/playlist") ? 3 : 0) + (lhsPath.contains("/video/") ? 1 : 0)
-            let rhsScore = (rhsPath.contains("/playlist") ? 3 : 0) + (rhsPath.contains("/video/") ? 1 : 0)
+            let lhsScore = streamQualityScore(for: lhsPath)
+            let rhsScore = streamQualityScore(for: rhsPath)
             return lhsScore > rhsScore
         }
 
-        return playlistFirst.isEmpty ? unique : playlistFirst
+        return highestQualityFirst.isEmpty ? unique : highestQualityFirst
+    }
+
+    private static func streamQualityScore(for path: String) -> Int {
+        if let groups = HiddenMissAVHTMLParser.regexFirstGroups(
+            pattern: #"/(\d{3,5})x(\d{3,5})/"#,
+            in: path,
+            dotMatchesLine: false
+        ), groups.count == 2,
+           let width = Int(groups[0]),
+           let height = Int(groups[1]) {
+            return width * height
+        }
+
+        if path.contains("/playlist") { return 1 }
+        return 0
     }
 }
 
@@ -587,7 +604,6 @@ struct HiddenSharedVideoPlayerView: View {
 
     let item: HiddenSharedPlayerItem
     let onSavePlaybackPosition: (HiddenSharedPlayerItem, Double) -> HiddenPlaybackSaveResult
-    var onPlaybackClosed: ((HiddenSharedPlayerItem, Double) -> Void)? = nil
     var showsPlaybackSaveControls = true
 
     @Environment(\.dismiss) private var dismiss
@@ -596,6 +612,7 @@ struct HiddenSharedVideoPlayerView: View {
     @State private var isMuted = true
     @State private var showUnmuteConfirm = false
     @State private var isPlaying = true
+    @State private var isBuffering = false
     @State private var currentTime: Double = 0
     @State private var duration: Double = 0
     @State private var isScrubbing = false
@@ -630,12 +647,10 @@ struct HiddenSharedVideoPlayerView: View {
     init(
         item: HiddenSharedPlayerItem,
         onSavePlaybackPosition: @escaping (HiddenSharedPlayerItem, Double) -> HiddenPlaybackSaveResult,
-        onPlaybackClosed: ((HiddenSharedPlayerItem, Double) -> Void)? = nil,
         showsPlaybackSaveControls: Bool = true
     ) {
         self.item = item
         self.onSavePlaybackPosition = onSavePlaybackPosition
-        self.onPlaybackClosed = onPlaybackClosed
         self.showsPlaybackSaveControls = showsPlaybackSaveControls
 
         let headers: [String: String] = [
@@ -650,7 +665,10 @@ struct HiddenSharedVideoPlayerView: View {
             ]
         )
         let playerItem = AVPlayerItem(asset: asset)
-        _player = State(initialValue: AVPlayer(playerItem: playerItem))
+        playerItem.preferredForwardBufferDuration = 12
+        let player = AVPlayer(playerItem: playerItem)
+        player.automaticallyWaitsToMinimizeStalling = true
+        _player = State(initialValue: player)
         _markerPositions = State(initialValue: Self.normalizedMarkerPositions(item.markerPositions))
     }
 
@@ -700,12 +718,11 @@ struct HiddenSharedVideoPlayerView: View {
             configureAudioSession()
             player.isMuted = true
             applyPlayerRateImmediately(normalPlaybackRate)
-            player.playImmediately(atRate: appliedPlaybackRate)
+            player.play()
             syncPlaybackState()
             scheduleControlsAutoHide()
         }
         .onDisappear {
-            onPlaybackClosed?(item, resolvedCurrentPlaybackTime)
             seekTask?.cancel()
             controlsAutoHideTask?.cancel()
             favoriteSaveResetTask?.cancel()
@@ -792,9 +809,16 @@ struct HiddenSharedVideoPlayerView: View {
             Button {
                 togglePlayback()
             } label: {
-                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundStyle(.black)
+                Group {
+                    if isBuffering {
+                        ProgressView()
+                            .tint(.black)
+                    } else {
+                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundStyle(.black)
+                    }
+                }
                     .frame(width: 72, height: 72)
                     .background(Color.white, in: Circle())
                     .shadow(color: Color.black.opacity(0.35), radius: 18, y: 10)
@@ -1035,7 +1059,7 @@ struct HiddenSharedVideoPlayerView: View {
             isPlaying = false
             controlsAutoHideTask?.cancel()
         } else {
-            player.playImmediately(atRate: appliedPlaybackRate)
+            player.play()
             isPlaying = true
             scheduleControlsAutoHide()
         }
@@ -1112,7 +1136,8 @@ struct HiddenSharedVideoPlayerView: View {
             }
         }
 
-        isPlaying = player.timeControlStatus == .playing
+        isBuffering = player.timeControlStatus == .waitingToPlayAtSpecifiedRate
+        isPlaying = player.timeControlStatus != .paused
     }
 
     private func toggleControlsVisibility() {
@@ -1136,11 +1161,11 @@ struct HiddenSharedVideoPlayerView: View {
 
     private func scheduleControlsAutoHide() {
         controlsAutoHideTask?.cancel()
-        guard isPlaying, !isScrubbing, !isProgrammaticSeeking else { return }
+        guard isPlaying, !isBuffering, !isScrubbing, !isProgrammaticSeeking else { return }
 
         controlsAutoHideTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: 3_000_000_000)
-            guard !Task.isCancelled, isPlaying, !isScrubbing, !isProgrammaticSeeking else { return }
+            guard !Task.isCancelled, isPlaying, !isBuffering, !isScrubbing, !isProgrammaticSeeking else { return }
             withAnimation(.easeInOut(duration: 0.2)) {
                 controlsVisible = false
             }
@@ -1226,7 +1251,8 @@ struct HiddenSharedVideoPlayerView: View {
             isProgrammaticSeeking = false
 
             if resumePlayback {
-                player.playImmediately(atRate: rateAfterSeek)
+                player.defaultRate = rateAfterSeek
+                player.play()
             }
             scheduleControlsAutoHide()
         }

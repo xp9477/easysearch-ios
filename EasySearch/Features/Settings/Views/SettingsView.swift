@@ -9,7 +9,7 @@ struct SettingsView: View {
     @StateObject private var cloudViewModel = HiddenCloudSyncViewModel.shared
     @StateObject private var utNotificationManager = UTNotificationManager.shared
     @StateObject private var expenseAssistantNotificationManager = ExpenseAssistantNotificationManager.shared
-    @StateObject private var gitHubNotificationManager = GitHubUpdatesNotificationManager.shared
+    @StateObject private var webDAVSettingsStore = WebDAVSettingsStore.shared
     @State private var path = NavigationPath()
 
     private var appVersionText: String {
@@ -59,7 +59,6 @@ struct SettingsView: View {
                 await cloudViewModel.prepareIfNeeded()
                 await utNotificationManager.configure()
                 await expenseAssistantNotificationManager.configure()
-                await gitHubNotificationManager.configure()
                 await statusCenter.refresh()
                 handlePendingRouteIfNeeded()
             }
@@ -79,7 +78,17 @@ struct SettingsView: View {
 
     private var accountSyncSection: some View {
         VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            ESSectionHeader(title: "账户与同步", subtitle: "云端连接与同步状态")
+            ESHeroHeader(
+                eyebrow: "设置",
+                title: "个人工作台",
+                subtitle: "同步 · 权限 · 服务连接",
+                trailing: AnyView(
+                    ESStatusBadge(
+                        text: statusCenter.cloudSummary.text,
+                        tone: .from(kind: statusCenter.cloudSummary.kind)
+                    )
+                )
+            )
 
             NavigationLink(value: SettingsRoute.cloudSync) {
                 ESSettingsRow(
@@ -107,10 +116,6 @@ struct SettingsView: View {
                 notificationSummaryRow(
                     title: "报销助手",
                     status: expenseAssistantNotificationManager.authorizationStatus
-                )
-                notificationSummaryRow(
-                    title: "GitHub 更新",
-                    status: gitHubNotificationManager.authorizationStatus
                 )
             }
         }
@@ -226,14 +231,14 @@ struct SettingsView: View {
             UTTrackerSettingsDetailView()
         case .expenseAssistant:
             ExpenseAssistantSettingsDetailView()
-        case .gitHubUpdates:
-            GitHubUpdatesSettingsDetailView()
         case .imageTranslate:
             AISettingsDetailView(entry: .imageTranslate)
         case .emailAssistant:
             AISettingsDetailView(entry: .emailAssistant)
         case .qingLong:
             QingLongSettingsDetailView()
+        case .webDAV:
+            WebDAVSettingsView(store: webDAVSettingsStore)
         }
     }
 
@@ -266,16 +271,6 @@ struct SettingsView: View {
                 status: status,
                 route: .expenseAssistant
             )
-        case "github-updates":
-            return ModuleSettingsItem(
-                id: feature.id,
-                title: feature.title,
-                subtitle: "通知与检查",
-                systemImage: feature.iconName,
-                color: feature.color,
-                status: status,
-                route: .gitHubUpdates
-            )
         case "qinglong-management":
             return ModuleSettingsItem(
                 id: feature.id,
@@ -305,6 +300,16 @@ struct SettingsView: View {
                 color: feature.color,
                 status: status,
                 route: .emailAssistant
+            )
+        case "webdav":
+            return ModuleSettingsItem(
+                id: feature.id,
+                title: feature.title,
+                subtitle: "文件与位置",
+                systemImage: feature.iconName,
+                color: feature.color,
+                status: status,
+                route: .webDAV
             )
         default:
             return nil
@@ -552,65 +557,6 @@ private struct ExpenseAssistantSettingsDetailView: View {
         .task {
             await notificationManager.configure()
         }
-    }
-}
-
-private struct GitHubUpdatesSettingsDetailView: View {
-    @StateObject private var notificationManager = GitHubUpdatesNotificationManager.shared
-    @Environment(\.openURL) private var openURL
-    @State private var repositoryCount = 0
-
-    var body: some View {
-        List {
-            Section {
-                SettingsValueRow(title: "状态", value: notificationManager.statusText)
-                SettingsValueRow(title: "仓库", value: "\(repositoryCount) 个")
-
-                switch notificationManager.authorizationStatus {
-                case .notDetermined:
-                    Button {
-                        Task {
-                            await notificationManager.requestAuthorization()
-                        }
-                    } label: {
-                        Label("开启通知", systemImage: "bell.badge")
-                    }
-
-                case .denied:
-                    Button {
-                        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
-                        openURL(settingsURL)
-                    } label: {
-                        Label("前往系统设置", systemImage: "gearshape")
-                    }
-
-                case .authorized, .provisional, .ephemeral:
-                    Button {
-                        Task {
-                            await notificationManager.refreshAuthorizationStatus()
-                        }
-                    } label: {
-                        Label("刷新状态", systemImage: "arrow.clockwise")
-                    }
-
-                @unknown default:
-                    EmptyView()
-                }
-            }
-        }
-        .navigationTitle("GitHub 更新")
-        .navigationBarTitleDisplayMode(.inline)
-        .task {
-            await notificationManager.configure()
-            reloadRepositoryCount()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .gitHubWatchedRepositoriesDidChange)) { _ in
-            reloadRepositoryCount()
-        }
-    }
-
-    private func reloadRepositoryCount() {
-        repositoryCount = GitHubWatchedRepositoryLocalStore().loadRepositories().count
     }
 }
 

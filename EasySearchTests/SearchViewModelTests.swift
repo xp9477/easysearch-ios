@@ -4,6 +4,24 @@ import XCTest
 
 @MainActor
 final class SearchViewModelTests: XCTestCase {
+    func testSearchEngineBuildsGoogleFaviconURL() throws {
+        let engine = SearchEngine(
+            name: "GitHub",
+            url: "https://github.com/search?q={query}",
+            urlScheme: nil,
+            category: SearchCategory.search.rawValue
+        )
+
+        let faviconURL = try XCTUnwrap(engine.faviconURL)
+        let components = try XCTUnwrap(URLComponents(url: faviconURL, resolvingAgainstBaseURL: false))
+
+        XCTAssertEqual(engine.displayHost, "github.com")
+        XCTAssertEqual(components.host, "www.google.com")
+        XCTAssertEqual(components.path, "/s2/favicons")
+        XCTAssertEqual(components.queryItems?.first(where: { $0.name == "domain_url" })?.value, "https://github.com")
+        XCTAssertEqual(components.queryItems?.first(where: { $0.name == "sz" })?.value, "128")
+    }
+
     func testInitializationLoadsCachedConfigWithoutRemoteRefresh() throws {
         let userDefaults = makeUserDefaults()
         let engines = [makeEngine(name: "Local")]
