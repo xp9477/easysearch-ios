@@ -620,6 +620,7 @@ struct ESEmptyState: View {
     var systemImage: String = "tray"
     var actionTitle: String?
     var action: (() -> Void)?
+    var minHeight: CGFloat? = nil
 
     var body: some View {
         VStack(spacing: ESUI.Space.sm) {
@@ -647,7 +648,7 @@ struct ESEmptyState: View {
                     .padding(.top, ESUI.Space.xs)
             }
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: minHeight)
         .padding(.vertical, ESUI.Space.xxl)
         .padding(.horizontal, ESUI.Space.md)
         .accessibilityElement(children: .combine)

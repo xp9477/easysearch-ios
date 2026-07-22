@@ -1,5 +1,31 @@
 import SwiftUI
 
+enum HiddenSpaceRoute: Hashable {
+    case settings
+    case fourKHD
+    case fourKHDFavorites
+    case fourKHDFavoriteImages
+    case fourKHDFavoriteAlbums
+    case fourKHDAlbum(HiddenAlbum)
+    case javDB
+    case javDBFavorites
+    case javDBMovie(HiddenJavDBMovie)
+}
+
+enum HiddenSpacePresentedModal: Hashable {
+    case fourKHDFavoritesPreview(PreviewImage)
+    case albumDetailPreview(albumID: String, preview: PreviewImage)
+    case javDBFavoritesPlayer(HiddenSharedPlayerItem)
+    case javDBMoviePreview(movieID: String, preview: HiddenJavDBPreviewImage)
+    case javDBMoviePlayer(movieID: String, item: HiddenSharedPlayerItem)
+    case javDBMovieWebPage(movieID: String, item: HiddenSharedWebPageItem)
+}
+
+@MainActor
+final class HiddenSpacePresentationState: ObservableObject {
+    @Published var modal: HiddenSpacePresentedModal?
+}
+
 struct HiddenSpaceView: View {
     @State private var settings = HiddenSpaceSettingsStore.shared.load()
     @State private var fourKHDFavoritesCount = 0
