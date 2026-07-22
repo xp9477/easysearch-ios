@@ -70,7 +70,7 @@ struct Hidden4KHDFeatureView: View {
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(value: HiddenSpaceRoute.settings) {
+                NavigationLink(value: HiddenSpaceRoute.fourKHDSettings) {
                     Image(systemName: "gearshape")
                 }
                 .accessibilityLabel("4khd 设置")

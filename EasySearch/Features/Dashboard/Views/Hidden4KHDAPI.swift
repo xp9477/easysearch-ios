@@ -6,7 +6,7 @@ import UIKit
 
 enum HiddenSpaceAPI {
     private static let baseURL = URL(string: "https://www.4khd.com/")!
-    private static let userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile"
+    private static let userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
 
     static func fetchRandomAlbum(knownTotalPages: Int?) async throws -> (album: HiddenAlbum, totalPages: Int) {
         let totalPages = try await resolveTotalPages(knownTotalPages: knownTotalPages)
@@ -254,37 +254,96 @@ enum HiddenSpaceAPI {
     }
 
     static func normalizeImageURL(_ url: URL) -> URL {
-        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return url
+        imageURLCandidates(for: url).first ?? url
+    }
+
+    /// Prefer hosts that accept original path casing without a case-rewriting redirect.
+    /// `pic`/`img` CDN redirects fix Google path casing, but a naive rewrite to
+    /// `i0.wp.com/yt4.googleusercontent.com/...` with the original case often returns 400.
+    static func imageURLCandidates(for url: URL) -> [URL] {
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return [url]
         }
 
         let host = components.host?.lowercased() ?? ""
-        let path = components.path
+        let rawPath = components.path
 
-        // Desktop / CDN now redirects image hosts:
-        // pic.4khd.com -> yt4.googleusercontent.com
-        // img.4khd.com -> i0.wp.com/yt4.googleusercontent.com/...
-        // Keep Jetpack proxied originals (i0.wp.com/pic.4khd.com/...) as-is — they currently return 200.
-        if host == "pic.4khd.com" {
-            components.scheme = "https"
-            components.host = "i0.wp.com"
-            components.path = "/pic.4khd.com" + (path.hasPrefix("/") ? path : "/" + path)
-            return components.url ?? url
+        // Only expand candidates for 4khd-related image hosts. Other modules share the
+        // image pipeline and must keep their original URLs untouched.
+        guard is4KHDImageHost(host, path: rawPath) else {
+            return [url]
         }
 
-        if host == "img.4khd.com" {
-            components.scheme = "https"
-            components.host = "i0.wp.com"
-            components.path = "/yt4.googleusercontent.com" + (path.hasPrefix("/") ? path : "/" + path)
-            return components.url ?? url
+        let underlyingPath = underlyingImagePath(host: host, path: rawPath)
+
+        var candidates: [URL] = []
+        func append(_ candidate: URL?) {
+            guard let candidate else { return }
+            if !candidates.contains(where: { $0.absoluteString == candidate.absoluteString }) {
+                candidates.append(candidate)
+            }
         }
 
+        // 1) Jetpack pic proxy — currently the most stable for original casing.
+        append(makeImageURL(host: "i0.wp.com", path: "/pic.4khd.com" + underlyingPath, query: components.queryItems))
+
+        // 2) Original absolute URL (already-proxied HTML covers often land here).
+        var original = components
+        original.scheme = "https"
+        append(original.url)
+
+        // 3) Origin CDNs that redirect to Google with corrected casing.
+        append(makeImageURL(host: "pic.4khd.com", path: underlyingPath, query: nil))
+        append(makeImageURL(host: "img.4khd.com", path: underlyingPath, query: nil))
+
+        // 4) Direct Google host / Jetpack Google proxy (works only when casing already matches).
+        append(makeImageURL(host: "yt4.googleusercontent.com", path: underlyingPath, query: nil))
+        append(makeImageURL(host: "i0.wp.com", path: "/yt4.googleusercontent.com" + underlyingPath, query: components.queryItems))
+
+        if candidates.isEmpty {
+            candidates = [url]
+        }
+        return candidates
+    }
+
+    private static func is4KHDImageHost(_ host: String, path: String) -> Bool {
+        if host == "pic.4khd.com" || host == "img.4khd.com" {
+            return true
+        }
         if host.hasSuffix(".googleusercontent.com") {
-            components.scheme = "https"
-            return components.url ?? url
+            return true
         }
+        if host.hasSuffix(".wp.com") {
+            return path.contains("pic.4khd.com")
+                || path.contains("img.4khd.com")
+                || path.contains("googleusercontent.com")
+        }
+        return false
+    }
 
-        return url
+    private static func underlyingImagePath(host: String, path: String) -> String {
+        let normalized = path.hasPrefix("/") ? path : "/" + path
+        let prefixes = [
+            "/pic.4khd.com",
+            "/img.4khd.com",
+            "/yt4.googleusercontent.com",
+            "/lh3.googleusercontent.com"
+        ]
+        if host.hasSuffix(".wp.com") {
+            for prefix in prefixes where normalized.hasPrefix(prefix + "/") || normalized == prefix {
+                return String(normalized.dropFirst(prefix.count))
+            }
+        }
+        return normalized
+    }
+
+    private static func makeImageURL(host: String, path: String, query: [URLQueryItem]?) -> URL? {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = host
+        components.path = path.hasPrefix("/") ? path : "/" + path
+        components.queryItems = query
+        return components.url
     }
 
     static func normalizeAlbumURL(_ url: URL) -> URL {

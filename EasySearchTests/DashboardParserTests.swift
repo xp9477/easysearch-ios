@@ -40,13 +40,36 @@ final class DashboardParserTests: XCTestCase {
         XCTAssertEqual(
             urls,
             [
-                "https://i0.wp.com/yt4.googleusercontent.com/a.jpg",
                 "https://i0.wp.com/pic.4khd.com/a.jpg",
                 "https://i0.wp.com/pic.4khd.com/b.webp",
-                "https://i0.wp.com/yt4.googleusercontent.com/c.jpg",
-                "https://i0.wp.com/yt4.googleusercontent.com/c-large.jpg"
+                "https://i0.wp.com/pic.4khd.com/c.jpg",
+                "https://i0.wp.com/pic.4khd.com/c-large.jpg"
             ]
         )
+    }
+
+    func test4KHDImageURLCandidatesPreferJetpackPicProxy() throws {
+        let pic = try XCTUnwrap(URL(string: "https://pic.4khd.com/-abc/sample.webp"))
+        let img = try XCTUnwrap(URL(string: "https://img.4khd.com/-abc/sample.webp"))
+        let jetpackYT = try XCTUnwrap(URL(string: "https://i0.wp.com/yt4.googleusercontent.com/-abc/sample.webp"))
+
+        XCTAssertEqual(
+            HiddenSpaceAPI.normalizeImageURL(pic).absoluteString,
+            "https://i0.wp.com/pic.4khd.com/-abc/sample.webp"
+        )
+        XCTAssertEqual(
+            HiddenSpaceAPI.normalizeImageURL(img).absoluteString,
+            "https://i0.wp.com/pic.4khd.com/-abc/sample.webp"
+        )
+        XCTAssertEqual(
+            HiddenSpaceAPI.normalizeImageURL(jetpackYT).absoluteString,
+            "https://i0.wp.com/pic.4khd.com/-abc/sample.webp"
+        )
+
+        let candidates = HiddenSpaceAPI.imageURLCandidates(for: img).map(\.absoluteString)
+        XCTAssertEqual(candidates.first, "https://i0.wp.com/pic.4khd.com/-abc/sample.webp")
+        XCTAssertTrue(candidates.contains("https://pic.4khd.com/-abc/sample.webp"))
+        XCTAssertTrue(candidates.contains("https://img.4khd.com/-abc/sample.webp"))
     }
 
     func testJavDBMovieParserNormalizesAndDeduplicatesMovies() throws {

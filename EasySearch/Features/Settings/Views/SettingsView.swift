@@ -116,7 +116,7 @@ struct SettingsView: View {
         case .webDAV:
             WebDAVSettingsView(store: webDAVSettingsStore)
         case .hiddenSpace:
-            HiddenSpaceSettingsDetailView()
+            HiddenSpaceSettingsHubView()
         }
     }
 
@@ -724,11 +724,29 @@ private struct QingLongDiagnosticReportView: View {
     }
 }
 
-struct HiddenSpaceSettingsDetailView: View {
+struct HiddenSpaceSettingsHubView: View {
+    var body: some View {
+        List {
+            NavigationLink {
+                Hidden4KHDSettingsDetailView()
+            } label: {
+                Label("4khd 设置", systemImage: "photo.stack")
+            }
+
+            NavigationLink {
+                HiddenJavDBSettingsDetailView()
+            } label: {
+                Label("javdb 设置", systemImage: "film.stack")
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("隐藏空间设置")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct Hidden4KHDSettingsDetailView: View {
     @State private var fourKHDRandomMode = HiddenSpaceSettingsStore.shared.load().fourKHDRandomMode
-    @State private var javDBRandomMode = HiddenSpaceSettingsStore.shared.load().javDBRandomMode
-    @State private var showJavDBDetailsByDefault = HiddenSpaceSettingsStore.shared.load().showJavDBDetailsByDefault
-    @State private var missAVDomain = HiddenSpaceSettingsStore.shared.load().missAVDomain
 
     var body: some View {
         List {
@@ -739,11 +757,32 @@ struct HiddenSpaceSettingsDetailView: View {
                     }
                 }
             } header: {
-                Text("4khd")
+                Text("随机")
             } footer: {
-                Text("控制隐藏空间首页进入 4khd 时的默认随机方式。")
+                Text("控制进入 4khd 时的默认随机方式。")
             }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("4khd 设置")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            fourKHDRandomMode = HiddenSpaceSettingsStore.shared.load().fourKHDRandomMode
+        }
+        .onChange(of: fourKHDRandomMode) { mode in
+            HiddenSpaceSettingsStore.shared.update { settings in
+                settings.fourKHDRandomMode = mode
+            }
+        }
+    }
+}
 
+struct HiddenJavDBSettingsDetailView: View {
+    @State private var javDBRandomMode = HiddenSpaceSettingsStore.shared.load().javDBRandomMode
+    @State private var showJavDBDetailsByDefault = HiddenSpaceSettingsStore.shared.load().showJavDBDetailsByDefault
+    @State private var missAVDomain = HiddenSpaceSettingsStore.shared.load().missAVDomain
+
+    var body: some View {
+        List {
             Section {
                 Picker("默认随机模式", selection: $javDBRandomMode) {
                     ForEach(HiddenJavDBRandomMode.allCases) { mode in
@@ -753,7 +792,7 @@ struct HiddenSpaceSettingsDetailView: View {
 
                 Toggle("默认展开详细信息", isOn: $showJavDBDetailsByDefault)
             } header: {
-                Text("javdb")
+                Text("随机与详情")
             } footer: {
                 Text("详细信息可在影片卡片与详情页随时切换显示。")
             }
@@ -782,42 +821,29 @@ struct HiddenSpaceSettingsDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("隐藏空间设置")
+        .navigationTitle("javdb 设置")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            loadSettings()
+            let settings = HiddenSpaceSettingsStore.shared.load()
+            javDBRandomMode = settings.javDBRandomMode
+            showJavDBDetailsByDefault = settings.showJavDBDetailsByDefault
+            missAVDomain = settings.missAVDomain
         }
-        .onChange(of: fourKHDRandomMode) { _ in
-            persistSettings()
+        .onChange(of: javDBRandomMode) { mode in
+            HiddenSpaceSettingsStore.shared.update { settings in
+                settings.javDBRandomMode = mode
+            }
         }
-        .onChange(of: javDBRandomMode) { _ in
-            persistSettings()
+        .onChange(of: showJavDBDetailsByDefault) { enabled in
+            HiddenSpaceSettingsStore.shared.update { settings in
+                settings.showJavDBDetailsByDefault = enabled
+            }
         }
-        .onChange(of: showJavDBDetailsByDefault) { _ in
-            persistSettings()
+        .onChange(of: missAVDomain) { domain in
+            HiddenSpaceSettingsStore.shared.update { settings in
+                settings.missAVDomain = domain
+            }
         }
-        .onChange(of: missAVDomain) { _ in
-            persistSettings()
-        }
-    }
-
-    private func loadSettings() {
-        let settings = HiddenSpaceSettingsStore.shared.load()
-        fourKHDRandomMode = settings.fourKHDRandomMode
-        javDBRandomMode = settings.javDBRandomMode
-        showJavDBDetailsByDefault = settings.showJavDBDetailsByDefault
-        missAVDomain = settings.missAVDomain
-    }
-
-    private func persistSettings() {
-        HiddenSpaceSettingsStore.shared.save(
-            HiddenSpaceSettings(
-                fourKHDRandomMode: fourKHDRandomMode,
-                javDBRandomMode: javDBRandomMode,
-                showJavDBDetailsByDefault: showJavDBDetailsByDefault,
-                missAVDomain: missAVDomain
-            )
-        )
     }
 }
 

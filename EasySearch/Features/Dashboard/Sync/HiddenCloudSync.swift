@@ -124,24 +124,8 @@ enum HiddenCloudMerge {
 
 private enum Hidden4KHDURLNormalizer {
     static func normalizeImageURL(_ url: URL) -> URL {
-        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return url
-        }
-
-        let host = components.host?.lowercased() ?? ""
-
-        if host == "i0.wp.com" && components.path.hasPrefix("/pic.4khd.com/") {
-            components.host = "img.4khd.com"
-            components.path = components.path.replacingOccurrences(of: "/pic.4khd.com", with: "", options: .anchored)
-            return components.url ?? url
-        }
-
-        if host == "pic.4khd.com" {
-            components.host = "img.4khd.com"
-            return components.url ?? url
-        }
-
-        return url
+        // Keep cloud + local image keys aligned with the runtime image pipeline.
+        HiddenSpaceAPI.normalizeImageURL(url)
     }
 
     static func normalizeAlbumURL(_ url: URL) -> URL {

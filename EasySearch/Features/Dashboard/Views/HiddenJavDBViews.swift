@@ -11,11 +11,6 @@ struct HiddenJavDBFeatureView: View {
     @State private var searchQuery = ""
     @State private var webPageItem: HiddenSharedWebPageItem?
 
-    private let searchColumns = [
-        GridItem(.flexible(), spacing: ESUI.Space.sm),
-        GridItem(.flexible(), spacing: ESUI.Space.sm)
-    ]
-
     init(viewModel: HiddenJavDBViewModel) {
         self.viewModel = viewModel
         let settings = HiddenSpaceSettingsStore.shared.load()
@@ -74,7 +69,7 @@ struct HiddenJavDBFeatureView: View {
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(value: HiddenSpaceRoute.settings) {
+                NavigationLink(value: HiddenSpaceRoute.javDBSettings) {
                     Image(systemName: "gearshape")
                 }
                 .accessibilityLabel("javdb 设置")
@@ -139,16 +134,10 @@ struct HiddenJavDBFeatureView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    LazyVGrid(columns: searchColumns, spacing: ESUI.Space.sm) {
+                    LazyVStack(spacing: ESUI.Space.sm) {
                         ForEach(viewModel.searchedMovies) { movie in
                             NavigationLink(value: HiddenSpaceRoute.javDBMovie(movie)) {
-                                HiddenJavDBFavoriteMovieTile(
-                                    movie: movie,
-                                    detail: nil,
-                                    errorMessage: nil,
-                                    isLoadingDetail: false,
-                                    showDetails: false
-                                )
+                                HiddenJavDBSearchMovieTile(movie: movie)
                             }
                             .buttonStyle(.plain)
                         }
@@ -784,7 +773,7 @@ struct HiddenJavDBMovieDetailView: View {
                     }
                     .buttonStyle(.bordered)
                 case .missAVUnavailable:
-                    NavigationLink(value: HiddenSpaceRoute.settings) {
+                    NavigationLink(value: HiddenSpaceRoute.javDBSettings) {
                         Text(issue.secondaryActionTitle ?? "修改域名")
                     }
                     .buttonStyle(.bordered)
@@ -1245,6 +1234,50 @@ private struct HiddenPlaybackThumbnailView: View {
         } catch {
             didFail = true
         }
+    }
+}
+
+private struct HiddenJavDBSearchMovieTile: View {
+    let movie: HiddenJavDBMovie
+
+    var body: some View {
+        HStack(alignment: .top, spacing: ESUI.Space.md) {
+            AsyncCoverImage(url: movie.coverURL)
+                .frame(width: 120, height: 168)
+                .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
+                .clipped()
+
+            VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+                Text(movie.code)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Text(movie.displayTitle)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.leading)
+
+                if !movie.actresses.isEmpty {
+                    Text(movie.actressesText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(ESUI.Space.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .fill(ESUI.fill)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 }
 
