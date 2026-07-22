@@ -98,16 +98,41 @@ enum HiddenSpaceAPI {
         var request = URLRequest(url: url)
         request.timeoutInterval = 20
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw NSError(domain: "HiddenSpaceAPI", code: -3, userInfo: [NSLocalizedDescriptionKey: "页面请求失败"])
-        }
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                throw NSError(domain: "HiddenSpaceAPI", code: -3, userInfo: [NSLocalizedDescriptionKey: "页面请求失败"])
+            }
 
-        guard let html = String(data: data, encoding: .utf8) else {
-            throw NSError(domain: "HiddenSpaceAPI", code: -4, userInfo: [NSLocalizedDescriptionKey: "页面解析失败"])
+            guard let html = String(data: data, encoding: .utf8) else {
+                throw NSError(domain: "HiddenSpaceAPI", code: -4, userInfo: [NSLocalizedDescriptionKey: "页面解析失败"])
+            }
+            return html
+        } catch let error as NSError {
+            if error.domain == "HiddenSpaceAPI" {
+                throw error
+            }
+            if error.domain == NSURLErrorDomain,
+               [NSURLErrorSecureConnectionFailed,
+                NSURLErrorServerCertificateUntrusted,
+                NSURLErrorServerCertificateHasBadDate,
+                NSURLErrorServerCertificateNotYetValid,
+                NSURLErrorClientCertificateRejected,
+                NSURLErrorClientCertificateRequired].contains(error.code) {
+                throw NSError(
+                    domain: "HiddenSpaceAPI",
+                    code: error.code,
+                    userInfo: [NSLocalizedDescriptionKey: "TLS 连接失败，站点或图片 CDN 证书/域名可能已变更。"]
+                )
+            }
+            throw NSError(
+                domain: "HiddenSpaceAPI",
+                code: error.code,
+                userInfo: [NSLocalizedDescriptionKey: error.localizedDescription]
+            )
         }
-        return html
     }
 
     static func parseAlbums(from html: String) -> [HiddenAlbum] {
@@ -234,17 +259,28 @@ enum HiddenSpaceAPI {
         }
 
         let host = components.host?.lowercased() ?? ""
+        let path = components.path
 
-        // Site HTML often uses i0.wp.com/pic.4khd.com/... which returns 400 directly.
-        // Rewrite it to img.4khd.com/... first, then follow redirects.
-        if host == "i0.wp.com" && components.path.hasPrefix("/pic.4khd.com/") {
-            components.host = "img.4khd.com"
-            components.path = components.path.replacingOccurrences(of: "/pic.4khd.com", with: "", options: .anchored)
+        // Desktop / CDN now redirects image hosts:
+        // pic.4khd.com -> yt4.googleusercontent.com
+        // img.4khd.com -> i0.wp.com/yt4.googleusercontent.com/...
+        // Keep Jetpack proxied originals (i0.wp.com/pic.4khd.com/...) as-is — they currently return 200.
+        if host == "pic.4khd.com" {
+            components.scheme = "https"
+            components.host = "i0.wp.com"
+            components.path = "/pic.4khd.com" + (path.hasPrefix("/") ? path : "/" + path)
             return components.url ?? url
         }
 
-        if host == "pic.4khd.com" {
-            components.host = "img.4khd.com"
+        if host == "img.4khd.com" {
+            components.scheme = "https"
+            components.host = "i0.wp.com"
+            components.path = "/yt4.googleusercontent.com" + (path.hasPrefix("/") ? path : "/" + path)
+            return components.url ?? url
+        }
+
+        if host.hasSuffix(".googleusercontent.com") {
+            components.scheme = "https"
             return components.url ?? url
         }
 
@@ -274,7 +310,12 @@ enum HiddenSpaceAPI {
         if host == "img.4khd.com" || host == "pic.4khd.com" {
             return true
         }
-        if host.hasSuffix(".wp.com") && path.contains("/pic.4khd.com/") {
+        if host.hasSuffix(".googleusercontent.com") {
+            return true
+        }
+        if host.hasSuffix(".wp.com") && (
+            path.contains("/pic.4khd.com/") || path.contains("/yt4.googleusercontent.com/")
+        ) {
             return true
         }
 

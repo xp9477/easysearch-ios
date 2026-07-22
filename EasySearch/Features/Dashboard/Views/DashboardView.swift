@@ -69,15 +69,13 @@ public struct DashboardView: View {
                 }
             }
             .navigationDestination(for: String.self) { featureId in
-                if let feature = (moduleFeatures + unlockedHiddenFeatures).first(where: { $0.id == featureId }) {
+                // Keep resolving hidden features even after the private section collapses,
+                // so nested routes (search / detail) don't flash "模块不存在".
+                if let feature = resolvedFeature(for: featureId) {
                     feature.entryView
                         .environmentObject(hidden4KHDViewModel)
                         .environmentObject(hiddenJavDBViewModel)
                         .environmentObject(hiddenPresentationState)
-                        .onDisappear {
-                            saveHiddenSpaceSnapshotIfNeeded()
-                            collapseHiddenSpaceAfterExitIfNeeded()
-                        }
                 } else {
                     ESEmptyState(title: "模块不存在", systemImage: "questionmark.circle")
                 }
@@ -86,6 +84,13 @@ public struct DashboardView: View {
                 hiddenSpaceDestination(for: route)
             }
             .id(navigationStackIdentity)
+            .onChange(of: path.count) { count in
+                // Only collapse/lock when the whole stack returns to the dashboard root.
+                // Nested pushes used to fire onDisappear on the feature root and wipe unlock state.
+                if count == 0 {
+                    collapseHiddenSpaceAfterExitIfNeeded()
+                }
+            }
         }
         .overlay {
             if scenePhase != .active && shouldMaskHiddenFeatures {
@@ -121,6 +126,18 @@ public struct DashboardView: View {
 
     private var hiddenFeatureIDs: Set<String> {
         Set(registry.hiddenFeatures.map(\.id))
+    }
+
+    private func resolvedFeature(for featureId: String) -> (any AppFeature)? {
+        if let feature = (moduleFeatures + unlockedHiddenFeatures).first(where: { $0.id == featureId }) {
+            return feature
+        }
+        // While a hidden feature is still selected (or its path is being restored), keep
+        // resolving it even if the private section was collapsed by privacy rules.
+        if hiddenFeatureIDs.contains(featureId) {
+            return registry.hiddenFeatures.first(where: { $0.id == featureId })
+        }
+        return nil
     }
 
     private var shouldMaskHiddenFeatures: Bool {

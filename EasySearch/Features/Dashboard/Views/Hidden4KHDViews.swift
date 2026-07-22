@@ -61,8 +61,19 @@ struct Hidden4KHDFeatureView: View {
             await viewModel.loadRandomAlbumIfNeeded(mode: randomMode)
         }
         .onChange(of: randomMode) { mode in
+            HiddenSpaceSettingsStore.shared.update { settings in
+                settings.fourKHDRandomMode = mode
+            }
             Task {
                 await viewModel.loadRandomAlbums(mode: mode)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: HiddenSpaceRoute.settings) {
+                    Image(systemName: "gearshape")
+                }
+                .accessibilityLabel("4khd 设置")
             }
         }
         .onChange(of: searchQuery) { newValue in
@@ -1546,15 +1557,19 @@ private struct FavoriteAlbumTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: ESUI.Space.xs) {
-            AsyncCoverImage(url: album.coverURL)
+            AsyncCoverImage(url: album.coverURL, fitToContainer: true)
+                .frame(maxWidth: .infinity)
                 .frame(height: 110)
                 .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
+                .clipped()
 
             Text(album.title)
                 .font(.caption)
                 .foregroundStyle(.primary)
                 .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
 

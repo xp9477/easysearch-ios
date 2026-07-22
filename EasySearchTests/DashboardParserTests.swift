@@ -20,7 +20,7 @@ final class DashboardParserTests: XCTestCase {
         XCTAssertEqual(albums.count, 1)
         XCTAssertEqual(albums[0].title, "Sample & Album")
         XCTAssertEqual(albums[0].url.absoluteString, "https://www.4khd.com/content/sample-album.html")
-        XCTAssertEqual(albums[0].coverURL.host, "img.4khd.com")
+        XCTAssertEqual(albums[0].coverURL.absoluteString, "https://i0.wp.com/pic.4khd.com/sample.jpg")
     }
 
     func test4KHDImageParserDeduplicatesLikelyImageURLs() {
@@ -40,10 +40,11 @@ final class DashboardParserTests: XCTestCase {
         XCTAssertEqual(
             urls,
             [
-                "https://img.4khd.com/a.jpg",
-                "https://img.4khd.com/b.webp",
-                "https://img.4khd.com/c.jpg",
-                "https://img.4khd.com/c-large.jpg"
+                "https://i0.wp.com/yt4.googleusercontent.com/a.jpg",
+                "https://i0.wp.com/pic.4khd.com/a.jpg",
+                "https://i0.wp.com/pic.4khd.com/b.webp",
+                "https://i0.wp.com/yt4.googleusercontent.com/c.jpg",
+                "https://i0.wp.com/yt4.googleusercontent.com/c-large.jpg"
             ]
         )
     }

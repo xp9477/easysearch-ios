@@ -9,3 +9,11 @@
 
 - Module name for fitness: **训练记录** (feature id `training-log`).
 - Training log v1: month calendar + day multi-line workout from categorized bodyweight library. **No** "复制昨天".
+
+### GitHub download links (private repos)
+
+For private GitHub repos, do **not** only give `https://github.com/.../releases/download/...` (often 404 without login).
+Always resolve an authenticated release-asset redirect and give the **signed direct URL** on:
+`https://release-assets.githubusercontent.com/...` (or `objects.githubusercontent.com`).
+Mention that signed URLs expire (typically ~1 hour) and refresh if needed.
+Also include the Release page as a stable fallback.

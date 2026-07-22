@@ -65,8 +65,19 @@ struct HiddenJavDBFeatureView: View {
         }
         .onChange(of: randomMode) { mode in
             showRandomDetails = HiddenSpaceSettingsStore.shared.load().showJavDBDetailsByDefault
+            HiddenSpaceSettingsStore.shared.update { settings in
+                settings.javDBRandomMode = mode
+            }
             Task {
                 await viewModel.loadRandomMovies(mode: mode)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: HiddenSpaceRoute.settings) {
+                    Image(systemName: "gearshape")
+                }
+                .accessibilityLabel("javdb 设置")
             }
         }
         .onChange(of: searchQuery) { newValue in
@@ -1246,19 +1257,23 @@ private struct HiddenJavDBFavoriteMovieTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: ESUI.Space.xs) {
-            AsyncCoverImage(url: movie.coverURL)
+            AsyncCoverImage(url: movie.coverURL, fitToContainer: true)
+                .frame(maxWidth: .infinity)
                 .frame(height: 126)
                 .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
+                .clipped()
 
             Text(movie.code)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(movie.displayTitle)
                 .font(.caption)
                 .foregroundStyle(.primary)
                 .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             if showDetails {
                 if isLoadingDetail {
@@ -1270,15 +1285,23 @@ private struct HiddenJavDBFavoriteMovieTile: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 } else if let errorMessage {
                     Text(errorMessage)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
-        .esCard(cornerRadius: ESUI.compactCornerRadius)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding(ESUI.Space.sm)
+        .background(
+            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                .fill(ESUI.fill)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
     }
 }
 

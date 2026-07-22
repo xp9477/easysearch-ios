@@ -86,6 +86,12 @@ final class HiddenSpaceSettingsStore {
         notificationCenter.post(name: .hiddenSpaceSettingsDidChange, object: nil)
     }
 
+    func update(_ mutate: (inout HiddenSpaceSettings) -> Void) {
+        var settings = load()
+        mutate(&settings)
+        save(settings)
+    }
+
     private func migratedMissAVDomain() -> String {
         if let currentValue = userDefaults.string(forKey: missAVDomainKey) {
             return currentValue

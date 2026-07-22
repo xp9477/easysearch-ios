@@ -27,7 +27,6 @@ final class HiddenSpacePresentationState: ObservableObject {
 }
 
 struct HiddenSpaceView: View {
-    @State private var settings = HiddenSpaceSettingsStore.shared.load()
     @State private var fourKHDFavoritesCount = 0
     @State private var javDBFavoritesCount = 0
     @State private var javDBPlaybackCount = 0
@@ -35,53 +34,32 @@ struct HiddenSpaceView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
-                ESModuleHero(
-                    title: "隐藏空间",
-                    subtitle: "离开工作台或退后台将自动锁定",
-                    featureID: "hidden-space",
-                    systemImage: "lock.shield"
-                )
-
-                ESStatusBanner(
-                    title: "已解锁",
-                    message: "内容仅在本页停留期间可见。",
-                    systemImage: "lock.open",
-                    tone: .accent
-                )
-
-                VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-                    ESSectionHeader(title: "入口")
-
-                    NavigationLink(value: HiddenSpaceRoute.fourKHD) {
-                        hiddenEntryCard(
-                            title: "4khd",
-                            summary: "随机封面、专辑与喜欢",
-                            systemImage: "photo.stack",
-                            featureID: "image-translate",
-                            badges: [
-                                settings.fourKHDRandomMode.title,
-                                "\(fourKHDFavoritesCount) 喜欢"
-                            ]
-                        )
-                    }
-                    .buttonStyle(ESCardButtonStyle())
-
-                    NavigationLink(value: HiddenSpaceRoute.javDB) {
-                        hiddenEntryCard(
-                            title: "javdb",
-                            summary: "随机影片、喜欢与播放",
-                            systemImage: "film.stack",
-                            featureID: "hidden-space",
-                            badges: [
-                                settings.javDBRandomMode.title,
-                                "\(javDBFavoritesCount) 喜欢",
-                                "\(javDBPlaybackCount) 点位"
-                            ],
-                            footer: "MissAV：\(HiddenMissAVDomainConfiguration.resolvedHost(from: settings.missAVDomain))"
-                        )
-                    }
-                    .buttonStyle(ESCardButtonStyle())
+                NavigationLink(value: HiddenSpaceRoute.fourKHD) {
+                    hiddenEntryCard(
+                        title: "4khd",
+                        summary: "随机封面、专辑与喜欢",
+                        systemImage: "photo.stack",
+                        featureID: "image-translate",
+                        badges: [
+                            "\(fourKHDFavoritesCount) 喜欢"
+                        ]
+                    )
                 }
+                .buttonStyle(ESCardButtonStyle())
+
+                NavigationLink(value: HiddenSpaceRoute.javDB) {
+                    hiddenEntryCard(
+                        title: "javdb",
+                        summary: "随机影片、喜欢与播放",
+                        systemImage: "film.stack",
+                        featureID: "hidden-space",
+                        badges: [
+                            "\(javDBFavoritesCount) 喜欢",
+                            "\(javDBPlaybackCount) 点位"
+                        ]
+                    )
+                }
+                .buttonStyle(ESCardButtonStyle())
             }
             .padding(.horizontal, ESUI.screenHorizontalPadding)
             .padding(.top, ESUI.Space.md)
@@ -90,14 +68,6 @@ struct HiddenSpaceView: View {
         .esScreenBackground()
         .navigationTitle("隐藏空间")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(value: HiddenSpaceRoute.settings) {
-                    Image(systemName: "gearshape")
-                }
-                .accessibilityLabel("隐藏空间设置")
-            }
-        }
         .onAppear(perform: refreshSummary)
         .onReceive(NotificationCenter.default.publisher(for: .hiddenSpaceSettingsDidChange)) { _ in
             refreshSummary()
@@ -162,7 +132,6 @@ struct HiddenSpaceView: View {
     }
 
     private func refreshSummary() {
-        settings = HiddenSpaceSettingsStore.shared.load()
         fourKHDFavoritesCount = Hidden4KHDLocalStore.loadFavoriteAlbums().count + Hidden4KHDLocalStore.loadFavoriteImages().count
         javDBFavoritesCount = HiddenJavDBLocalStore.loadFavoriteMovies().count
         javDBPlaybackCount = HiddenJavDBLocalStore.loadFavoritePlaybacks().count

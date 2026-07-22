@@ -94,19 +94,42 @@ final class HiddenImagePipeline {
     ) -> Task<UIImage, Error> {
         Task.detached(priority: .utility) {
             var request = URLRequest(url: normalizedURL, cachePolicy: .returnCacheDataElseLoad, timeoutInterval: 30)
-            request.setValue("image/*", forHTTPHeaderField: "Accept")
+            request.setValue("image/avif,image/webp,image/apng,image/*,*/*;q=0.8", forHTTPHeaderField: "Accept")
+            request.setValue(
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile",
+                forHTTPHeaderField: "User-Agent"
+            )
+            request.setValue("https://www.4khd.com/", forHTTPHeaderField: "Referer")
 
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200...299).contains(httpResponse.statusCode) else {
-                throw NSError(
-                    domain: "HiddenImagePipeline",
-                    code: -1,
-                    userInfo: [NSLocalizedDescriptionKey: "图片加载失败"]
-                )
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let httpResponse = response as? HTTPURLResponse,
+                      (200...299).contains(httpResponse.statusCode) else {
+                    throw NSError(
+                        domain: "HiddenImagePipeline",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "图片加载失败"]
+                    )
+                }
+
+                return try decodedImage(from: data, maxPixelDimension: maxPixelDimension)
+            } catch let error as NSError {
+                if error.domain == "HiddenImagePipeline" {
+                    throw error
+                }
+                if error.domain == NSURLErrorDomain,
+                   [NSURLErrorSecureConnectionFailed,
+                    NSURLErrorServerCertificateUntrusted,
+                    NSURLErrorServerCertificateHasBadDate,
+                    NSURLErrorServerCertificateNotYetValid].contains(error.code) {
+                    throw NSError(
+                        domain: "HiddenImagePipeline",
+                        code: error.code,
+                        userInfo: [NSLocalizedDescriptionKey: "TLS 错误：图片 CDN 域名可能已切换"]
+                    )
+                }
+                throw error
             }
-
-            return try decodedImage(from: data, maxPixelDimension: maxPixelDimension)
         }
     }
 

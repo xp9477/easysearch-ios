@@ -5,6 +5,7 @@ public struct UTTrackerView: View {
     @State private var selectedDate = Date()
     @State private var draftHours = UTTrackerMetrics.dailyReferenceHours
     @State private var draftNote = ""
+    @State private var showingSettings = false
 
     public init() {}
 
@@ -33,6 +34,26 @@ public struct UTTrackerView: View {
         .esScreenBackground()
         .navigationTitle("UT 记录")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .accessibilityLabel("UT 设置")
+            }
+        }
+        .sheet(isPresented: $showingSettings) {
+            NavigationStack {
+                UTTrackerSettingsDetailView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("完成") { showingSettings = false }
+                        }
+                    }
+            }
+        }
     }
 
     // MARK: - Overview

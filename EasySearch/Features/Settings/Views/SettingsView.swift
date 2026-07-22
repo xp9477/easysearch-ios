@@ -3,17 +3,13 @@ import UIKit
 import UserNotifications
 
 struct SettingsView: View {
-    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var navigationState: AppNavigationState
-    @EnvironmentObject private var registry: FeatureRegistry
     @EnvironmentObject private var statusCenter: FeatureStatusCenter
     @StateObject private var cloudViewModel = HiddenCloudSyncViewModel.shared
     @StateObject private var utNotificationManager = UTNotificationManager.shared
     @StateObject private var expenseAssistantNotificationManager = ExpenseAssistantNotificationManager.shared
     @StateObject private var webDAVSettingsStore = WebDAVSettingsStore.shared
     @State private var path = NavigationPath()
-    @State private var settingsTapCount = 0
-    @State private var hiddenSettingsUnlocked = false
 
     private var appVersionText: String {
         let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
@@ -31,10 +27,6 @@ struct SettingsView: View {
         }
     }
 
-    private var orderedModuleSettingsItems: [ModuleSettingsItem] {
-        registry.moduleListFeatures.compactMap(moduleSettingsItem(for:))
-    }
-
     var body: some View {
         NavigationStack(path: $path) {
             ScrollView {
@@ -49,35 +41,6 @@ struct SettingsView: View {
                             ESSettingsRow(title: "AI 服务", systemImage: "sparkles", iconColor: .cyan)
                         }
                         .buttonStyle(.plain)
-
-                        NavigationLink(value: SettingsRoute.qingLong) {
-                            ESSettingsRow(title: "青龙", systemImage: "server.rack", iconColor: .green)
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    if !orderedModuleSettingsItems.isEmpty {
-                        simpleListSection(title: "模块") {
-                            ForEach(orderedModuleSettingsItems) { item in
-                                NavigationLink(value: item.route) {
-                                    ESSettingsRow(
-                                        title: item.title,
-                                        systemImage: item.systemImage,
-                                        iconColor: item.color
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-
-                    if hiddenSettingsUnlocked {
-                        simpleListSection(title: "私密") {
-                            NavigationLink(value: SettingsRoute.hiddenSpace) {
-                                ESSettingsRow(title: "隐藏空间", systemImage: "lock.shield", iconColor: .purple)
-                            }
-                            .buttonStyle(.plain)
-                        }
                     }
 
                     simpleListSection(title: "关于") {
@@ -97,17 +60,6 @@ struct SettingsView: View {
             .esScreenBackground()
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("设置")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .frame(minWidth: 160, minHeight: 44)
-                        .contentShape(Rectangle())
-                        .onTapGesture { unlockHiddenSettingsIfNeeded() }
-                        .accessibilityLabel("设置")
-                }
-            }
             .navigationDestination(for: SettingsRoute.self) { route in
                 settingsDestination(for: route)
             }
@@ -125,13 +77,6 @@ struct SettingsView: View {
                 if tab == .settings {
                     Task { await statusCenter.refresh() }
                     handlePendingRouteIfNeeded()
-                } else {
-                    lockHiddenSettings()
-                }
-            }
-            .onChange(of: scenePhase) { phase in
-                if phase != .active {
-                    lockHiddenSettings()
                 }
             }
         }
@@ -149,18 +94,6 @@ struct SettingsView: View {
                 content()
             }
         }
-    }
-
-    private func unlockHiddenSettingsIfNeeded() {
-        settingsTapCount += 1
-        guard settingsTapCount >= 5 else { return }
-        settingsTapCount = 0
-        hiddenSettingsUnlocked = true
-    }
-
-    private func lockHiddenSettings() {
-        settingsTapCount = 0
-        hiddenSettingsUnlocked = false
     }
 
     // MARK: - Navigation
@@ -193,54 +126,8 @@ struct SettingsView: View {
         navigationState.pendingSettingsRoute = nil
     }
 
-    private func moduleSettingsItem(for feature: any AppFeature) -> ModuleSettingsItem? {
-        let status = statusCenter.summary(for: feature.id)
-        switch feature.id {
-        case "uttracker":
-            return ModuleSettingsItem(
-                id: feature.id,
-                title: feature.title,
-                subtitle: "通知与提醒",
-                systemImage: feature.iconName,
-                color: feature.color,
-                status: status,
-                route: .utTracker
-            )
-        case "expense-assistant":
-            return ModuleSettingsItem(
-                id: feature.id,
-                title: feature.title,
-                subtitle: "通知与提醒",
-                systemImage: feature.iconName,
-                color: feature.color,
-                status: status,
-                route: .expenseAssistant
-            )
-        case "webdav":
-            return ModuleSettingsItem(
-                id: feature.id,
-                title: feature.title,
-                subtitle: "文件与位置",
-                systemImage: feature.iconName,
-                color: feature.color,
-                status: status,
-                route: .webDAV
-            )
-        default:
-            return nil
-        }
-    }
 }
 
-private struct ModuleSettingsItem: Identifiable {
-    let id: String
-    let title: String
-    let subtitle: String
-    let systemImage: String
-    let color: Color
-    let status: FeatureStatusSummary
-    let route: SettingsRoute
-}
 
 private struct CloudSyncSettingsDetailView: View {
     @StateObject private var cloudViewModel = HiddenCloudSyncViewModel.shared
@@ -377,7 +264,7 @@ private struct CloudSyncSettingsDetailView: View {
     }
 }
 
-private struct UTTrackerSettingsDetailView: View {
+struct UTTrackerSettingsDetailView: View {
     @StateObject private var notificationManager = UTNotificationManager.shared
     @Environment(\.openURL) private var openURL
 
@@ -426,7 +313,7 @@ private struct UTTrackerSettingsDetailView: View {
     }
 }
 
-private struct ExpenseAssistantSettingsDetailView: View {
+struct ExpenseAssistantSettingsDetailView: View {
     @StateObject private var notificationManager = ExpenseAssistantNotificationManager.shared
     @Environment(\.openURL) private var openURL
 
@@ -583,7 +470,7 @@ private struct AISettingsDetailView: View {
     }
 }
 
-private struct QingLongSettingsDetailView: View {
+struct QingLongSettingsDetailView: View {
     @StateObject private var viewModel = QingLongViewModel()
     @State private var isEditingConnection = false
 

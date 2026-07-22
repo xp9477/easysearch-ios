@@ -4,6 +4,7 @@ public struct ExpenseAssistantView: View {
     @StateObject private var viewModel = ExpenseAssistantViewModel()
     @StateObject private var notificationManager = ExpenseAssistantNotificationManager.shared
     @State private var showingAddTravelSheet = false
+    @State private var showingSettings = false
 
     public init() {}
 
@@ -19,6 +20,14 @@ public struct ExpenseAssistantView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .accessibilityLabel("报销设置")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
                     showingAddTravelSheet = true
                 } label: {
                     Label("新增出差", systemImage: "plus")
@@ -27,6 +36,16 @@ public struct ExpenseAssistantView: View {
         }
         .sheet(isPresented: $showingAddTravelSheet) {
             AddTravelClaimSheet(viewModel: viewModel)
+        }
+        .sheet(isPresented: $showingSettings) {
+            NavigationStack {
+                ExpenseAssistantSettingsDetailView()
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("完成") { showingSettings = false }
+                        }
+                    }
+            }
         }
         .navigationDestination(for: MonthlyExpenseClaim.self) { claim in
             MonthlyClaimDetailView(viewModel: viewModel, claimID: claim.id)
