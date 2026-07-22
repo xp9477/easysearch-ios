@@ -56,16 +56,20 @@ public struct DashboardView: View {
             .esBottomTabPadding()
             .esScreenBackground()
             .navigationTitle("工作台")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Color.clear
-                        .frame(width: 140, height: 44)
+                    // Near-invisible hit target around the nav center title.
+                    Text("工作台")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .frame(minWidth: 160, minHeight: 44)
                         .contentShape(Rectangle())
                         .onTapGesture {
                             unlockHiddenModulesIfNeeded()
                         }
-                        .accessibilityHidden(true)
+                        .accessibilityLabel("工作台")
+                        .accessibilityHint("连点可解锁私密入口")
                 }
             }
             .navigationDestination(for: String.self) { featureId in
@@ -151,7 +155,12 @@ public struct DashboardView: View {
             title: "工作台",
             subtitle: "模块入口 · 状态一眼可见"
         )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            unlockHiddenModulesIfNeeded()
+        }
         .esAppearSoft()
+        .accessibilityHint("连点可解锁私密入口")
     }
 
     private var statusStrip: some View {
