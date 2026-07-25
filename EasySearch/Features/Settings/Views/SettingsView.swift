@@ -9,6 +9,7 @@ struct SettingsView: View {
     @StateObject private var utNotificationManager = UTNotificationManager.shared
     @StateObject private var expenseAssistantNotificationManager = ExpenseAssistantNotificationManager.shared
     @StateObject private var webDAVSettingsStore = WebDAVSettingsStore.shared
+    @StateObject private var appUpdateService = AppUpdateService.shared
     @State private var path = NavigationPath()
 
     private var appVersionText: String {
@@ -50,6 +51,65 @@ struct SettingsView: View {
                             iconColor: .secondary,
                             showsChevron: false
                         )
+
+                        Button {
+                            Task {
+                                await appUpdateService.checkForUpdates()
+                            }
+                        } label: {
+                            ESSettingsRow(
+                                title: appUpdateService.isChecking ? "正在检查…" : "检测更新",
+                                systemImage: "arrow.triangle.2.circlepath",
+                                iconColor: .blue,
+                                showsChevron: false
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(appUpdateService.isChecking || appUpdateService.isDownloading)
+
+                        if case let .updateAvailable(_, remote) = appUpdateService.lastResult {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("新版本 \(remote.displayVersion)")
+                                    .font(.subheadline.weight(.semibold))
+                                if let notes = remote.notes?.trimmingCharacters(in: .whitespacesAndNewlines),
+                                   !notes.isEmpty {
+                                    Text(notes)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Button {
+                                    Task {
+                                        if let fileURL = await appUpdateService.downloadLatestIPA() {
+                                            appUpdateService.presentShareSheet(for: fileURL)
+                                        }
+                                    }
+                                } label: {
+                                    HStack {
+                                        Text(appUpdateService.isDownloading ? "下载中…" : "下载并分享到签名工具")
+                                            .font(.subheadline.weight(.semibold))
+                                        Spacer()
+                                        if appUpdateService.isDownloading {
+                                            ProgressView(value: appUpdateService.downloadProgress)
+                                                .frame(width: 80)
+                                        }
+                                    }
+                                    .padding(.vertical, 4)
+                                }
+                                .disabled(appUpdateService.isDownloading)
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.top, 4)
+                        }
+
+                        if let message = appUpdateService.statusMessage?
+                            .trimmingCharacters(in: .whitespacesAndNewlines),
+                           !message.isEmpty {
+                            Text(message)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 4)
+                        }
                     }
                 }
                 .padding(.horizontal, ESUI.screenHorizontalPadding)

@@ -75,10 +75,72 @@ jobs:
             exit 1
           fi
 
-      - name: Upload unsigned IPA
+      - name: Upload unsigned IPA artifact
         uses: actions/upload-artifact@v4
         with:
           name: EasySearch-unsigned-${{ github.run_number }}
           path: EasySearch-unsigned.ipa
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish IPA to object storage
+        env:
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_PUBLIC_BASE_URL: ${{ secrets.S3_PUBLIC_BASE_URL }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${S3_ENDPOINT:-}" || -z "${S3_BUCKET:-}" || -z "${S3_ACCESS_KEY:-}" || -z "${S3_SECRET_KEY:-}" ]]; then
+            echo "S3 secrets not fully configured; skip object-storage publish."
+            exit 0
+          fi
+
+          APP_PATH="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/EasySearch.app"
+          INFO_PLIST="$APP_PATH/Info.plist"
+          VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")"
+          BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")"
+          PUBLIC_BASE="${S3_PUBLIC_BASE_URL:-}"
+          PUBLIC_BASE="${PUBLIC_BASE%/}"
+          if [[ -z "$PUBLIC_BASE" ]]; then
+            PUBLIC_BASE="${S3_ENDPOINT%/}/${S3_BUCKET}/easysearch-iOS"
+          fi
+          IPA_PUBLIC_URL="${PUBLIC_BASE}/EasySearch-unsigned.ipa"
+          RELEASED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          NOTES="GitHub run #${GITHUB_RUN_NUMBER} (${GITHUB_SHA::7})"
+
+          VERSION="$VERSION" BUILD="$BUILD" IPA_PUBLIC_URL="$IPA_PUBLIC_URL" \
+          RELEASED_AT="$RELEASED_AT" NOTES="$NOTES" \
+          python3 - <<'PY' > latest.json
+          import json
+          import os
+
+          build = os.environ["BUILD"]
+          print(json.dumps({
+              "version": os.environ["VERSION"],
+              "build": build,
+              "buildNumber": int(build) if str(build).isdigit() else 0,
+              "ipaURL": os.environ["IPA_PUBLIC_URL"],
+              "releasedAt": os.environ["RELEASED_AT"],
+              "notes": os.environ["NOTES"],
+          }, ensure_ascii=False, indent=2))
+          PY
+
+          echo "Publishing version=$VERSION build=$BUILD"
+          cat latest.json
+
+          python3 scripts/upload_to_s3.py \
+            --file EasySearch-unsigned.ipa \
+            --key easysearch-iOS/EasySearch-unsigned.ipa \
+            --content-type application/octet-stream
+
+          python3 scripts/upload_to_s3.py \
+            --file latest.json \
+            --key easysearch-iOS/latest.json \
+            --content-type application/json
+
+          echo "Public IPA: ${IPA_PUBLIC_URL}"
+          echo "Public manifest: ${PUBLIC_BASE}/latest.json"

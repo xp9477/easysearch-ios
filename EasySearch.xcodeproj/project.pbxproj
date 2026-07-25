@@ -70,6 +70,7 @@
 		A35591F7C8AD2C96DD95006F /* EngineGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0697B7D17CAD38D2E763F4 /* EngineGridView.swift */; };
 		B7EF418F52080658CAC257DD /* TextAlignment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77B71B90FD37F678F1BE7721 /* TextAlignment.swift */; };
 		BA0E54A01A17C1BBEDEF6FCF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2DDB34B07E1AF3F585243D /* SettingsView.swift */; };
+		E300000000000000000000001 /* AppUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E300000000000000000000101 /* AppUpdateService.swift */; };
 		CC969EB33B7401F02D4A2B62 /* EasySearchFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA114C3137BB97879C05067 /* EasySearchFeature.swift */; };
 		D1A000000000000000000001 /* UTEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000101 /* UTEntry.swift */; };
 		D1A000000000000000000002 /* UTTrackerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000102 /* UTTrackerViewModel.swift */; };
@@ -257,6 +258,7 @@
 		E100000000000000000000107 /* ExpenseAssistantTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExpenseAssistantTests.swift; sourceTree = "<group>"; };
 		D736F78B02EC6C18E86147F2 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		DD2DDB34B07E1AF3F585243D /* SettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = EasySearch/Features/Settings/Views/SettingsView.swift; sourceTree = SOURCE_ROOT; };
+		E300000000000000000000101 /* AppUpdateService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppUpdateService.swift; path = EasySearch/Features/Settings/Services/AppUpdateService.swift; sourceTree = SOURCE_ROOT; };
 		DE58CC4FBE5DDA9B8E6C8416 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		DEE5D4584B694CD5678242E5 /* ImageTranslateSessionStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateSessionStore.swift; path = EasySearch/Features/ImageTranslate/Models/ImageTranslateSessionStore.swift; sourceTree = SOURCE_ROOT; };
 		E53A9599509BBCA5DB03ABC4 /* SearchViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchViewModel.swift; path = EasySearch/Features/EasySearch/ViewModels/SearchViewModel.swift; sourceTree = SOURCE_ROOT; };
@@ -422,6 +424,7 @@
 			isa = PBXGroup;
 			children = (
 				DD2DDB34B07E1AF3F585243D /* SettingsView.swift */,
+				E300000000000000000000101 /* AppUpdateService.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -1106,6 +1109,7 @@
 				8AFD20AC531C4A867E1490CE /* FeatureRegistry.swift in Sources */,
 				689CF6B202785041EFC90676 /* EasySearchApp.swift in Sources */,
 				BA0E54A01A17C1BBEDEF6FCF /* SettingsView.swift in Sources */,
+				E300000000000000000000001 /* AppUpdateService.swift in Sources */,
 				72DB17919586AA7269F7BCB2 /* SearchViewModel.swift in Sources */,
 				CC969EB33B7401F02D4A2B62 /* EasySearchFeature.swift in Sources */,
 				A041D1E79D1248AD59FEB7A8 /* SearchEngine.swift in Sources */,
@@ -1200,7 +1204,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = EasySearchShare/EasySearchShare.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 2NTKHNF6H6;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1228,7 +1232,7 @@
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = EasySearchShare/EasySearchShare.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = 2NTKHNF6H6;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -1401,7 +1405,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = EasySearch/EasySearch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 2NTKHNF6H6;
 				ENABLE_PREVIEWS = YES;
@@ -1434,7 +1438,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = EasySearch/EasySearch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 2NTKHNF6H6;
 				ENABLE_PREVIEWS = YES;
