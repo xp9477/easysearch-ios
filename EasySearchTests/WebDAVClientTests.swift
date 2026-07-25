@@ -76,6 +76,92 @@ final class WebDAVClientTests: XCTestCase {
         XCTAssertEqual(item.etag, "\"version-1\"")
     }
 
+    func testListingParserTreatsMislabelledTextFilesAsFiles() throws {
+        let xml = """
+        <?xml version="1.0" encoding="utf-8"?>
+        <d:multistatus xmlns:d="DAV:">
+          <d:response>
+            <d:href>/dav/notes.txt</d:href>
+            <d:propstat>
+              <d:prop>
+                <d:resourcetype><d:collection /></d:resourcetype>
+                <d:getcontentlength>12</d:getcontentlength>
+                <d:getcontenttype>text/plain</d:getcontenttype>
+              </d:prop>
+              <d:status>HTTP/1.1 200 OK</d:status>
+            </d:propstat>
+          </d:response>
+          <d:response>
+            <d:href>/dav/config.json</d:href>
+            <d:propstat>
+              <d:prop>
+                <d:resourcetype><d:collection /></d:resourcetype>
+                <d:getcontentlength>2</d:getcontentlength>
+              </d:prop>
+              <d:status>HTTP/1.1 200 OK</d:status>
+            </d:propstat>
+          </d:response>
+          <d:response>
+            <d:href>/dav/real-folder/</d:href>
+            <d:propstat>
+              <d:prop>
+                <d:resourcetype><d:collection /></d:resourcetype>
+              </d:prop>
+              <d:status>HTTP/1.1 200 OK</d:status>
+            </d:propstat>
+          </d:response>
+        </d:multistatus>
+        """
+        let parser = WebDAVListingParser(
+            baseURL: try XCTUnwrap(URL(string: "https://dav.example.com/dav/")),
+            requestedPath: ""
+        )
+
+        parser.parse(Data(xml.utf8))
+
+        let items = Dictionary(uniqueKeysWithValues: parser.items.map { ($0.name, $0) })
+        XCTAssertEqual(items["notes.txt"]?.kind, .file)
+        XCTAssertEqual(items["config.json"]?.kind, .file)
+        XCTAssertEqual(items["real-folder"]?.kind, .directory)
+    }
+
+    func testListingParserUsesTrailingSlashWhenResourceTypeMissing() throws {
+        let xml = """
+        <?xml version="1.0" encoding="utf-8"?>
+        <d:multistatus xmlns:d="DAV:">
+          <d:response>
+            <d:href>/dav/docs/</d:href>
+            <d:propstat>
+              <d:prop>
+                <d:resourcetype />
+              </d:prop>
+              <d:status>HTTP/1.1 200 OK</d:status>
+            </d:propstat>
+          </d:response>
+          <d:response>
+            <d:href>/dav/readme.txt</d:href>
+            <d:propstat>
+              <d:prop>
+                <d:resourcetype />
+                <d:getcontentlength>5</d:getcontentlength>
+              </d:prop>
+              <d:status>HTTP/1.1 200 OK</d:status>
+            </d:propstat>
+          </d:response>
+        </d:multistatus>
+        """
+        let parser = WebDAVListingParser(
+            baseURL: try XCTUnwrap(URL(string: "https://dav.example.com/dav/")),
+            requestedPath: ""
+        )
+
+        parser.parse(Data(xml.utf8))
+
+        let items = Dictionary(uniqueKeysWithValues: parser.items.map { ($0.name, $0) })
+        XCTAssertEqual(items["docs"]?.kind, .directory)
+        XCTAssertEqual(items["readme.txt"]?.kind, .file)
+    }
+
     func testSanitizedFileNameBlocksTraversalComponents() {
         XCTAssertEqual(WebDAVLocalFileStore.sanitizedFileName(".."), "未命名文件")
         XCTAssertEqual(WebDAVLocalFileStore.sanitizedFileName("a/b\\c.txt"), "a_b_c.txt")

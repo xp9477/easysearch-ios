@@ -662,10 +662,11 @@ final class WebDAVListingParser: NSObject, XMLParserDelegate {
             let parentPath = path.split(separator: "/").dropLast().joined(separator: "/")
             guard parentPath == requested else { return nil }
             let fallbackName = path.split(separator: "/").last.map(String.init) ?? response.href
+            let kind: WebDAVItem.Kind = response.resolvedIsDirectory(fileName: fallbackName) ? .directory : .file
             return WebDAVItem(
                 path: path,
                 name: fallbackName,
-                kind: response.isDirectory ? .directory : .file,
+                kind: kind,
                 contentLength: response.contentLength,
                 modifiedAt: response.modifiedAt,
                 contentType: response.contentType,
@@ -686,7 +687,7 @@ final class WebDAVListingParser: NSObject, XMLParserDelegate {
         if name == "response" {
             currentResponse = ParsedResponse()
         } else if name == "collection", currentResponse != nil {
-            currentResponse?.isDirectory = true
+            currentResponse?.sawCollection = true
         }
     }
 
@@ -706,6 +707,7 @@ final class WebDAVListingParser: NSObject, XMLParserDelegate {
             switch name {
             case "href":
                 response.href = value
+                response.hrefHadTrailingSlash = Self.hrefHasTrailingSlash(value)
             case "getcontentlength":
                 response.contentLength = Int64(value)
             case "getlastmodified":
@@ -714,6 +716,14 @@ final class WebDAVListingParser: NSObject, XMLParserDelegate {
                 response.contentType = value.isEmpty ? nil : value
             case "getetag":
                 response.etag = value.isEmpty ? nil : value
+            case "iscollection":
+                // Older Microsoft-style servers.
+                let normalized = value.lowercased()
+                if normalized == "1" || normalized == "true" {
+                    response.sawCollection = true
+                } else if normalized == "0" || normalized == "false" {
+                    response.explicitlyNotCollection = true
+                }
             case "status":
                 response.sawStatus = true
                 if value.contains(" 200 ") || value.hasSuffix(" 200") {
@@ -751,7 +761,15 @@ final class WebDAVListingParser: NSObject, XMLParserDelegate {
     }
 
     private func localName(_ value: String) -> String {
-        value.split(separator: ":").last.map(String.init) ?? value
+        let stripped = value.split(separator: ":").last.map(String.init) ?? value
+        return stripped.lowercased()
+    }
+
+    private static func hrefHasTrailingSlash(_ href: String) -> Bool {
+        let trimmed = href.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasSuffix("/") { return true }
+        let upper = trimmed.uppercased()
+        return upper.hasSuffix("%2F")
     }
 
     private static let dateFormatter: DateFormatter = {
@@ -764,11 +782,134 @@ final class WebDAVListingParser: NSObject, XMLParserDelegate {
 
 private struct ParsedResponse {
     var href = ""
-    var isDirectory = false
+    var hrefHadTrailingSlash = false
+    var sawCollection = false
+    var explicitlyNotCollection = false
     var contentLength: Int64?
     var modifiedAt: Date?
     var contentType: String?
     var etag: String?
     var sawStatus = false
     var hasSuccessfulStatus = false
+
+    func resolvedIsDirectory(fileName: String) -> Bool {
+        if explicitlyNotCollection {
+            return false
+        }
+
+        // MIME type is the strongest signal when present.
+        if isDirectoryContentType(contentType) {
+            return true
+        }
+        if isFileContentType(contentType) {
+            return false
+        }
+
+        let ext = (fileName as NSString).pathExtension.lowercased()
+        let positiveSize = (contentLength ?? 0) > 0
+
+        // Many proxy/NAS WebDAV implementations incorrectly mark ordinary blobs
+        // (especially .txt / .json) as collections. Prefer file classification for
+        // well-known document and media extensions.
+        if Self.textualExtensions.contains(ext) {
+            return false
+        }
+        if Self.strongFileExtensions.contains(ext) {
+            // Keep rare package-like folders named "Foo.app/" as directories when the
+            // only signal is collection + trailing slash and no payload metadata.
+            if sawCollection && hrefHadTrailingSlash && !positiveSize {
+                return Self.ambiguousExtensions.contains(ext)
+            }
+            return false
+        }
+
+        // Positive byte length without a trailing slash is almost always a file blob,
+        // even when a broken server also emits <collection/>.
+        if positiveSize && !hrefHadTrailingSlash {
+            return false
+        }
+
+        if sawCollection {
+            return true
+        }
+
+        // Trailing slash is a common directory hint when resourcetype is empty.
+        if hrefHadTrailingSlash && !positiveSize {
+            return true
+        }
+
+        return false
+    }
+
+    private func isFileContentType(_ contentType: String?) -> Bool {
+        guard let contentType,
+              let mime = contentType.split(separator: ";").first?.lowercased() else {
+            return false
+        }
+        if mime.hasPrefix("text/") { return true }
+        if mime.hasPrefix("image/") || mime.hasPrefix("audio/") || mime.hasPrefix("video/") { return true }
+        if mime.contains("json") || mime.contains("xml") || mime.contains("yaml") { return true }
+        return Self.fileMIMETypes.contains(mime)
+    }
+
+    private func isDirectoryContentType(_ contentType: String?) -> Bool {
+        guard let contentType,
+              let mime = contentType.split(separator: ";").first?.lowercased() else {
+            return false
+        }
+        return Self.directoryMIMETypes.contains(mime)
+    }
+
+    private static let textualExtensions: Set<String> = [
+        "txt", "text", "md", "markdown", "json", "jsonl", "xml", "html", "htm",
+        "css", "js", "ts", "tsx", "jsx", "csv", "tsv", "yaml", "yml", "toml",
+        "ini", "conf", "cfg", "log", "rtf", "svg", "sql", "sh", "py", "rb",
+        "go", "rs", "java", "kt", "swift", "c", "cc", "cpp", "h", "hpp", "m", "mm",
+        "plist", "strings", "env"
+    ]
+
+    private static let strongFileExtensions: Set<String> = textualExtensions.union([
+        "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "pages", "numbers", "key",
+        "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "dmg", "iso",
+        "png", "jpg", "jpeg", "gif", "webp", "bmp", "heic", "tif", "tiff", "ico",
+        "mp3", "m4a", "aac", "wav", "flac", "ogg", "wma",
+        "mp4", "mov", "m4v", "mkv", "avi", "wmv", "webm",
+        "apk", "ipa", "exe", "dll", "so", "jar",
+        "sqlite", "db", "bin", "dat", "nfo", "ass", "srt", "vtt"
+    ])
+
+    private static let ambiguousExtensions: Set<String> = [
+        "app", "bundle", "framework", "photoslibrary", "dataset", "xcworkspace", "xcodeproj"
+    ]
+
+    private static let fileMIMETypes: Set<String> = [
+        "application/json",
+        "application/ld+json",
+        "application/xml",
+        "application/javascript",
+        "application/pdf",
+        "application/zip",
+        "application/gzip",
+        "application/x-gzip",
+        "application/x-tar",
+        "application/x-7z-compressed",
+        "application/x-rar-compressed",
+        "application/octet-stream",
+        "application/msword",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/rtf",
+        "application/sql",
+        "application/x-sh",
+        "application/x-yaml",
+        "application/toml"
+    ]
+
+    private static let directoryMIMETypes: Set<String> = [
+        "httpd/unix-directory",
+        "inode/directory",
+        "application/x-directory",
+        "vnd.apache.httpd.unix-directory"
+    ]
 }
