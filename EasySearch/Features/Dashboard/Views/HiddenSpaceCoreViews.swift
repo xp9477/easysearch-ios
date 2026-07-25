@@ -1,7 +1,6 @@
 import SwiftUI
 
 enum HiddenSpaceRoute: Hashable {
-    case fourKHDSettings
     case javDBSettings
     case fourKHD
     case fourKHDFavorites

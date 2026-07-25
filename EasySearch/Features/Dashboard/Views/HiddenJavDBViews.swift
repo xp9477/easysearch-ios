@@ -6,17 +6,8 @@ import UIKit
 
 struct HiddenJavDBFeatureView: View {
     @ObservedObject var viewModel: HiddenJavDBViewModel
-    @State private var randomMode: HiddenJavDBRandomMode
-    @State private var showRandomDetails: Bool
     @State private var searchQuery = ""
     @State private var webPageItem: HiddenSharedWebPageItem?
-
-    init(viewModel: HiddenJavDBViewModel) {
-        self.viewModel = viewModel
-        let settings = HiddenSpaceSettingsStore.shared.load()
-        _randomMode = State(initialValue: settings.javDBRandomMode)
-        _showRandomDetails = State(initialValue: settings.showJavDBDetailsByDefault)
-    }
 
     var body: some View {
         ScrollView {
@@ -56,16 +47,7 @@ struct HiddenJavDBFeatureView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await viewModel.prepareCloudIfNeeded()
-            await viewModel.loadRandomMovieIfNeeded(mode: randomMode)
-        }
-        .onChange(of: randomMode) { mode in
-            showRandomDetails = HiddenSpaceSettingsStore.shared.load().showJavDBDetailsByDefault
-            HiddenSpaceSettingsStore.shared.update { settings in
-                settings.javDBRandomMode = mode
-            }
-            Task {
-                await viewModel.loadRandomMovies(mode: mode)
-            }
+            await viewModel.loadRandomMovieIfNeeded()
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -79,11 +61,6 @@ struct HiddenJavDBFeatureView: View {
             if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 viewModel.resetSearchMovies()
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .hiddenSpaceSettingsDidChange)) { _ in
-            let settings = HiddenSpaceSettingsStore.shared.load()
-            randomMode = settings.javDBRandomMode
-            showRandomDetails = settings.showJavDBDetailsByDefault
         }
         .fullScreenCover(item: $webPageItem) { item in
             HiddenSharedWebPageView(item: item)
@@ -159,127 +136,47 @@ struct HiddenJavDBFeatureView: View {
         VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             ESSectionHeader(
                 title: "随机影片",
-                trailing: viewModel.isLoadingRandomMovie ? "加载中" : randomMode.title
+                trailing: viewModel.isLoadingRandomMovie ? "加载中" : "随机 9 部"
             )
 
-            Picker("随机模式", selection: $randomMode) {
-                ForEach(HiddenJavDBRandomMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
+            if !viewModel.randomMovies.isEmpty {
+                LazyVStack(spacing: ESUI.Space.sm) {
+                    ForEach(Array(viewModel.randomMovies.prefix(9))) { movie in
+                        NavigationLink(value: HiddenSpaceRoute.javDBMovie(movie)) {
+                            HiddenJavDBRandomListMovieTile(movie: movie, isFavorite: viewModel.isFavorite(movie))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
-            }
-            .pickerStyle(.segmented)
 
-            if randomMode == .single {
                 if viewModel.isLoadingRandomMovie {
-                    HiddenMediaPlaceholder(mode: .loading(randomMode.loadingText), systemImage: "film.stack")
-                        .frame(height: 230)
-                } else if let movie = viewModel.randomMovie {
-                    NavigationLink(value: HiddenSpaceRoute.javDBMovie(movie)) {
-                        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-                            AsyncCoverImage(url: movie.coverURL, fitToContainer: true)
-                                .frame(height: 230)
-                                .clipShape(RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous))
-
-                            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
-                                Text(movie.displayTitle)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(2)
-                                Text(movie.code)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
-
-                    HStack(spacing: ESUI.Space.sm) {
-                        Button {
-                            Task {
-                                await viewModel.loadRandomMovies(mode: randomMode)
-                            }
-                        } label: {
-                            Label("随机 1 部", systemImage: "shuffle")
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(viewModel.isLoadingRandomMovie)
-
-                        Button {
-                            viewModel.toggleFavorite(movie)
-                        } label: {
-                            Label(viewModel.isFavorite(movie) ? "已喜欢" : "喜欢", systemImage: viewModel.isFavorite(movie) ? "heart.fill" : "heart")
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(viewModel.isFavorite(movie) ? .pink : .primary)
-                    }
-
-                    Button(showRandomDetails ? "隐藏详细信息" : "显示详细信息") {
-                        showRandomDetails.toggle()
-                    }
-                    .buttonStyle(.bordered)
-
-                    if showRandomDetails {
-                        HiddenJavDBMovieDetailSummaryView(
-                            movie: movie,
-                            detail: viewModel.detailsByMovieID[movie.id],
-                            errorMessage: viewModel.detailErrorsByMovieID[movie.id],
-                            isLoading: viewModel.detailLoadingIDs.contains(movie.id)
-                        )
-                        .task(id: movie.id) {
-                            await viewModel.loadDetailIfNeeded(for: movie)
-                        }
-                    }
-                } else {
-                    playbackIssueView(message: viewModel.randomErrorMessage ?? "暂时没有拿到影片") {
-                        Task {
-                            await viewModel.loadRandomMovies(mode: randomMode)
-                        }
+                    HStack(spacing: ESUI.Space.xs) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("已加载 \(viewModel.randomMovies.count)/9")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
+
+                Button {
+                    Task {
+                        await viewModel.loadRandomMovies()
+                    }
+                } label: {
+                    Label("随机 9 部", systemImage: "shuffle")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.isLoadingRandomMovie)
+            } else if viewModel.isLoadingRandomMovie {
+                HiddenMediaPlaceholder(mode: .loading("正在抓取随机 9 部..."), systemImage: "film.stack")
+                    .frame(height: 230)
             } else {
-                if !viewModel.randomMovies.isEmpty {
-                    LazyVStack(spacing: ESUI.Space.sm) {
-                        ForEach(Array(viewModel.randomMovies.prefix(9))) { movie in
-                            NavigationLink(value: HiddenSpaceRoute.javDBMovie(movie)) {
-                                HiddenJavDBRandomListMovieTile(movie: movie, isFavorite: viewModel.isFavorite(movie))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    if viewModel.isLoadingRandomMovie {
-                        HStack(spacing: ESUI.Space.xs) {
-                            ProgressView()
-                                .controlSize(.small)
-                            Text("已加载 \(viewModel.randomMovies.count)/9")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Button {
-                        Task {
-                            await viewModel.loadRandomMovies(mode: randomMode)
-                        }
-                    } label: {
-                        Label("随机 9 部", systemImage: "shuffle")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.isLoadingRandomMovie)
-                } else if viewModel.isLoadingRandomMovie {
-                    HiddenMediaPlaceholder(mode: .loading(randomMode.loadingText), systemImage: "film.stack")
-                        .frame(height: 230)
-                } else {
-                    playbackIssueView(message: viewModel.randomErrorMessage ?? "暂时没有拿到影片") {
-                        Task {
-                            await viewModel.loadRandomMovies(mode: randomMode)
-                        }
+                playbackIssueView(message: viewModel.randomErrorMessage ?? "暂时没有拿到影片") {
+                    Task {
+                        await viewModel.loadRandomMovies()
                     }
                 }
             }

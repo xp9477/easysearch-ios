@@ -1,40 +1,6 @@
 import Foundation
 import Combine
 
-enum HiddenRandomMode: String, CaseIterable, Identifiable {
-    case single
-    case nine
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .single:
-            return "随机 1 张"
-        case .nine:
-            return "随机 9 张"
-        }
-    }
-
-    var requestCount: Int {
-        switch self {
-        case .single:
-            return 1
-        case .nine:
-            return 9
-        }
-    }
-
-    var loadingText: String {
-        switch self {
-        case .single:
-            return "正在抓取随机封面..."
-        case .nine:
-            return "正在抓取随机 9 张..."
-        }
-    }
-}
-
 struct HiddenFavoriteImageSelection {
     let selected: URL
     let previewPool: [URL]
@@ -65,8 +31,9 @@ final class HiddenSpaceViewModel: ObservableObject {
     private var isCloudAuthenticated = false
     private let cloudService = HiddenSupabaseService.shared
 
-    var randomAlbum: HiddenAlbum? { randomAlbums.first }
     var totalFavoritesCount: Int { favoriteAlbums.count + favoriteImageURLs.count }
+
+    private static let randomAlbumCount = 9
 
     init() {
         loadFavoriteAlbums()
@@ -105,12 +72,12 @@ final class HiddenSpaceViewModel: ObservableObject {
         }
     }
 
-    func loadRandomAlbumIfNeeded(mode: HiddenRandomMode) async {
+    func loadRandomAlbumIfNeeded() async {
         guard randomAlbums.isEmpty else { return }
-        await loadRandomAlbums(mode: mode)
+        await loadRandomAlbums()
     }
 
-    func loadRandomAlbums(mode: HiddenRandomMode) async {
+    func loadRandomAlbums() async {
         guard !isLoadingRandomAlbum else { return }
 
         isLoadingRandomAlbum = true
@@ -121,7 +88,7 @@ final class HiddenSpaceViewModel: ObservableObject {
         }
 
         do {
-            randomAlbums = try await fetchRandomAlbums(count: mode.requestCount)
+            randomAlbums = try await fetchRandomAlbums(count: Self.randomAlbumCount)
         } catch {
             randomErrorMessage = error.localizedDescription
         }

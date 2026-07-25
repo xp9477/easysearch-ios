@@ -27,7 +27,7 @@ final class HiddenJavDBViewModel: ObservableObject {
     private var didPrepareCloud = false
     private let cloudService = HiddenSupabaseService.shared
 
-    var randomMovie: HiddenJavDBMovie? { randomMovies.first }
+    private static let randomMovieCount = 9
 
     init() {
         loadFavoriteMovies()
@@ -68,12 +68,12 @@ final class HiddenJavDBViewModel: ObservableObject {
         }
     }
 
-    func loadRandomMovieIfNeeded(mode: HiddenJavDBRandomMode) async {
+    func loadRandomMovieIfNeeded() async {
         guard randomMovies.isEmpty else { return }
-        await loadRandomMovies(mode: mode)
+        await loadRandomMovies()
     }
 
-    func loadRandomMovies(mode: HiddenJavDBRandomMode) async {
+    func loadRandomMovies() async {
         guard !isLoadingRandomMovie else { return }
 
         let sessionID = UUID()
@@ -89,12 +89,7 @@ final class HiddenJavDBViewModel: ObservableObject {
         }
 
         do {
-            switch mode {
-            case .single:
-                randomMovies = try await fetchRandomMovies(count: mode.requestCount)
-            case .nine:
-                try await fetchRandomMoviesProgressively(count: mode.requestCount, sessionID: sessionID)
-            }
+            try await fetchRandomMoviesProgressively(count: Self.randomMovieCount, sessionID: sessionID)
         } catch {
             if randomLoadSessionID == sessionID {
                 randomErrorMessage = error.localizedDescription
@@ -327,34 +322,6 @@ final class HiddenJavDBViewModel: ObservableObject {
         } catch {
             detailErrorsByMovieID[movie.id] = error.localizedDescription
         }
-    }
-
-    private func fetchRandomMovies(count: Int) async throws -> [HiddenJavDBMovie] {
-        var movies: [HiddenJavDBMovie] = []
-        var seen = Set<String>()
-        var attempts = 0
-        let maxAttempts = max(18, count * 12)
-
-        while movies.count < count && attempts < maxAttempts {
-            attempts += 1
-            let result = try await HiddenJavDBAPI.fetchRandomMovie(knownTotalPages: cachedTotalPages)
-            cachedTotalPages = result.totalPages
-
-            let movie = result.movie
-            if seen.insert(movie.id).inserted {
-                movies.append(movie)
-            }
-        }
-
-        guard !movies.isEmpty else {
-            throw NSError(
-                domain: "HiddenJavDBViewModel",
-                code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "没有拿到可用影片，请重试"]
-            )
-        }
-
-        return movies
     }
 
     private func fetchRandomMoviesProgressively(count: Int, sessionID: UUID) async throws {

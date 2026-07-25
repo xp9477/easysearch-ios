@@ -728,12 +728,6 @@ struct HiddenSpaceSettingsHubView: View {
     var body: some View {
         List {
             NavigationLink {
-                Hidden4KHDSettingsDetailView()
-            } label: {
-                Label("4khd 设置", systemImage: "photo.stack")
-            }
-
-            NavigationLink {
                 HiddenJavDBSettingsDetailView()
             } label: {
                 Label("javdb 设置", systemImage: "film.stack")
@@ -745,54 +739,16 @@ struct HiddenSpaceSettingsHubView: View {
     }
 }
 
-struct Hidden4KHDSettingsDetailView: View {
-    @State private var fourKHDRandomMode = HiddenSpaceSettingsStore.shared.load().fourKHDRandomMode
-
-    var body: some View {
-        List {
-            Section {
-                Picker("默认随机模式", selection: $fourKHDRandomMode) {
-                    ForEach(HiddenRandomMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-            } header: {
-                Text("随机")
-            } footer: {
-                Text("控制进入 4khd 时的默认随机方式。")
-            }
-        }
-        .listStyle(.insetGrouped)
-        .navigationTitle("4khd 设置")
-        .navigationBarTitleDisplayMode(.inline)
-        .task {
-            fourKHDRandomMode = HiddenSpaceSettingsStore.shared.load().fourKHDRandomMode
-        }
-        .onChange(of: fourKHDRandomMode) { mode in
-            HiddenSpaceSettingsStore.shared.update { settings in
-                settings.fourKHDRandomMode = mode
-            }
-        }
-    }
-}
-
 struct HiddenJavDBSettingsDetailView: View {
-    @State private var javDBRandomMode = HiddenSpaceSettingsStore.shared.load().javDBRandomMode
     @State private var showJavDBDetailsByDefault = HiddenSpaceSettingsStore.shared.load().showJavDBDetailsByDefault
     @State private var missAVDomain = HiddenSpaceSettingsStore.shared.load().missAVDomain
 
     var body: some View {
         List {
             Section {
-                Picker("默认随机模式", selection: $javDBRandomMode) {
-                    ForEach(HiddenJavDBRandomMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-
                 Toggle("默认展开详细信息", isOn: $showJavDBDetailsByDefault)
             } header: {
-                Text("随机与详情")
+                Text("详情")
             } footer: {
                 Text("详细信息可在影片卡片与详情页随时切换显示。")
             }
@@ -825,14 +781,8 @@ struct HiddenJavDBSettingsDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             let settings = HiddenSpaceSettingsStore.shared.load()
-            javDBRandomMode = settings.javDBRandomMode
             showJavDBDetailsByDefault = settings.showJavDBDetailsByDefault
             missAVDomain = settings.missAVDomain
-        }
-        .onChange(of: javDBRandomMode) { mode in
-            HiddenSpaceSettingsStore.shared.update { settings in
-                settings.javDBRandomMode = mode
-            }
         }
         .onChange(of: showJavDBDetailsByDefault) { enabled in
             HiddenSpaceSettingsStore.shared.update { settings in

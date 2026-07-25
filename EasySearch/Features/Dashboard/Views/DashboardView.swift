@@ -321,8 +321,6 @@ public struct DashboardView: View {
     @ViewBuilder
     private func hiddenSpaceDestination(for route: HiddenSpaceRoute) -> some View {
         switch route {
-        case .fourKHDSettings:
-            Hidden4KHDSettingsDetailView()
         case .javDBSettings:
             HiddenJavDBSettingsDetailView()
         case .fourKHD:

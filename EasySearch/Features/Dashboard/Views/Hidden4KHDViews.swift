@@ -6,7 +6,6 @@ import UIKit
 
 struct Hidden4KHDFeatureView: View {
     @ObservedObject var viewModel: HiddenSpaceViewModel
-    @State private var randomMode: HiddenRandomMode
     @State private var searchQuery = ""
 
     private let randomNineColumns = [
@@ -14,11 +13,6 @@ struct Hidden4KHDFeatureView: View {
         GridItem(.flexible(), spacing: ESUI.Space.xs),
         GridItem(.flexible(), spacing: ESUI.Space.xs)
     ]
-
-    init(viewModel: HiddenSpaceViewModel) {
-        self.viewModel = viewModel
-        _randomMode = State(initialValue: HiddenSpaceSettingsStore.shared.load().fourKHDRandomMode)
-    }
 
     var body: some View {
         ScrollView {
@@ -58,31 +52,12 @@ struct Hidden4KHDFeatureView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await viewModel.prepareCloudIfNeeded()
-            await viewModel.loadRandomAlbumIfNeeded(mode: randomMode)
-        }
-        .onChange(of: randomMode) { mode in
-            HiddenSpaceSettingsStore.shared.update { settings in
-                settings.fourKHDRandomMode = mode
-            }
-            Task {
-                await viewModel.loadRandomAlbums(mode: mode)
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(value: HiddenSpaceRoute.fourKHDSettings) {
-                    Image(systemName: "gearshape")
-                }
-                .accessibilityLabel("4khd 设置")
-            }
+            await viewModel.loadRandomAlbumIfNeeded()
         }
         .onChange(of: searchQuery) { newValue in
             if newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 viewModel.resetSearchAlbums()
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .hiddenSpaceSettingsDidChange)) { _ in
-            randomMode = HiddenSpaceSettingsStore.shared.load().fourKHDRandomMode
         }
     }
 
@@ -153,90 +128,43 @@ struct Hidden4KHDFeatureView: View {
         VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             ESSectionHeader(
                 title: "随机封面",
-                trailing: viewModel.isLoadingRandomAlbum ? "加载中" : randomMode.title
+                trailing: viewModel.isLoadingRandomAlbum ? "加载中" : "随机 9 张"
             )
 
-            Picker("随机模式", selection: $randomMode) {
-                ForEach(HiddenRandomMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
-
             if viewModel.isLoadingRandomAlbum {
-                HiddenMediaPlaceholder(mode: .loading(randomMode.loadingText), systemImage: "photo.stack")
+                HiddenMediaPlaceholder(mode: .loading("正在抓取随机 9 张..."), systemImage: "photo.stack")
                     .frame(height: 230)
             } else if !viewModel.randomAlbums.isEmpty {
-                if randomMode == .single, let album = viewModel.randomAlbum {
-                    NavigationLink(value: HiddenSpaceRoute.fourKHDAlbum(album)) {
-                        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-                            AsyncCoverImage(url: album.coverURL, fitToContainer: true)
-                                .frame(height: 230)
-                                .clipShape(RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous))
-
-                            Text(album.title)
-                                .font(.subheadline)
-                                .foregroundStyle(.primary)
-                                .lineLimit(2)
+                LazyVGrid(columns: randomNineColumns, spacing: ESUI.Space.xs) {
+                    ForEach(Array(viewModel.randomAlbums.prefix(9))) { album in
+                        NavigationLink(value: HiddenSpaceRoute.fourKHDAlbum(album)) {
+                            RandomNineAlbumTile(
+                                album: album,
+                                isFavorite: viewModel.isFavorite(album)
+                            )
                         }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
-
-                    HStack(spacing: ESUI.Space.sm) {
-                        Button {
-                            Task {
-                                await viewModel.loadRandomAlbums(mode: randomMode)
-                            }
-                        } label: {
-                            Label("随机 1 张", systemImage: "shuffle")
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(viewModel.isLoadingRandomAlbum)
-
-                        Button {
-                            viewModel.toggleFavorite(album)
-                        } label: {
-                            Label(viewModel.isFavorite(album) ? "已喜欢" : "喜欢", systemImage: viewModel.isFavorite(album) ? "heart.fill" : "heart")
-                                .font(.subheadline.weight(.semibold))
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(viewModel.isFavorite(album) ? .pink : .primary)
-                    }
-                } else {
-                    LazyVGrid(columns: randomNineColumns, spacing: ESUI.Space.xs) {
-                        ForEach(Array(viewModel.randomAlbums.prefix(9))) { album in
-                            NavigationLink(value: HiddenSpaceRoute.fourKHDAlbum(album)) {
-                                RandomNineAlbumTile(
-                                    album: album,
-                                    isFavorite: viewModel.isFavorite(album)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    Button {
-                        Task {
-                            await viewModel.loadRandomAlbums(mode: randomMode)
-                        }
-                    } label: {
-                        Label("随机 9 张", systemImage: "shuffle")
-                            .font(.subheadline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.isLoadingRandomAlbum)
                 }
+
+                Button {
+                    Task {
+                        await viewModel.loadRandomAlbums()
+                    }
+                } label: {
+                    Label("随机 9 张", systemImage: "shuffle")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.isLoadingRandomAlbum)
             } else {
                 VStack(spacing: ESUI.Space.sm) {
                     HiddenMediaPlaceholder(mode: .failure(viewModel.randomErrorMessage ?? "暂时没有拿到封面"), systemImage: "photo.stack")
                         .frame(height: 200)
                     Button("重试") {
                         Task {
-                            await viewModel.loadRandomAlbums(mode: randomMode)
+                            await viewModel.loadRandomAlbums()
                         }
                     }
                     .buttonStyle(.bordered)
