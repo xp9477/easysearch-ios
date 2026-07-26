@@ -26,65 +26,59 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
-                    simpleListSection(title: "通用") {
-                        NavigationLink(value: SettingsRoute.cloudSync) {
-                            ESSettingsRow(title: "云端同步", systemImage: "icloud", iconColor: .blue)
+            List {
+                Section("通用") {
+                    NavigationLink(value: SettingsRoute.cloudSync) {
+                        Label {
+                            Text("云端同步")
+                        } icon: {
+                            ESFeatureIcon(systemName: "icloud", color: .blue, size: 30)
                         }
-                        .buttonStyle(.plain)
-
-                        NavigationLink(value: SettingsRoute.imageTranslate) {
-                            ESSettingsRow(title: "AI 服务", systemImage: "sparkles", iconColor: .cyan)
-                        }
-                        .buttonStyle(.plain)
                     }
 
-                    simpleListSection(title: "关于") {
-                        ESSettingsRow(
-                            title: "版本 \(appVersionText)",
-                            systemImage: "info.circle",
-                            iconColor: .secondary,
-                            showsChevron: false
-                        )
-
-                        Button {
-                            Task {
-                                await appUpdateService.checkForUpdates()
-                            }
-                        } label: {
-                            ESSettingsRow(
-                                title: appUpdateService.isChecking ? "正在检查…" : "检测更新",
-                                systemImage: "arrow.triangle.2.circlepath",
-                                iconColor: .blue,
-                                showsChevron: false
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(appUpdateService.isChecking || appUpdateService.isDownloading)
-
-                        if let lastResult = appUpdateService.lastResult {
-                            updateResultSection(lastResult)
-                        }
-
-                        if let message = appUpdateService.statusMessage?
-                            .trimmingCharacters(in: .whitespacesAndNewlines),
-                           !message.isEmpty {
-                            Text(message)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 4)
+                    NavigationLink(value: SettingsRoute.imageTranslate) {
+                        Label {
+                            Text("AI 服务")
+                        } icon: {
+                            ESFeatureIcon(systemName: "sparkles", color: .cyan, size: 30)
                         }
                     }
                 }
-                .padding(.horizontal, ESUI.screenHorizontalPadding)
-                .padding(.top, ESUI.Space.lg)
-                .padding(.bottom, ESUI.Space.huge)
+
+                Section("关于") {
+                    LabeledContent("版本", value: appVersionText)
+
+                    Button {
+                        Task {
+                            await appUpdateService.checkForUpdates()
+                        }
+                    } label: {
+                        HStack {
+                            Text(appUpdateService.isChecking ? "正在检查…" : "检测更新")
+                            Spacer()
+                            if appUpdateService.isChecking {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(appUpdateService.isChecking || appUpdateService.isDownloading)
+
+                    if let lastResult = appUpdateService.lastResult {
+                        updateResultSection(lastResult)
+                    }
+
+                    if let message = appUpdateService.statusMessage?
+                        .trimmingCharacters(in: .whitespacesAndNewlines),
+                       !message.isEmpty {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
-            .esBottomTabPadding()
-            .esScreenBackground()
+            .listStyle(.insetGrouped)
             .navigationTitle("设置")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .navigationDestination(for: SettingsRoute.self) { route in
                 settingsDestination(for: route)
             }
@@ -103,20 +97,6 @@ struct SettingsView: View {
                     Task { await statusCenter.refresh() }
                     handlePendingRouteIfNeeded()
                 }
-            }
-        }
-    }
-
-    private func simpleListSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 4)
-                .padding(.bottom, 2)
-
-            VStack(spacing: ESUI.Space.sm) {
-                content()
             }
         }
     }
@@ -151,8 +131,6 @@ struct SettingsView: View {
                 }
                 .disabled(appUpdateService.isDownloading)
             }
-            .padding(.horizontal, 4)
-            .padding(.top, 4)
 
         case let .upToDate(_, remote):
             // Still show latest release notes so users know what landed in the current build.
@@ -166,8 +144,6 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(.horizontal, 4)
-                .padding(.top, 4)
             }
 
         case .unavailable:

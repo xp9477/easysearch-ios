@@ -6,28 +6,28 @@ struct CategoryTabBar: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: ESUI.Space.xs) {
-                ForEach(categories, id: \.self) { category in
-                    let isSelected = category == selectedCategory
-                    Button {
-                        selectedCategory = category
-                    } label: {
-                        Text(category.displayName)
-                            .font(.subheadline.weight(isSelected ? .semibold : .medium))
-                            .foregroundStyle(isSelected ? Color.white : .secondary)
-                            .padding(.horizontal, ESUI.Space.sm + 2)
-                            .padding(.vertical, ESUI.Space.xs)
-                            .background {
-                                if isSelected {
-                                    Capsule().fill(ESBrandGradient.linear)
-                                } else {
-                                    Capsule().fill(ESUI.fill)
-                                }
-                            }
+            GlassEffectContainer(spacing: ESUI.Space.xs) {
+                HStack(spacing: ESUI.Space.xs) {
+                    ForEach(categories, id: \.self) { category in
+                        let isSelected = category == selectedCategory
+                        Button {
+                            selectedCategory = category
+                        } label: {
+                            Text(category.displayName)
+                                .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                                .foregroundStyle(isSelected ? Color.white : .primary)
+                                .padding(.horizontal, ESUI.Space.sm + 2)
+                                .padding(.vertical, ESUI.Space.xs)
+                        }
+                        .buttonStyle(.plain)
+                        .glassEffect(
+                            isSelected ? .regular.tint(.blue).interactive() : .regular.interactive(),
+                            in: .capsule
+                        )
+                        .accessibilityAddTraits(isSelected ? .isSelected : [])
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
+                .padding(.vertical, 2)
             }
         }
     }

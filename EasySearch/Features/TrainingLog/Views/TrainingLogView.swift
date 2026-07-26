@@ -118,7 +118,7 @@ public struct TrainingLogView: View {
         let isSelected = calendar.isDate(date, inSameDayAs: viewModel.selectedDay)
         let isToday = calendar.isDateInToday(date)
         let trained = viewModel.hasTraining(on: date)
-        let pair = ESUI.ModuleAccent.pair(for: featureID)
+        let accent = ESUI.moduleColor(for: featureID)
 
         return Button {
             viewModel.selectDay(date)
@@ -129,7 +129,7 @@ public struct TrainingLogView: View {
                     .foregroundStyle(isSelected ? .white : .primary)
 
                 Circle()
-                    .fill(trained ? (isSelected ? Color.white.opacity(0.95) : pair.0) : Color.clear)
+                    .fill(trained ? (isSelected ? Color.white.opacity(0.95) : accent) : Color.clear)
                     .frame(width: 6, height: 6)
             }
             .frame(maxWidth: .infinity)
@@ -138,7 +138,7 @@ public struct TrainingLogView: View {
                 Group {
                     if isSelected {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(LinearGradient(colors: [pair.0, pair.1], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .fill(accent)
                     } else if isToday {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(ESUI.fill)
@@ -351,11 +351,11 @@ private struct AddWorkoutLineSheet: View {
                         .padding(.vertical, ESUI.Space.sm)
                         .background(
                             RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                                .fill(selected ? ESUI.brandStart.opacity(0.14) : ESUI.surface)
+                                .fill(selected ? Color.accentColor.opacity(0.12) : ESUI.surface)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                                .stroke(selected ? ESUI.brandStart.opacity(0.55) : Color.primary.opacity(0.06), lineWidth: 1)
+                                .stroke(selected ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1)
                         )
                     }
                     .buttonStyle(.plain)
@@ -388,13 +388,13 @@ private struct AddWorkoutLineSheet: View {
                             Spacer()
                             if selected {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(ESUI.brandStart)
+                                    .foregroundStyle(Color.accentColor)
                             }
                         }
                         .padding(ESUI.Space.sm)
                         .background(
                             RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                                .fill(selected ? ESUI.brandStart.opacity(0.10) : ESUI.surface)
+                                .fill(selected ? Color.accentColor.opacity(0.1) : ESUI.surface)
                         )
                     }
                     .buttonStyle(.plain)
@@ -446,7 +446,7 @@ private struct AddWorkoutLineSheet: View {
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
                                 .background(
-                                    Capsule().fill(amount == value ? ESUI.brandStart.opacity(0.16) : ESUI.fill)
+                                    Capsule().fill(amount == value ? Color.accentColor.opacity(0.15) : ESUI.fill)
                                 )
                         }
                         .buttonStyle(.plain)

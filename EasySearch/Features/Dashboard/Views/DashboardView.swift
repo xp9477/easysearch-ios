@@ -31,7 +31,6 @@ public struct DashboardView: View {
                             title: "暂无模块",
                             systemImage: "square.grid.2x2"
                         )
-                        .esCard()
                     } else {
                         ForEach(AppFeatureGroup.allCases) { group in
                             let features = registry.moduleFeatures(in: group)
@@ -221,16 +220,10 @@ public struct DashboardView: View {
             customIcon: customIcon
         )
         .overlay(
-            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+            RoundedRectangle(cornerRadius: ESUI.tileCornerRadius, style: .continuous)
                 .stroke(
-                    isPrivate
-                        ? LinearGradient(
-                            colors: [ESUI.brandStart.opacity(0.45), ESUI.brandEnd.opacity(0.25)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                          )
-                        : LinearGradient(colors: [.clear, .clear], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    style: StrokeStyle(lineWidth: isPrivate ? 1.2 : 0, dash: isPrivate ? [5, 4] : [])
+                    isPrivate ? Color.secondary.opacity(0.35) : Color.clear,
+                    style: StrokeStyle(lineWidth: isPrivate ? 1 : 0, dash: isPrivate ? [5, 4] : [])
                 )
         )
     }

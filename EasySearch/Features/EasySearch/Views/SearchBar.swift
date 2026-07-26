@@ -8,12 +8,12 @@ struct SearchBar: View {
     var body: some View {
         HStack(spacing: ESUI.Space.sm) {
             Image(systemName: "magnifyingglass")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(isFocused.wrappedValue ? ESUI.brandStart : .secondary)
+                .font(.body.weight(.medium))
+                .foregroundStyle(isFocused.wrappedValue ? Color.accentColor : .secondary)
                 .accessibilityHidden(true)
 
             TextField("输入搜索内容", text: $text)
-                .font(.body.weight(.medium))
+                .font(.body)
                 .textInputAutocapitalization(.never)
                 .disableAutocorrection(true)
                 .submitLabel(.search)
@@ -32,21 +32,8 @@ struct SearchBar: View {
             }
         }
         .padding(.horizontal, ESUI.Space.md)
-        .frame(maxWidth: .infinity, minHeight: 52)
-        .background(
-            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                .fill(ESUI.surface)
-                .shadow(color: Color.black.opacity(0.04), radius: 8, y: 3)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                .stroke(
-                    isFocused.wrappedValue
-                        ? ESUI.brandStart.opacity(0.45)
-                        : Color.primary.opacity(0.05),
-                    lineWidth: 1
-                )
-        )
+        .frame(maxWidth: .infinity, minHeight: 48)
+        .glassEffect(.regular, in: .capsule)
         .animation(.easeOut(duration: 0.15), value: isFocused.wrappedValue)
         .accessibilityElement(children: .contain)
     }

@@ -35,29 +35,20 @@ private struct EngineTile: View {
     var body: some View {
         HStack(spacing: ESUI.Space.sm) {
             ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                categoryColor.opacity(0.95),
-                                categoryColor.opacity(0.65)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 42, height: 42)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(ESUI.fill)
+                    .frame(width: 40, height: 40)
 
                 if let iconImage {
                     Image(uiImage: iconImage)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 42, height: 42)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 } else {
                     Image(systemName: fallbackIcon)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -79,13 +70,8 @@ private struct EngineTile: View {
         .padding(ESUI.Space.sm)
         .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+            RoundedRectangle(cornerRadius: ESUI.tileCornerRadius, style: .continuous)
                 .fill(ESUI.surface)
-                .shadow(color: Color.black.opacity(0.04), radius: 8, y: 3)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                .stroke(categoryColor.opacity(0.18), lineWidth: 1)
         )
         .task(id: engine.faviconURL) {
             await loadIcon()
@@ -98,15 +84,6 @@ private struct EngineTile: View {
             return searchCategory.icon
         }
         return "globe"
-    }
-
-    private var categoryColor: Color {
-        switch engine.category {
-        case SearchCategory.ai.rawValue: return Color(red: 0.56, green: 0.35, blue: 0.98)
-        case SearchCategory.entertainment.rawValue: return Color(red: 0.95, green: 0.40, blue: 0.55)
-        case SearchCategory.shopping.rawValue: return Color(red: 0.98, green: 0.58, blue: 0.18)
-        default: return ESUI.brandStart
-        }
     }
 
     private func loadIcon() async {

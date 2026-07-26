@@ -82,12 +82,7 @@ public extension AppFeature {
 }
 
 extension View {
-    @ViewBuilder
     func appTabBarBehavior() -> some View {
-        if #available(iOS 26.0, *) {
-            tabBarMinimizeBehavior(.onScrollDown)
-        } else {
-            self
-        }
+        tabBarMinimizeBehavior(.onScrollDown)
     }
 }

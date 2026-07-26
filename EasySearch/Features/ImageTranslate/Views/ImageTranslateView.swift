@@ -356,17 +356,10 @@ public struct ImageTranslateView: View {
                     }
                 }
                 .font(.body.weight(.semibold))
-                .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, ESUI.Space.sm + 2)
-                .padding(.horizontal, ESUI.Space.md)
-                .background(
-                    RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                        .fill(ESBrandGradient.linear)
-                        .opacity(canRunPrimaryAction ? 1 : 0.45)
-                )
+                .padding(.vertical, ESUI.Space.xs)
             }
-            .buttonStyle(ESCardButtonStyle())
+            .buttonStyle(.glassProminent)
             .disabled(!canRunPrimaryAction)
         }
         .esCard()

@@ -40,7 +40,7 @@ struct EasySearchApp: App {
                 .environmentObject(registry)
                 .environmentObject(statusCenter)
                 .environmentObject(CloudSyncViewModel.shared)
-                .tint(Color.accentColor)
+                .tint(.blue)
                 .onAppear {
                     statusCenter.attach(registry: registry)
                     ShareActionRegistry.register(WebDAVStoreShareAction())

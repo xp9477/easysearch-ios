@@ -19,14 +19,11 @@ struct EasySearchView: View {
                             _ = viewModel.performDefaultSearch()
                         } label: {
                             Image(systemName: "arrow.right")
-                                .font(.body.weight(.bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 48, height: 48)
-                                .background(ESBrandGradient.fill(cornerRadius: 14))
+                                .font(.body.weight(.semibold))
+                                .frame(width: 32, height: 32)
                         }
-                        .buttonStyle(ESCardButtonStyle())
+                        .buttonStyle(.glassProminent)
                         .disabled(!viewModel.hasValidQuery)
-                        .opacity(viewModel.hasValidQuery ? 1 : 0.45)
                         .accessibilityLabel("默认搜索")
                     }
 
@@ -43,7 +40,6 @@ struct EasySearchView: View {
                                 : "当前分类下没有匹配平台。",
                             systemImage: "globe"
                         )
-                        .esCard()
                     } else {
                         EngineGridView(
                             engines: viewModel.filteredEngines,
@@ -61,7 +57,7 @@ struct EasySearchView: View {
             .esBottomTabPadding()
             .esScreenBackground()
             .navigationTitle("搜索")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .scrollDismissesKeyboard(.interactively)
         }
     }

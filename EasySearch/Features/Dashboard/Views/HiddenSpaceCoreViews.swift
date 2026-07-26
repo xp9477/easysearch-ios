@@ -85,17 +85,10 @@ struct HiddenSpaceView: View {
         badges: [String],
         footer: String? = nil
     ) -> some View {
-        let pair = ESUI.ModuleAccent.pair(for: featureID)
+        let accent = ESUI.moduleColor(for: featureID)
         return VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             HStack(spacing: ESUI.Space.sm) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(LinearGradient(colors: [pair.0, pair.1], startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: 44, height: 44)
-                    Image(systemName: systemImage)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
+                ESFeatureIcon(systemName: systemImage, color: accent, size: 44)
 
                 VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                     Text(title)
