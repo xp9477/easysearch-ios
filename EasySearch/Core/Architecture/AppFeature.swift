@@ -68,10 +68,17 @@ public protocol AppFeature: Identifiable {
     @MainActor
     @ViewBuilder
     var entryView: AnyView { get }
+
+    /// Feature-owned status for the workbench / status center (avoids Core omniscience).
+    @MainActor
+    func statusSummary() async -> FeatureStatusSummary
 }
 
 public extension AppFeature {
     var group: AppFeatureGroup? { nil }
+
+    @MainActor
+    func statusSummary() async -> FeatureStatusSummary { .ready }
 }
 
 extension View {

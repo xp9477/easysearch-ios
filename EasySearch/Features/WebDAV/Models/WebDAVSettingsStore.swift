@@ -243,90 +243,44 @@ protocol WebDAVCredentialStoring {
 }
 
 struct WebDAVKeychain: WebDAVCredentialStoring {
-    private let service: String
+    private let store: KeychainStore
     private let legacyAccount: String
 
     init(
         service: String = Bundle.main.bundleIdentifier ?? "com.easysearch.xp9477",
         legacyAccount: String = "webdav-password"
     ) {
-        self.service = service
+        self.store = KeychainStore(service: service)
         self.legacyAccount = legacyAccount
     }
 
     func save(password: String, locationID: UUID) throws {
-        try save(password: password, account: account(for: locationID))
+        try store.saveString(password, account: account(for: locationID))
     }
 
     func readPassword(locationID: UUID) throws -> String {
-        try readPassword(account: account(for: locationID))
-    }
-
-    func deletePassword(locationID: UUID) throws {
-        try deletePassword(account: account(for: locationID))
-    }
-
-    func readLegacyPassword() throws -> String {
-        try readPassword(account: legacyAccount)
-    }
-
-    func deleteLegacyPassword() throws {
-        try deletePassword(account: legacyAccount)
-    }
-
-    private func account(for locationID: UUID) -> String {
-        "webdav-password.\(locationID.uuidString)"
-    }
-
-    private func save(password: String, account: String) throws {
-        let data = Data(password.utf8)
-        let baseQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-        let attributes: [String: Any] = [kSecValueData as String: data]
-        let status = SecItemUpdate(baseQuery as CFDictionary, attributes as CFDictionary)
-        if status == errSecItemNotFound {
-            var item = baseQuery
-            item[kSecValueData as String] = data
-            item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-            let addStatus = SecItemAdd(item as CFDictionary, nil)
-            guard addStatus == errSecSuccess else {
-                throw NSError(domain: NSOSStatusErrorDomain, code: Int(addStatus))
-            }
-        } else if status != errSecSuccess {
-            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
-        }
-    }
-
-    private func readPassword(account: String) throws -> String {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess,
-              let data = result as? Data,
-              let password = String(data: data, encoding: .utf8) else {
-            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
+        guard let password = try store.loadString(account: account(for: locationID)) else {
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(errSecItemNotFound))
         }
         return password
     }
 
-    private func deletePassword(account: String) throws {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-        let status = SecItemDelete(query as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
+    func deletePassword(locationID: UUID) throws {
+        store.delete(account: account(for: locationID))
+    }
+
+    func readLegacyPassword() throws -> String {
+        guard let password = try store.loadString(account: legacyAccount) else {
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(errSecItemNotFound))
         }
+        return password
+    }
+
+    func deleteLegacyPassword() throws {
+        store.delete(account: legacyAccount)
+    }
+
+    private func account(for locationID: UUID) -> String {
+        "webdav-password.\(locationID.uuidString)"
     }
 }

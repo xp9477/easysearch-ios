@@ -39,13 +39,20 @@ struct EasySearchApp: App {
             AppShellView()
                 .environmentObject(registry)
                 .environmentObject(statusCenter)
+                .environmentObject(CloudSyncViewModel.shared)
                 .tint(Color.accentColor)
+                .onAppear {
+                    statusCenter.attach(registry: registry)
+                    ShareActionRegistry.register(WebDAVStoreShareAction())
+                }
                 .task {
+                    statusCenter.attach(registry: registry)
+                    ShareActionRegistry.register(WebDAVStoreShareAction())
                     await UTNotificationManager.shared.configure()
                     await UTNotificationManager.shared.refreshSchedulesIfAuthorized()
                     await ExpenseAssistantNotificationManager.shared.configure()
                     await ExpenseAssistantNotificationManager.shared.refreshSchedulesIfAuthorized()
-                    await HiddenCloudSyncViewModel.shared.prepareIfNeeded()
+                    await CloudSyncViewModel.shared.prepareIfNeeded()
                     await statusCenter.refresh()
                 }
                 .onChange(of: scenePhase) { phase in
@@ -53,7 +60,7 @@ struct EasySearchApp: App {
                     Task {
                         await UTNotificationManager.shared.refreshStateAndSchedules()
                         await ExpenseAssistantNotificationManager.shared.refreshStateAndSchedules()
-                        await HiddenCloudSyncViewModel.shared.syncIfPossible()
+                        await CloudSyncViewModel.shared.syncIfPossible()
                         await statusCenter.refresh()
                     }
                 }

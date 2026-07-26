@@ -7,6 +7,20 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000001 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000101 /* KeychainStore.swift */; };
+		A10000000000000000000002 /* AIConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000102 /* AIConfigurationStore.swift */; };
+		A10000000000000000000003 /* CloudSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000103 /* CloudSyncService.swift */; };
+		A10000000000000000000004 /* CloudSyncViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000104 /* CloudSyncViewModel.swift */; };
+		A10000000000000000000005 /* ShareAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000105 /* ShareAction.swift */; };
+		A10000000000000000000006 /* HiddenSpaceFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000106 /* HiddenSpaceFeature.swift */; };
+		A10000000000000000000007 /* CloudSyncSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000107 /* CloudSyncSettingsDetailView.swift */; };
+		A10000000000000000000008 /* AISettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000108 /* AISettingsDetailView.swift */; };
+		A10000000000000000000009 /* SettingsValueRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000109 /* SettingsValueRow.swift */; };
+		A1000000000000000000000A /* UTTrackerSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000010A /* UTTrackerSettingsDetailView.swift */; };
+		A1000000000000000000000B /* ExpenseAssistantSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000010B /* ExpenseAssistantSettingsDetailView.swift */; };
+		A1000000000000000000000C /* QingLongSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000010C /* QingLongSettingsDetailView.swift */; };
+		A1000000000000000000000D /* HiddenSpaceSettingsHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000010D /* HiddenSpaceSettingsHubView.swift */; };
+		A1000000000000000000000E /* WebDAVStoreShareAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000010E /* WebDAVStoreShareAction.swift */; };
 		F40000000000000000000001 /* WebDAVFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000101 /* WebDAVFeature.swift */; };
 		F40000000000000000000002 /* WebDAVModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000102 /* WebDAVModels.swift */; };
 		F40000000000000000000003 /* WebDAVSettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000103 /* WebDAVSettingsStore.swift */; };
@@ -52,7 +66,6 @@
 		C800000000000000000000005 /* ExchangeRateServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000000000000105 /* ExchangeRateServiceTests.swift */; };
 		08F64AB6A4B3B085A9FDDA21 /* AppFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7776F48C8127AD4F470DB7EF /* AppFeature.swift */; };
 		0FEC531B128C7323644248F0 /* UtilitiesFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5905F9F946A778C37D0F7CCD /* UtilitiesFeature.swift */; };
-		1A145786259D610FACA711A5 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9AD7A5FC3ED0A3372776E30 /* AppRouter.swift */; };
 		36B9C9E9DE2EAFB91FE29C76 /* ImageTranslateHistoryReducerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AED5424721AE4AFD4354443F /* ImageTranslateHistoryReducerTests.swift */; };
 		385A49DB482D3D46438A8BBE /* ImageTranslateFileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3195DD59E264422624CF152A /* ImageTranslateFileStoreTests.swift */; };
 		45B8F0995303899D66B4CFFF /* EasySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D66418FE785F8E727F9BAE4 /* EasySearchView.swift */; };
@@ -80,7 +93,6 @@
 		D1A000000000000000000006 /* UTTrackerEntryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A000000000000000000106 /* UTTrackerEntryStore.swift */; };
 		D2A000000000000000000001 /* CloudSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000101 /* CloudSyncCoordinator.swift */; };
 		D2A000000000000000000002 /* HiddenSyncModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000102 /* HiddenSyncModels.swift */; };
-		D2A000000000000000000003 /* HiddenCloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000103 /* HiddenCloudSync.swift */; };
 		D2A000000000000000000005 /* HiddenSharedPlayback.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000105 /* HiddenSharedPlayback.swift */; };
 		D400000000000000000000001 /* QingLongFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000101 /* QingLongFeature.swift */; };
 		D400000000000000000000002 /* QingLongPanelProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000102 /* QingLongPanelProfile.swift */; };
@@ -152,6 +164,20 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A10000000000000000000101 /* KeychainStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = KeychainStore.swift; path = EasySearch/Core/Security/KeychainStore.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000102 /* AIConfigurationStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AIConfigurationStore.swift; path = EasySearch/Core/AI/AIConfigurationStore.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000103 /* CloudSyncService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncService.swift; path = EasySearch/Core/CloudSync/CloudSyncService.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000104 /* CloudSyncViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncViewModel.swift; path = EasySearch/Core/CloudSync/CloudSyncViewModel.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000105 /* ShareAction.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ShareAction.swift; path = EasySearch/Core/Sharing/ShareAction.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000106 /* HiddenSpaceFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSpaceFeature.swift; path = EasySearch/Features/Dashboard/HiddenSpaceFeature.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000107 /* CloudSyncSettingsDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncSettingsDetailView.swift; path = EasySearch/Features/Settings/Views/CloudSyncSettingsDetailView.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000108 /* AISettingsDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AISettingsDetailView.swift; path = EasySearch/Features/Settings/Views/AISettingsDetailView.swift; sourceTree = SOURCE_ROOT; };
+		A10000000000000000000109 /* SettingsValueRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SettingsValueRow.swift; path = EasySearch/Features/Settings/Views/SettingsValueRow.swift; sourceTree = SOURCE_ROOT; };
+		A1000000000000000000010A /* UTTrackerSettingsDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTTrackerSettingsDetailView.swift; path = EasySearch/Features/UTTracker/Views/UTTrackerSettingsDetailView.swift; sourceTree = SOURCE_ROOT; };
+		A1000000000000000000010B /* ExpenseAssistantSettingsDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantSettingsDetailView.swift; path = EasySearch/Features/ExpenseAssistant/Views/ExpenseAssistantSettingsDetailView.swift; sourceTree = SOURCE_ROOT; };
+		A1000000000000000000010C /* QingLongSettingsDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongSettingsDetailView.swift; path = EasySearch/Features/QingLong/Views/QingLongSettingsDetailView.swift; sourceTree = SOURCE_ROOT; };
+		A1000000000000000000010D /* HiddenSpaceSettingsHubView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSpaceSettingsHubView.swift; path = EasySearch/Features/Dashboard/Views/HiddenSpaceSettingsHubView.swift; sourceTree = SOURCE_ROOT; };
+		A1000000000000000000010E /* WebDAVStoreShareAction.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVStoreShareAction.swift; path = EasySearch/Features/WebDAV/WebDAVStoreShareAction.swift; sourceTree = SOURCE_ROOT; };
 		F40000000000000000000101 /* WebDAVFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVFeature.swift; path = EasySearch/Features/WebDAV/WebDAVFeature.swift; sourceTree = SOURCE_ROOT; };
 		F40000000000000000000102 /* WebDAVModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVModels.swift; path = EasySearch/Features/WebDAV/Models/WebDAVModels.swift; sourceTree = SOURCE_ROOT; };
 		F40000000000000000000103 /* WebDAVSettingsStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVSettingsStore.swift; path = EasySearch/Features/WebDAV/Models/WebDAVSettingsStore.swift; sourceTree = SOURCE_ROOT; };
@@ -227,7 +253,6 @@
 		D1A000000000000000000106 /* UTTrackerEntryStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTTrackerEntryStore.swift; path = EasySearch/Features/UTTracker/Models/UTTrackerEntryStore.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000101 /* CloudSyncCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncCoordinator.swift; path = EasySearch/Core/CloudSync/CloudSyncCoordinator.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000102 /* HiddenSyncModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSyncModels.swift; path = EasySearch/Features/Dashboard/Models/HiddenSyncModels.swift; sourceTree = SOURCE_ROOT; };
-		D2A000000000000000000103 /* HiddenCloudSync.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenCloudSync.swift; path = EasySearch/Features/Dashboard/Sync/HiddenCloudSync.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000105 /* HiddenSharedPlayback.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSharedPlayback.swift; path = EasySearch/Features/Dashboard/Views/HiddenSharedPlayback.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000101 /* QingLongFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongFeature.swift; path = EasySearch/Features/QingLong/QingLongFeature.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000102 /* QingLongPanelProfile.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongPanelProfile.swift; path = EasySearch/Features/QingLong/Models/QingLongPanelProfile.swift; sourceTree = SOURCE_ROOT; };
@@ -262,7 +287,6 @@
 		DE58CC4FBE5DDA9B8E6C8416 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		DEE5D4584B694CD5678242E5 /* ImageTranslateSessionStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateSessionStore.swift; path = EasySearch/Features/ImageTranslate/Models/ImageTranslateSessionStore.swift; sourceTree = SOURCE_ROOT; };
 		E53A9599509BBCA5DB03ABC4 /* SearchViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchViewModel.swift; path = EasySearch/Features/EasySearch/ViewModels/SearchViewModel.swift; sourceTree = SOURCE_ROOT; };
-		E9AD7A5FC3ED0A3372776E30 /* AppRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppRouter.swift; path = EasySearch/Core/Navigation/AppRouter.swift; sourceTree = SOURCE_ROOT; };
 		F50000000000000000000101 /* TrainingLogFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrainingLogFeature.swift; path = EasySearch/Features/TrainingLog/TrainingLogFeature.swift; sourceTree = SOURCE_ROOT; };
 		F50000000000000000000102 /* TrainingLogModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrainingLogModels.swift; path = EasySearch/Features/TrainingLog/Models/TrainingLogModels.swift; sourceTree = SOURCE_ROOT; };
 		F50000000000000000000103 /* TrainingLogStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrainingLogStore.swift; path = EasySearch/Features/TrainingLog/Models/TrainingLogStore.swift; sourceTree = SOURCE_ROOT; };
@@ -290,6 +314,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		A10000000000000000000201 /* Security */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000101 /* KeychainStore.swift */,
+			);
+			path = Security;
+			sourceTree = "<group>";
+		};
 		0FB4DB06D5AE9B9FED0B57B4 /* Architecture */ = {
 			isa = PBXGroup;
 			children = (
@@ -304,23 +336,16 @@
 			children = (
 				F40000000000000000000205 /* Sharing */,
 				D700000000000000000000201 /* AI */,
-				1F0AA6DA19AA7B223C223FA9 /* Navigation */,
 				8C99C0002060773331CA9541 /* Extensions */,
 				E59C8AA3A5C7B7392A388AF9 /* UIComponents */,
 				0FB4DB06D5AE9B9FED0B57B4 /* Architecture */,
+				A10000000000000000000201 /* Security */,
 				D2A000000000000000000201 /* CloudSync */,
 			);
 			path = Core;
 			sourceTree = "<group>";
 		};
-		1F0AA6DA19AA7B223C223FA9 /* Navigation */ = {
-			isa = PBXGroup;
-			children = (
-				E9AD7A5FC3ED0A3372776E30 /* AppRouter.swift */,
-			);
-			path = Navigation;
-			sourceTree = "<group>";
-		};
+		
 		214A4883BB1976CD8E3A4676 /* EasySearch */ = {
 			isa = PBXGroup;
 			children = (
@@ -542,7 +567,7 @@
 			isa = PBXGroup;
 			children = (
 				D2A000000000000000000202 /* Models */,
-				D2A000000000000000000203 /* Sync */,
+				A10000000000000000000106 /* HiddenSpaceFeature.swift */,
 				B94B1FCC32BDB8A777E81E22 /* Views */,
 			);
 			path = Dashboard;
@@ -589,6 +614,8 @@
 			isa = PBXGroup;
 			children = (
 				D2A000000000000000000101 /* CloudSyncCoordinator.swift */,
+				A10000000000000000000103 /* CloudSyncService.swift */,
+				A10000000000000000000104 /* CloudSyncViewModel.swift */,
 			);
 			path = CloudSync;
 			sourceTree = "<group>";
@@ -601,14 +628,7 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
-		D2A000000000000000000203 /* Sync */ = {
-			isa = PBXGroup;
-			children = (
-				D2A000000000000000000103 /* HiddenCloudSync.swift */,
-			);
-			path = Sync;
-			sourceTree = "<group>";
-		};
+		
 		D400000000000000000000201 /* QingLong */ = {
 			isa = PBXGroup;
 			children = (
@@ -726,6 +746,7 @@
 			isa = PBXGroup;
 			children = (
 				D700000000000000000000101 /* DeepSeekClient.swift */,
+				A10000000000000000000102 /* AIConfigurationStore.swift */,
 				015EF0031C7687BCB7F6A2EE /* ImageOCRService.swift */,
 				77B71B90FD37F678F1BE7721 /* TextAlignment.swift */,
 			);
@@ -792,6 +813,7 @@
 				F40000000000000000000203 /* Services */,
 				F40000000000000000000204 /* Views */,
 				F40000000000000000000101 /* WebDAVFeature.swift */,
+				A1000000000000000000010E /* WebDAVStoreShareAction.swift */,
 			);
 			path = WebDAV;
 			sourceTree = "<group>";
@@ -835,6 +857,7 @@
 			children = (
 				F40000000000000000000107 /* ShareInboxStore.swift */,
 				F40000000000000000000108 /* IncomingShareActionsView.swift */,
+				A10000000000000000000105 /* ShareAction.swift */,
 			);
 			path = Sharing;
 			sourceTree = "<group>";
@@ -1086,6 +1109,21 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000001 /* KeychainStore.swift in Sources */,
+				A10000000000000000000002 /* AIConfigurationStore.swift in Sources */,
+				A10000000000000000000003 /* CloudSyncService.swift in Sources */,
+				A10000000000000000000004 /* CloudSyncViewModel.swift in Sources */,
+				A10000000000000000000005 /* ShareAction.swift in Sources */,
+				A10000000000000000000006 /* HiddenSpaceFeature.swift in Sources */,
+				A10000000000000000000007 /* CloudSyncSettingsDetailView.swift in Sources */,
+				A10000000000000000000008 /* AISettingsDetailView.swift in Sources */,
+				A10000000000000000000009 /* SettingsValueRow.swift in Sources */,
+				A1000000000000000000000A /* UTTrackerSettingsDetailView.swift in Sources */,
+				A1000000000000000000000B /* ExpenseAssistantSettingsDetailView.swift in Sources */,
+				A1000000000000000000000C /* QingLongSettingsDetailView.swift in Sources */,
+				A1000000000000000000000D /* HiddenSpaceSettingsHubView.swift in Sources */,
+				A1000000000000000000000E /* WebDAVStoreShareAction.swift in Sources */,
+
 				F40000000000000000000001 /* WebDAVFeature.swift in Sources */,
 				F40000000000000000000002 /* WebDAVModels.swift in Sources */,
 				F40000000000000000000003 /* WebDAVSettingsStore.swift in Sources */,
@@ -1103,7 +1141,6 @@
 				F40000000000000000000007 /* ShareInboxStore.swift in Sources */,
 				F40000000000000000000008 /* IncomingShareActionsView.swift in Sources */,
 				F30000000000000000000001 /* SearchEngineIconCache.swift in Sources */,
-				1A145786259D610FACA711A5 /* AppRouter.swift in Sources */,
 				08F64AB6A4B3B085A9FDDA21 /* AppFeature.swift in Sources */,
 				E800000000000000000000001 /* EasySearchUIComponents.swift in Sources */,
 				8AFD20AC531C4A867E1490CE /* FeatureRegistry.swift in Sources */,
@@ -1131,7 +1168,6 @@
 				D2A000000000000000000010 /* HiddenJavDBAPI.swift in Sources */,
 				D2A000000000000000000012 /* HiddenPlaybackThumbnailPipeline.swift in Sources */,
 				D2A000000000000000000002 /* HiddenSyncModels.swift in Sources */,
-				D2A000000000000000000003 /* HiddenCloudSync.swift in Sources */,
 				D2A000000000000000000005 /* HiddenSharedPlayback.swift in Sources */,
 				D1A000000000000000000001 /* UTEntry.swift in Sources */,
 				D1A000000000000000000006 /* UTTrackerEntryStore.swift in Sources */,

@@ -275,7 +275,7 @@ final class QingLongViewModel: ObservableObject {
             )
             applySnapshot(snapshot)
             rememberCurrentDraftsAsSaved()
-            await HiddenCloudSyncViewModel.shared.syncQingLongProfileUpsertIfPossible(snapshot.profile)
+            await CloudSyncViewModel.shared.syncQingLongProfileUpsertIfPossible(snapshot.profile)
             setStatus(
                 "已连接 \(snapshot.profile.displayName)，已同步 \(snapshot.environments.count) 个变量、\(snapshot.crons.count) 个任务和 \(snapshot.subscriptions.count) 个订阅。",
                 tone: .success
@@ -298,7 +298,7 @@ final class QingLongViewModel: ObservableObject {
         do {
             let snapshot = try await QingLongService.shared.refreshDashboard()
             applySnapshot(snapshot)
-            await HiddenCloudSyncViewModel.shared.syncQingLongProfileUpsertIfPossible(snapshot.profile)
+            await CloudSyncViewModel.shared.syncQingLongProfileUpsertIfPossible(snapshot.profile)
             if showStatus {
                 setStatus("已刷新 \(snapshot.profile.displayName)。", tone: .info)
             }
@@ -337,7 +337,7 @@ final class QingLongViewModel: ObservableObject {
         subscriptionSearchText = ""
         subscriptionFilter = .all
         if let disconnectedProfile {
-            await HiddenCloudSyncViewModel.shared.syncQingLongProfileDeletionIfPossible(profileID: disconnectedProfile.id)
+            await CloudSyncViewModel.shared.syncQingLongProfileDeletionIfPossible(profileID: disconnectedProfile.id)
         }
         setStatus("已移除青龙面板配置。", tone: .info)
     }

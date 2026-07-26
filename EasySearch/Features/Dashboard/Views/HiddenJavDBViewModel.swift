@@ -15,17 +15,17 @@ final class HiddenJavDBViewModel: ObservableObject {
     @Published var detailsByMovieID: [String: HiddenJavDBMovieDetail] = [:]
     @Published var detailErrorsByMovieID: [String: String] = [:]
     @Published var detailLoadingIDs: Set<String> = []
-    @Published var isCloudConfigured = false
-    @Published var isCloudAuthenticated = false
-    @Published var cloudUserEmail: String?
-    @Published var cloudStatusMessage: String?
-    @Published var isPreparingCloud = false
-    @Published var isCloudBusy = false
-
     private var cachedTotalPages: Int?
     private var randomLoadSessionID = UUID()
-    private var didPrepareCloud = false
     private let cloudService = HiddenSupabaseService.shared
+
+    /// Mirrored from the app-wide cloud owner for UI bindings in this feature.
+    var isCloudConfigured: Bool { CloudSyncViewModel.shared.isCloudConfigured }
+    var isCloudAuthenticated: Bool { CloudSyncViewModel.shared.isCloudAuthenticated }
+    var cloudUserEmail: String? { CloudSyncViewModel.shared.cloudUserEmail }
+    var cloudStatusMessage: String? { CloudSyncViewModel.shared.cloudStatusMessage }
+    var isPreparingCloud: Bool { CloudSyncViewModel.shared.isPreparingCloud }
+    var isCloudBusy: Bool { CloudSyncViewModel.shared.isCloudBusy }
 
     private static let randomMovieCount = 9
 
@@ -34,38 +34,12 @@ final class HiddenJavDBViewModel: ObservableObject {
         loadFavoritePlaybacks()
     }
 
+    /// Single owner: app-wide CloudSyncViewModel. Then reload local favorites into this VM.
     func prepareCloudIfNeeded() async {
-        guard !didPrepareCloud else { return }
-        didPrepareCloud = true
-
-        isPreparingCloud = true
-        defer { isPreparingCloud = false }
-
-        guard let configuration = await cloudService.configuration() else {
-            isCloudConfigured = false
-            isCloudAuthenticated = false
-            cloudUserEmail = nil
-            cloudStatusMessage = "未配置云端同步，当前仅保存在本地。"
-            return
-        }
-
-        isCloudConfigured = true
-        cloudStatusMessage = "已连接 \(configuration.projectHost)，正在检查会话..."
-
-        do {
-            if let session = try await cloudService.restoreSessionIfPossible() {
-                applyCloudSession(session)
-                await syncCloudNow(reason: "已恢复云端会话")
-            } else {
-                isCloudAuthenticated = false
-                cloudUserEmail = nil
-                cloudStatusMessage = "云端已配置，但尚未登录。当前仍会保存在本地。"
-            }
-        } catch {
-            isCloudAuthenticated = false
-            cloudUserEmail = nil
-            cloudStatusMessage = "云端会话恢复失败：\(error.localizedDescription)"
-        }
+        await CloudSyncViewModel.shared.prepareIfNeeded()
+        loadFavoriteMovies()
+        loadFavoritePlaybacks()
+        objectWillChange.send()
     }
 
     func loadRandomMovieIfNeeded() async {
@@ -251,57 +225,29 @@ final class HiddenJavDBViewModel: ObservableObject {
     }
 
     func signIn(email: String, password: String) async {
-        guard isCloudConfigured else {
-            cloudStatusMessage = "请先在 Info.plist 配置 Supabase。"
-            return
-        }
-
-        isCloudBusy = true
-        defer { isCloudBusy = false }
-
-        do {
-            let session = try await cloudService.signIn(email: email, password: password)
-            applyCloudSession(session)
-            await syncCloudNow(reason: "登录成功")
-        } catch {
-            cloudStatusMessage = "登录失败：\(error.localizedDescription)"
-        }
+        await CloudSyncViewModel.shared.signIn(email: email, password: password)
+        loadFavoriteMovies()
+        loadFavoritePlaybacks()
+        objectWillChange.send()
     }
 
     func signUp(email: String, password: String) async {
-        guard isCloudConfigured else {
-            cloudStatusMessage = "请先在 Info.plist 配置 Supabase。"
-            return
-        }
-
-        isCloudBusy = true
-        defer { isCloudBusy = false }
-
-        do {
-            let outcome = try await cloudService.signUp(email: email, password: password)
-            switch outcome {
-            case let .authenticated(session):
-                applyCloudSession(session)
-                await syncCloudNow(reason: "注册成功")
-            case let .confirmationRequired(message):
-                isCloudAuthenticated = false
-                cloudUserEmail = nil
-                cloudStatusMessage = message
-            }
-        } catch {
-            cloudStatusMessage = "注册失败：\(error.localizedDescription)"
-        }
+        await CloudSyncViewModel.shared.signUp(email: email, password: password)
+        loadFavoriteMovies()
+        loadFavoritePlaybacks()
+        objectWillChange.send()
     }
 
     func signOut() async {
-        await cloudService.signOut()
-        isCloudAuthenticated = false
-        cloudUserEmail = nil
-        cloudStatusMessage = "已退出云端登录，当前仅保存在本地。"
+        await CloudSyncViewModel.shared.signOut()
+        objectWillChange.send()
     }
 
     func syncCloudNow() async {
-        await syncCloudNow(reason: "同步成功")
+        await CloudSyncViewModel.shared.syncNow()
+        loadFavoriteMovies()
+        loadFavoritePlaybacks()
+        objectWillChange.send()
     }
 
     func loadDetailIfNeeded(for movie: HiddenJavDBMovie) async {
@@ -354,43 +300,6 @@ final class HiddenJavDBViewModel: ObservableObject {
         }
     }
 
-    private func applyCloudSession(_ session: HiddenSupabaseSession) {
-        isCloudAuthenticated = true
-        cloudUserEmail = session.email
-        if let email = session.email?.nonEmpty {
-            cloudStatusMessage = "已登录 \(email)"
-        } else {
-            cloudStatusMessage = "已登录云端同步"
-        }
-    }
-
-    private func syncCloudNow(reason: String) async {
-        guard isCloudAuthenticated else { return }
-
-        isCloudBusy = true
-        defer { isCloudBusy = false }
-
-        do {
-            let remoteFavorites = try await cloudService.fetchFavorites()
-            let remotePlaybacks = try await cloudService.fetchPlaybacks()
-
-            let mergedFavorites = HiddenCloudMerge.movies(primary: remoteFavorites, secondary: favoriteMovies)
-            let mergedPlaybacks = HiddenCloudMerge.playbacks(primary: remotePlaybacks, secondary: favoritePlaybacks)
-
-            favoriteMovies = mergedFavorites
-            favoritePlaybacks = mergedPlaybacks
-            saveFavoriteMovies()
-            saveFavoritePlaybacks()
-
-            try await cloudService.upsertFavorites(mergedFavorites)
-            try await cloudService.upsertPlaybacks(mergedPlaybacks)
-
-            cloudStatusMessage = reason
-        } catch {
-            cloudStatusMessage = "云端同步失败：\(error.localizedDescription)"
-        }
-    }
-
     private func syncFavoriteMutation(movie: HiddenJavDBMovie, shouldRemove: Bool) async {
         do {
             if shouldRemove {
@@ -398,27 +307,35 @@ final class HiddenJavDBViewModel: ObservableObject {
             } else {
                 try await cloudService.upsertFavorite(movie)
             }
-            cloudStatusMessage = shouldRemove ? "已从云端移除喜欢影片" : "已同步喜欢影片到云端"
+            CloudSyncViewModel.shared.cloudStatusMessage = shouldRemove ? "已从云端移除喜欢影片" : "已同步喜欢影片到云端"
         } catch {
-            cloudStatusMessage = "喜欢影片云端同步失败：\(error.localizedDescription)"
+            handleCloudMutationError(error, fallback: "喜欢影片云端同步失败：\(error.localizedDescription)")
         }
     }
 
     private func syncPlaybackUpsert(_ playback: HiddenJavDBFavoritePlayback) async {
         do {
             try await cloudService.upsertPlayback(playback)
-            cloudStatusMessage = "已同步播放收藏到云端"
+            CloudSyncViewModel.shared.cloudStatusMessage = "已同步播放收藏到云端"
         } catch {
-            cloudStatusMessage = "播放收藏云端同步失败：\(error.localizedDescription)"
+            handleCloudMutationError(error, fallback: "播放收藏云端同步失败：\(error.localizedDescription)")
         }
     }
 
     private func syncPlaybackDeletion(_ playback: HiddenJavDBFavoritePlayback) async {
         do {
             try await cloudService.deletePlayback(id: playback.id)
-            cloudStatusMessage = "已从云端移除播放收藏"
+            CloudSyncViewModel.shared.cloudStatusMessage = "已从云端移除播放收藏"
         } catch {
-            cloudStatusMessage = "播放收藏删除失败：\(error.localizedDescription)"
+            handleCloudMutationError(error, fallback: "播放收藏删除失败：\(error.localizedDescription)")
+        }
+    }
+
+    private func handleCloudMutationError(_ error: Error, fallback: String) {
+        if error.isHiddenSupabaseAuthFailure {
+            CloudSyncViewModel.shared.markAuthenticationLost(message: fallback)
+        } else {
+            CloudSyncViewModel.shared.cloudStatusMessage = fallback
         }
     }
 

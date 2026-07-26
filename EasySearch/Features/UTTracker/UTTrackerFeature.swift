@@ -14,4 +14,18 @@ public struct UTTrackerFeature: AppFeature {
     public var entryView: AnyView {
         AnyView(UTTrackerView())
     }
+
+    @MainActor
+    public func statusSummary() async -> FeatureStatusSummary {
+        let utEntries = UTTrackerLocalStore().loadEntries()
+        let utAuth = UTNotificationManager.shared.authorizationStatus
+        if utAuth == .denied {
+            return FeatureStatusSummary(kind: .needsAuthorization, text: "通知未授权")
+        }
+        if utEntries.isEmpty {
+            return FeatureStatusSummary(kind: .empty, text: "暂无记录")
+        }
+        return FeatureStatusSummary(kind: .ready, text: "本月可记录")
+    }
+
 }

@@ -14,4 +14,10 @@ public struct UtilitiesFeature: AppFeature {
     public var entryView: AnyView {
         AnyView(UtilitiesView())
     }
+
+    @MainActor
+    public func statusSummary() async -> FeatureStatusSummary {
+        FeatureStatusSummary(kind: .ready, text: "可用")
+    }
+
 }

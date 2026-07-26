@@ -14,4 +14,14 @@ public struct QingLongFeature: AppFeature {
     public var entryView: AnyView {
         AnyView(QingLongView())
     }
+
+    @MainActor
+    public func statusSummary() async -> FeatureStatusSummary {
+        let profile = QingLongPanelLocalStore().loadProfile()
+        if profile == nil {
+            return FeatureStatusSummary(kind: .needsConfiguration, text: "未连接")
+        }
+        return FeatureStatusSummary(kind: .ready, text: "已连接")
+    }
+
 }

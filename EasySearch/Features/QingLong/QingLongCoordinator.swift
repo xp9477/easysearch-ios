@@ -187,65 +187,38 @@ private struct QingLongTokenPayload: Decodable {
 }
 
 private struct QingLongKeychainStore {
-    private let service = "com.easysearch.qinglong"
     private let account = "panel.credentials.v1"
+    private let store = KeychainStore(service: "com.easysearch.qinglong")
 
     func loadCredentials() throws -> QingLongCredentials? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-
-        if status == errSecItemNotFound {
-            return nil
+        do {
+            guard let data = try store.loadData(account: account) else { return nil }
+            guard let credentials = try? JSONDecoder().decode(QingLongCredentials.self, from: data) else {
+                throw QingLongError.keychainFailure(errSecDecode)
+            }
+            return credentials
+        } catch let error as KeychainStore.StoreError {
+            if case let .status(status) = error {
+                throw QingLongError.keychainFailure(status)
+            }
+            throw QingLongError.keychainFailure(errSecDecode)
         }
-
-        guard status == errSecSuccess,
-              let data = item as? Data,
-              let credentials = try? JSONDecoder().decode(QingLongCredentials.self, from: data) else {
-            throw QingLongError.keychainFailure(status)
-        }
-
-        return credentials
     }
 
     func saveCredentials(_ credentials: QingLongCredentials) throws {
-        let data = try JSONEncoder().encode(credentials)
-        let baseQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-
-        SecItemDelete(baseQuery as CFDictionary)
-
-        let attributes: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-            kSecValueData as String: data
-        ]
-
-        let status = SecItemAdd(attributes as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw QingLongError.keychainFailure(status)
+        do {
+            let data = try JSONEncoder().encode(credentials)
+            try store.replaceData(data, account: account)
+        } catch let error as KeychainStore.StoreError {
+            if case let .status(status) = error {
+                throw QingLongError.keychainFailure(status)
+            }
+            throw QingLongError.keychainFailure(errSecDecode)
         }
     }
 
     func deleteCredentials() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-        SecItemDelete(query as CFDictionary)
+        store.delete(account: account)
     }
 }
 

@@ -38,11 +38,11 @@ enum EmailAssistantError: LocalizedError {
 actor EmailAssistantService {
     static let shared = EmailAssistantService()
 
-    private let configurationStore: ImageTranslateConfigurationStore
+    private let configurationStore: AIConfigurationStore
     private let client: DeepSeekClient
 
     private init(
-        configurationStore: ImageTranslateConfigurationStore = .shared,
+        configurationStore: AIConfigurationStore = .shared,
         client: DeepSeekClient = .shared
     ) {
         self.configurationStore = configurationStore

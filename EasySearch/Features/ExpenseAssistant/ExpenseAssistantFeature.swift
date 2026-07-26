@@ -14,4 +14,23 @@ public struct ExpenseAssistantFeature: AppFeature {
     public var entryView: AnyView {
         AnyView(ExpenseAssistantView())
     }
+
+    @MainActor
+    public func statusSummary() async -> FeatureStatusSummary {
+        let expenseSnapshot = ExpenseAssistantLocalStore().loadSnapshot()
+        let expenseAuth = ExpenseAssistantNotificationManager.shared.authorizationStatus
+        let overdueMonthly = ExpenseAssistantReminderEngine.overdueMonthlyClaims(in: expenseSnapshot, asOf: Date())
+        let overdueTravel = ExpenseAssistantReminderEngine.overdueTravelClaims(in: expenseSnapshot, asOf: Date())
+        if expenseAuth == .denied {
+            return FeatureStatusSummary(kind: .needsAuthorization, text: "通知未授权")
+        }
+        if expenseSnapshot.monthlyClaims.isEmpty && expenseSnapshot.travelClaims.isEmpty {
+            return FeatureStatusSummary(kind: .empty, text: "暂无单据")
+        }
+        if !overdueMonthly.isEmpty || !overdueTravel.isEmpty {
+            return FeatureStatusSummary(kind: .attentionNeeded, text: "有待处理")
+        }
+        return FeatureStatusSummary(kind: .ready, text: "跟踪中")
+    }
+
 }

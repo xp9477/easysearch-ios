@@ -26,12 +26,13 @@ final class HiddenSpaceViewModel: ObservableObject {
 
     private var cachedTotalPages: Int?
     private var favoriteAlbumImageCache: [String: [URL]] = [:]
-    private var didPrepareCloud = false
-    private var isPreparingCloud = false
-    private var isCloudAuthenticated = false
     private let cloudService = HiddenSupabaseService.shared
 
     var totalFavoritesCount: Int { favoriteAlbums.count + favoriteImageURLs.count }
+
+    private var isCloudAuthenticated: Bool {
+        CloudSyncViewModel.shared.isCloudAuthenticated
+    }
 
     private static let randomAlbumCount = 9
 
@@ -40,36 +41,12 @@ final class HiddenSpaceViewModel: ObservableObject {
         loadFavoriteImages()
     }
 
+    /// Relies on app-wide `CloudSyncViewModel` as the single full-sync owner.
     func prepareCloudIfNeeded() async {
-        guard !didPrepareCloud, !isPreparingCloud else { return }
-        didPrepareCloud = true
-        isPreparingCloud = true
-        defer { isPreparingCloud = false }
-
-        do {
-            guard try await cloudService.restoreSessionIfPossible() != nil else {
-                isCloudAuthenticated = false
-                return
-            }
-
-            isCloudAuthenticated = true
-
-            let remoteAlbums = try await cloudService.fetch4KHDAlbums()
-            let remoteImages = try await cloudService.fetch4KHDImages()
-
-            favoriteAlbums = HiddenCloudMerge.albums(primary: remoteAlbums, secondary: favoriteAlbums)
-            favoriteImageURLs = HiddenCloudMerge.imageURLs(primary: remoteImages, secondary: favoriteImageURLs)
-            saveFavorites()
-            saveFavoriteImages()
-
-            try await cloudService.upsert4KHDAlbums(favoriteAlbums)
-            try await cloudService.upsert4KHDImages(favoriteImageURLs)
-        } catch {
-            if error.isHiddenSupabaseAuthFailure {
-                isCloudAuthenticated = false
-            }
-            didPrepareCloud = false
-        }
+        await CloudSyncViewModel.shared.prepareIfNeeded()
+        // Global sync may have rewritten local stores — reload into this VM.
+        loadFavoriteAlbums()
+        loadFavoriteImages()
     }
 
     func loadRandomAlbumIfNeeded() async {
@@ -304,8 +281,9 @@ final class HiddenSpaceViewModel: ObservableObject {
 
     private func handleCloudMutationError(_ error: Error) {
         if error.isHiddenSupabaseAuthFailure {
-            isCloudAuthenticated = false
-            didPrepareCloud = false
+            Task {
+                await CloudSyncViewModel.shared.prepareIfNeeded()
+            }
         }
     }
 }

@@ -1,5 +1,4 @@
 import Foundation
-import Security
 import UIKit
 
 enum ImageTranslateError: LocalizedError {
@@ -46,111 +45,30 @@ enum ImageTranslateError: LocalizedError {
     }
 }
 
-private struct ImageTranslateKeychainStore {
-    private let service = "com.easysearch.image-translate"
-    private let account = "ai.api-key.v1"
-
-    func loadAPIKey() throws -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-
-        if status == errSecItemNotFound {
-            return nil
-        }
-
-        guard status == errSecSuccess,
-              let data = item as? Data,
-              let apiKey = String(data: data, encoding: .utf8) else {
-            throw ImageTranslateError.serverError("读取 AI API Key 失败，Keychain 状态码 \(status)。")
-        }
-
-        return apiKey
-    }
-
-    func saveAPIKey(_ apiKey: String) throws {
-        let data = Data(apiKey.utf8)
-        let baseQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-
-        SecItemDelete(baseQuery as CFDictionary)
-
-        let attributes: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-            kSecValueData as String: data
-        ]
-
-        let status = SecItemAdd(attributes as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw ImageTranslateError.serverError("保存 AI API Key 失败，Keychain 状态码 \(status)。")
-        }
-    }
-
-    func deleteAPIKey() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-        SecItemDelete(query as CFDictionary)
-    }
-}
-
+/// Feature-local preferences (target language) layered on shared `AIConfigurationStore`.
 final class ImageTranslateConfigurationStore {
     static let shared = ImageTranslateConfigurationStore()
 
     private let userDefaults: UserDefaults
-    private let keychainStore: ImageTranslateKeychainStore
+    private let aiStore: AIConfigurationStore
     private let notificationCenter: NotificationCenter
-    private let baseURLKey = "imageTranslate.ai.baseURL"
-    private let modelKey = "imageTranslate.deepseek.model"
     private let targetLanguageKey = "imageTranslate.targetLanguage"
 
     private init(
         userDefaults: UserDefaults = .standard,
-        keychainStore: ImageTranslateKeychainStore = ImageTranslateKeychainStore(),
+        aiStore: AIConfigurationStore = .shared,
         notificationCenter: NotificationCenter = .default
     ) {
         self.userDefaults = userDefaults
-        self.keychainStore = keychainStore
+        self.aiStore = aiStore
         self.notificationCenter = notificationCenter
     }
 
     func loadConfiguration() -> ImageTranslateConfiguration {
-        let bundledBaseURL = (Bundle.main.object(forInfoDictionaryKey: "AI_BASE_URL") as? String)
-            ?? (Bundle.main.object(forInfoDictionaryKey: "DEEPSEEK_BASE_URL") as? String)
-            ?? DeepSeekClientConfiguration.defaultBaseURL
-        let bundledAPIKey = (Bundle.main.object(forInfoDictionaryKey: "AI_API_KEY") as? String)
-            ?? (Bundle.main.object(forInfoDictionaryKey: "DEEPSEEK_API_KEY") as? String)
-            ?? ""
-        let bundledModel = (Bundle.main.object(forInfoDictionaryKey: "AI_MODEL") as? String)
-            ?? (Bundle.main.object(forInfoDictionaryKey: "DEEPSEEK_MODEL") as? String)
-            ?? "deepseek-chat"
-        let storedBaseURL = userDefaults.string(forKey: baseURLKey) ?? bundledBaseURL
-        let storedAPIKey = (try? keychainStore.loadAPIKey()) ?? nil
-        let storedModel = userDefaults.string(forKey: modelKey) ?? bundledModel
+        let service = aiStore.loadConfiguration()
         let rawTargetLanguage = userDefaults.string(forKey: targetLanguageKey)
         let targetLanguage = rawTargetLanguage.flatMap(ImageTranslateTargetLanguage.init(rawValue:)) ?? .simplifiedChinese
-
-        return ImageTranslateConfiguration(
-            baseURL: storedBaseURL,
-            apiKey: storedAPIKey ?? bundledAPIKey,
-            model: storedModel,
-            targetLanguage: targetLanguage
-        )
+        return ImageTranslateConfiguration(service: service, targetLanguage: targetLanguage)
     }
 
     func saveConfiguration(
@@ -159,20 +77,8 @@ final class ImageTranslateConfigurationStore {
         model: String,
         targetLanguage: ImageTranslateTargetLanguage
     ) throws {
-        let trimmedBaseURL = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedAPIKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if trimmedAPIKey.isEmpty {
-            keychainStore.deleteAPIKey()
-        } else {
-            try keychainStore.saveAPIKey(trimmedAPIKey)
-        }
-
-        userDefaults.set(trimmedBaseURL.isEmpty ? DeepSeekClientConfiguration.defaultBaseURL : trimmedBaseURL, forKey: baseURLKey)
-        userDefaults.set(trimmedModel.isEmpty ? "deepseek-chat" : trimmedModel, forKey: modelKey)
+        try aiStore.saveConfiguration(baseURL: baseURL, apiKey: apiKey, model: model)
         userDefaults.set(targetLanguage.rawValue, forKey: targetLanguageKey)
-
         notificationCenter.post(name: .imageTranslateConfigurationDidChange, object: nil)
     }
 

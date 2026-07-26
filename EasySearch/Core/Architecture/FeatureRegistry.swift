@@ -71,7 +71,6 @@ public class FeatureRegistry: ObservableObject {
             }
         }
 
-        // Append any missing group IDs (should not happen after normalization).
         while groupCursor < mutableGroupIDs.count {
             nextOrder.append(mutableGroupIDs[groupCursor])
             groupCursor += 1
@@ -121,14 +120,21 @@ public final class FeatureStatusCenter: ObservableObject {
     @Published public private(set) var deepSeekSummary = FeatureStatusSummary(kind: .needsConfiguration, text: "未配置")
     @Published public private(set) var qingLongSummary = FeatureStatusSummary(kind: .needsConfiguration, text: "未连接")
 
+    /// Optional registry used so status refresh queries each feature instead of hardcoding stores here.
+    weak var registry: FeatureRegistry?
+
     private init() {}
+
+    public func attach(registry: FeatureRegistry) {
+        self.registry = registry
+    }
 
     public func summary(for featureID: String) -> FeatureStatusSummary {
         summaries[featureID] ?? .ready
     }
 
     public func refresh() async {
-        let cloud = HiddenCloudSyncViewModel.shared
+        let cloud = CloudSyncViewModel.shared
         await cloud.prepareIfNeeded()
 
         if !cloud.isCloudConfigured {
@@ -143,8 +149,8 @@ public final class FeatureStatusCenter: ObservableObject {
             cloudSummary = FeatureStatusSummary(kind: .needsConfiguration, text: "未登录")
         }
 
-        let deepSeek = ImageTranslateConfigurationStore.shared.loadConfiguration()
-        deepSeekSummary = deepSeek.hasAPIKey
+        let ai = AIConfigurationStore.shared.loadConfiguration()
+        deepSeekSummary = ai.hasAPIKey
             ? FeatureStatusSummary(kind: .ready, text: "已配置")
             : FeatureStatusSummary(kind: .needsConfiguration, text: "未配置")
 
@@ -154,91 +160,16 @@ public final class FeatureStatusCenter: ObservableObject {
             : FeatureStatusSummary(kind: .ready, text: "已连接")
 
         var next: [String: FeatureStatusSummary] = [:]
-
-        // UT Tracker
-        let utEntries = UTTrackerLocalStore().loadEntries()
-        let utAuth = UTNotificationManager.shared.authorizationStatus
-        if utAuth == .denied {
-            next["uttracker"] = FeatureStatusSummary(kind: .needsAuthorization, text: "通知未授权")
-        } else if utEntries.isEmpty {
-            next["uttracker"] = FeatureStatusSummary(kind: .empty, text: "暂无记录")
-        } else {
-            next["uttracker"] = FeatureStatusSummary(kind: .ready, text: "本月可记录")
+        let features = registry?.features ?? []
+        for feature in features where feature.placement == .moduleList || feature.placement == .hiddenModule {
+            next[feature.id] = await feature.statusSummary()
         }
 
-        // Training log
-        let trainingSnapshot = TrainingLogLocalStore().loadSnapshot()
-        let trainingMonthStart = TrainingLogCalendar.startOfMonth(Date())
-        let trainingDaysThisMonth = trainingSnapshot.days.values.filter { day in
-            day.hasTraining && TrainingLogCalendar.calendar.isDate(day.dayStart, equalTo: trainingMonthStart, toGranularity: .month)
-        }.count
-        if trainingSnapshot.days.values.contains(where: \.hasTraining) {
-            next["training-log"] = FeatureStatusSummary(
-                kind: .ready,
-                text: trainingDaysThisMonth > 0 ? "本月 \(trainingDaysThisMonth) 天" : "有历史"
-            )
-        } else {
-            next["training-log"] = FeatureStatusSummary(kind: .empty, text: "暂无训练")
+        // Keep cross-cutting aliases used by Settings UI.
+        if next["qinglong-management"] == nil {
+            next["qinglong-management"] = qingLongSummary
         }
-
-        // Expense
-        let expenseSnapshot = ExpenseAssistantLocalStore().loadSnapshot()
-        let expenseAuth = ExpenseAssistantNotificationManager.shared.authorizationStatus
-        let overdueMonthly = ExpenseAssistantReminderEngine.overdueMonthlyClaims(in: expenseSnapshot, asOf: Date())
-        let overdueTravel = ExpenseAssistantReminderEngine.overdueTravelClaims(in: expenseSnapshot, asOf: Date())
-        if expenseAuth == .denied {
-            next["expense-assistant"] = FeatureStatusSummary(kind: .needsAuthorization, text: "通知未授权")
-        } else if expenseSnapshot.monthlyClaims.isEmpty && expenseSnapshot.travelClaims.isEmpty {
-            next["expense-assistant"] = FeatureStatusSummary(kind: .empty, text: "暂无单据")
-        } else if !overdueMonthly.isEmpty || !overdueTravel.isEmpty {
-            next["expense-assistant"] = FeatureStatusSummary(kind: .attentionNeeded, text: "有待处理")
-        } else {
-            next["expense-assistant"] = FeatureStatusSummary(kind: .ready, text: "跟踪中")
-        }
-        // QingLong
-        next["qinglong-management"] = qingLongSummary
-
-        // Image Translate / Email share DeepSeek
-        if deepSeek.hasAPIKey {
-            next["image-translate"] = FeatureStatusSummary(kind: .ready, text: "可用")
-            next["email-assistant"] = FeatureStatusSummary(kind: .ready, text: "可用")
-        } else {
-            next["image-translate"] = FeatureStatusSummary(kind: .needsConfiguration, text: "需配置 AI")
-            next["email-assistant"] = FeatureStatusSummary(kind: .needsConfiguration, text: "需配置 AI")
-        }
-
-        // WebDAV
-        let webdavState = await MainActor.run { () -> (Bool, Int) in
-            let store = WebDAVSettingsStore.shared
-            return (store.configuration != nil, store.locations.count)
-        }
-        if !webdavState.0 {
-            next["webdav"] = FeatureStatusSummary(kind: .needsConfiguration, text: "未配置")
-        } else {
-            let count = webdavState.1
-            next["webdav"] = FeatureStatusSummary(kind: .ready, text: count > 0 ? "\(count) 个位置" : "已连接")
-        }
-        // Utilities always ready
-        next["utilities"] = FeatureStatusSummary(kind: .ready, text: "可用")
 
         summaries = next
-    }
-}
-
-// MARK: - Hidden Space Feature
-
-public struct HiddenSpaceFeature: AppFeature {
-    public var id: String = "hidden-space"
-    public var title: String = "隐藏空间"
-    public var summary: String = "受保护的低曝光能力入口。"
-    public var iconName: String = "lock.shield"
-    public var color: Color = .purple
-    public var placement: AppFeaturePlacement = .hiddenModule
-    public var group: AppFeatureGroup? = nil
-
-    public init() {}
-
-    public var entryView: AnyView {
-        AnyView(HiddenSpaceView())
     }
 }

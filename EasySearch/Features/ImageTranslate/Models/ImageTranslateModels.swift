@@ -147,8 +147,22 @@ struct ImageTranslateConfiguration: Equatable {
             model: resolvedModel
         )
     }
-}
 
-extension Notification.Name {
-    static let imageTranslateConfigurationDidChange = Notification.Name("imageTranslateConfigurationDidChange")
+    var serviceConfiguration: AIServiceConfiguration {
+        AIServiceConfiguration(baseURL: baseURL, apiKey: apiKey, model: model)
+    }
+
+    init(baseURL: String, apiKey: String, model: String, targetLanguage: ImageTranslateTargetLanguage) {
+        self.baseURL = baseURL
+        self.apiKey = apiKey
+        self.model = model
+        self.targetLanguage = targetLanguage
+    }
+
+    init(service: AIServiceConfiguration, targetLanguage: ImageTranslateTargetLanguage) {
+        self.baseURL = service.baseURL
+        self.apiKey = service.apiKey
+        self.model = service.model
+        self.targetLanguage = targetLanguage
+    }
 }

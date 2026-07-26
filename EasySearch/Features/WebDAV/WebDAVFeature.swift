@@ -14,4 +14,15 @@ struct WebDAVFeature: AppFeature {
     var entryView: AnyView {
         AnyView(WebDAVView())
     }
+
+    @MainActor
+    func statusSummary() async -> FeatureStatusSummary {
+        let store = WebDAVSettingsStore.shared
+        if store.configuration == nil {
+            return FeatureStatusSummary(kind: .needsConfiguration, text: "未配置")
+        }
+        let count = store.locations.count
+        return FeatureStatusSummary(kind: .ready, text: count > 0 ? "\(count) 个位置" : "已连接")
+    }
+
 }

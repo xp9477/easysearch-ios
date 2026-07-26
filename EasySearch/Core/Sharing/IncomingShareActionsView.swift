@@ -1,35 +1,14 @@
 import SwiftUI
 
-enum IncomingShareAction: String, CaseIterable, Identifiable {
-    case storeToWebDAV
-    case reserved
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .storeToWebDAV:
-            return "存储到 WebDAV"
-        case .reserved:
-            return "其他功能"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .storeToWebDAV:
-            return "externaldrive.badge.plus"
-        case .reserved:
-            return "ellipsis.circle"
-        }
-    }
-}
-
 struct IncomingShareActionsView: View {
     @Environment(\.dismiss) private var dismiss
 
     let items: [SharedInboxItem]
     let onConsumed: ([SharedInboxItem]) -> Void
+
+    private var actions: [any ShareActionHandling] {
+        ShareActionRegistry.actions
+    }
 
     var body: some View {
         NavigationStack {
@@ -51,23 +30,27 @@ struct IncomingShareActionsView: View {
                 }
 
                 Section("选择操作") {
-                    NavigationLink {
-                        WebDAVShareUploadView(items: items) {
-                            onConsumed(items)
-                            dismiss()
+                    ForEach(actions, id: \.id) { action in
+                        if action.isAvailable {
+                            NavigationLink {
+                                action.destination(items: items) {
+                                    onConsumed(items)
+                                    dismiss()
+                                }
+                            } label: {
+                                Label(action.title, systemImage: action.systemImage)
+                            }
+                        } else {
+                            HStack {
+                                Label(action.title, systemImage: action.systemImage)
+                                Spacer()
+                                Text("预留")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .accessibilityElement(children: .combine)
                         }
-                    } label: {
-                        Label(IncomingShareAction.storeToWebDAV.title, systemImage: IncomingShareAction.storeToWebDAV.systemImage)
                     }
-
-                    HStack {
-                        Label(IncomingShareAction.reserved.title, systemImage: IncomingShareAction.reserved.systemImage)
-                        Spacer()
-                        Text("预留")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .accessibilityElement(children: .combine)
                 }
 
                 Section {

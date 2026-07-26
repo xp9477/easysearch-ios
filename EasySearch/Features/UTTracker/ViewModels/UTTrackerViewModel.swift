@@ -79,7 +79,7 @@ final class UTTrackerViewModel: ObservableObject {
         entries.append(entry)
         sortAndPersistEntries()
         Task {
-            await HiddenCloudSyncViewModel.shared.syncUTEntryUpsertIfPossible(entry)
+            await CloudSyncViewModel.shared.syncUTEntryUpsertIfPossible(entry)
             await UTNotificationManager.shared.refreshSchedulesIfAuthorized()
         }
     }
@@ -88,7 +88,7 @@ final class UTTrackerViewModel: ObservableObject {
         entries.removeAll { $0.id == entry.id }
         persistEntries()
         Task {
-            await HiddenCloudSyncViewModel.shared.syncUTEntryDeletionIfPossible(entry)
+            await CloudSyncViewModel.shared.syncUTEntryDeletionIfPossible(entry)
             await UTNotificationManager.shared.refreshSchedulesIfAuthorized()
         }
     }

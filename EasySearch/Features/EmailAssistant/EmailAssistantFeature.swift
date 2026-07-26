@@ -14,4 +14,13 @@ public struct EmailAssistantFeature: AppFeature {
     public var entryView: AnyView {
         AnyView(EmailAssistantView())
     }
+
+    @MainActor
+    public func statusSummary() async -> FeatureStatusSummary {
+        if AIConfigurationStore.shared.loadConfiguration().hasAPIKey {
+            return FeatureStatusSummary(kind: .ready, text: "可用")
+        }
+        return FeatureStatusSummary(kind: .needsConfiguration, text: "需配置 AI")
+    }
+
 }
