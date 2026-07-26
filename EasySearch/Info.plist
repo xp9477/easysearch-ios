@@ -17,6 +17,41 @@
 			</array>
 		</dict>
 	</array>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.easysearch.shortcut.search</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>搜索</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>magnifyingglass</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.easysearch.shortcut.ut</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>UT 快记</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>chart.bar.doc.horizontal</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.easysearch.shortcut.training</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>训练打卡</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>flame</string>
+		</dict>
+		<dict>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.easysearch.shortcut.expense</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>报销</string>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>receipt</string>
+		</dict>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

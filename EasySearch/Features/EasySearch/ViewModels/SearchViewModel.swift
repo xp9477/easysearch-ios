@@ -56,6 +56,7 @@ class SearchViewModel: ObservableObject {
     @Published var searchEngines: [SearchEngine] = []
     @Published var searchQuery: String = ""
     @Published var selectedCategory: SearchCategory = .search
+    @Published var history: [SearchHistoryEntry] = []
 
     // MARK: - Constants
 
@@ -65,16 +66,24 @@ class SearchViewModel: ObservableObject {
     private let bundle: Bundle
     private let remoteConfigURL: URL?
     private let remoteConfigClient: any SearchEngineRemoteConfigClient
+    private let historyStore: SearchHistoryStore
+    private let usageStore: SearchEngineUsageStore
     private var didCheckRemoteConfig = false
 
     // MARK: - Computed Properties
 
-    /// 按当前选中分类过滤后的搜索引擎列表
+    /// 按当前选中分类过滤后的搜索引擎列表(组内按使用频次排序)
     var filteredEngines: [SearchEngine] {
-        searchEngines.filter { engine in
+        let engines = searchEngines.filter { engine in
             engine.category == selectedCategory.rawValue ||
             (engine.category == nil && selectedCategory == .search)
         }
+        return usageStore.sortedByUsage(engines)
+    }
+
+    /// 高频常用引擎(跨分类,用于置顶横滑行)
+    var frequentEngines: [SearchEngine] {
+        usageStore.frequentEngines(from: searchEngines)
     }
 
     /// 搜索框是否有有效内容
@@ -82,8 +91,13 @@ class SearchViewModel: ObservableObject {
         !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    /// 回车默认引擎:最近使用优先,回退到当前分类第一个。
     var defaultSearchEngine: SearchEngine? {
-        filteredEngines.first
+        if let lastUsed = usageStore.lastUsedEngineName,
+           let engine = searchEngines.first(where: { $0.name == lastUsed }) {
+            return engine
+        }
+        return filteredEngines.first
     }
 
     // MARK: - Initialization
@@ -92,13 +106,18 @@ class SearchViewModel: ObservableObject {
         userDefaults: UserDefaults = .standard,
         bundle: Bundle = .main,
         remoteConfigURL: URL? = URL(string: "https://raw.githubusercontent.com/xp9477/easy-search/main/data/search-engines.json"),
-        remoteConfigClient: any SearchEngineRemoteConfigClient = URLSessionSearchEngineRemoteConfigClient()
+        remoteConfigClient: any SearchEngineRemoteConfigClient = URLSessionSearchEngineRemoteConfigClient(),
+        historyStore: SearchHistoryStore = SearchHistoryStore(),
+        usageStore: SearchEngineUsageStore = SearchEngineUsageStore()
     ) {
         self.userDefaults = userDefaults
         self.bundle = bundle
         self.remoteConfigURL = remoteConfigURL
         self.remoteConfigClient = remoteConfigClient
+        self.historyStore = historyStore
+        self.usageStore = usageStore
         loadConfig()
+        history = historyStore.load()
     }
 
     // MARK: - Config Loading
@@ -144,6 +163,9 @@ class SearchViewModel: ObservableObject {
         guard hasValidQuery else { return }
 
         let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        usageStore.recordUse(engineName: engine.name)
+        historyStore.record(query: query, engineName: engine.name)
+        history = historyStore.load()
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
 
         // iOS 上优先尝试 url_scheme（深度链接打开原生 App）
@@ -170,6 +192,28 @@ class SearchViewModel: ObservableObject {
 
         performSearch(engine: engine)
         return true
+    }
+
+    // MARK: - History
+
+    /// 点历史 chip:回填并用上次的引擎直接搜。
+    func searchFromHistory(_ entry: SearchHistoryEntry) {
+        searchQuery = entry.query
+        if let engine = searchEngines.first(where: { $0.name == entry.engineName }) {
+            performSearch(engine: engine)
+        } else {
+            _ = performDefaultSearch()
+        }
+    }
+
+    func removeHistory(_ entry: SearchHistoryEntry) {
+        historyStore.remove(query: entry.query)
+        history = historyStore.load()
+    }
+
+    func clearHistory() {
+        historyStore.clear()
+        history = []
     }
 
     // MARK: - Private Helpers

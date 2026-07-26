@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		331AB74744F432C47AD1BFB6 /* SearchEngineUsageStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5FBB6B3F3C019DD9B453577 /* SearchEngineUsageStoreTests.swift */; };
+		7266B44E95760BE7B3328C3C /* SearchHistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A79591701176A19AE5D8AAA /* SearchHistoryStoreTests.swift */; };
+		BA2CB1D6A65F89117084ADF7 /* AppShortcutRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A450D1ECB108220409C6CCD8 /* AppShortcutRouter.swift */; };
+		21DEA2D2748C6A24AA8A6FD1 /* SearchEngineUsageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C029CE55AD0421092BCC4806 /* SearchEngineUsageStore.swift */; };
+		0FF6BE28FA79922C54450A2D /* SearchHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DB6D4D6CC08A6B337179D52 /* SearchHistoryStore.swift */; };
 		A10000000000000000000001 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000101 /* KeychainStore.swift */; };
 		A10000000000000000000002 /* AIConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000102 /* AIConfigurationStore.swift */; };
 		A10000000000000000000003 /* CloudSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000103 /* CloudSyncService.swift */; };
@@ -164,6 +169,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		F5FBB6B3F3C019DD9B453577 /* SearchEngineUsageStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchEngineUsageStoreTests.swift; path = EasySearchTests/SearchEngineUsageStoreTests.swift; sourceTree = SOURCE_ROOT; };
+		9A79591701176A19AE5D8AAA /* SearchHistoryStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchHistoryStoreTests.swift; path = EasySearchTests/SearchHistoryStoreTests.swift; sourceTree = SOURCE_ROOT; };
+		A450D1ECB108220409C6CCD8 /* AppShortcutRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppShortcutRouter.swift; path = EasySearch/App/AppShortcutRouter.swift; sourceTree = SOURCE_ROOT; };
+		C029CE55AD0421092BCC4806 /* SearchEngineUsageStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchEngineUsageStore.swift; path = EasySearch/Features/EasySearch/Models/SearchEngineUsageStore.swift; sourceTree = SOURCE_ROOT; };
+		1DB6D4D6CC08A6B337179D52 /* SearchHistoryStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchHistoryStore.swift; path = EasySearch/Features/EasySearch/Models/SearchHistoryStore.swift; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000101 /* KeychainStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = KeychainStore.swift; path = EasySearch/Core/Security/KeychainStore.swift; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000102 /* AIConfigurationStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AIConfigurationStore.swift; path = EasySearch/Core/AI/AIConfigurationStore.swift; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000103 /* CloudSyncService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncService.swift; path = EasySearch/Core/CloudSync/CloudSyncService.swift; sourceTree = SOURCE_ROOT; };
@@ -377,6 +387,8 @@
 		449D8AD720F0C2F175FC2076 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				C029CE55AD0421092BCC4806 /* SearchEngineUsageStore.swift */,
+				1DB6D4D6CC08A6B337179D52 /* SearchHistoryStore.swift */,
 				7E97BF05A1233442C2B30768 /* SearchEngine.swift */,
 				F30000000000000000000101 /* SearchEngineIconCache.swift */,
 			);
@@ -499,6 +511,8 @@
 		B924F2B5DBEE2D8D30100156 /* EasySearchTests */ = {
 			isa = PBXGroup;
 			children = (
+				F5FBB6B3F3C019DD9B453577 /* SearchEngineUsageStoreTests.swift */,
+				9A79591701176A19AE5D8AAA /* SearchHistoryStoreTests.swift */,
 				F40000000000000000000114 /* WebDAVClientTests.swift */,
 				F30000000000000000000102 /* SearchEngineIconCacheTests.swift */,
 				E100000000000000000000107 /* ExpenseAssistantTests.swift */,
@@ -540,6 +554,7 @@
 		B98B4BEC9BF3900EB352D608 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				A450D1ECB108220409C6CCD8 /* AppShortcutRouter.swift */,
 				5166978A4A4BE388668D0139 /* EasySearchApp.swift */,
 			);
 			name = App;
@@ -1089,6 +1104,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				331AB74744F432C47AD1BFB6 /* SearchEngineUsageStoreTests.swift in Sources */,
+				7266B44E95760BE7B3328C3C /* SearchHistoryStoreTests.swift in Sources */,
 				F40000000000000000000011 /* WebDAVClientTests.swift in Sources */,
 				F30000000000000000000002 /* SearchEngineIconCacheTests.swift in Sources */,
 				E100000000000000000000007 /* ExpenseAssistantTests.swift in Sources */,
@@ -1109,6 +1126,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BA2CB1D6A65F89117084ADF7 /* AppShortcutRouter.swift in Sources */,
+				21DEA2D2748C6A24AA8A6FD1 /* SearchEngineUsageStore.swift in Sources */,
+				0FF6BE28FA79922C54450A2D /* SearchHistoryStore.swift in Sources */,
 				A10000000000000000000001 /* KeychainStore.swift in Sources */,
 				A10000000000000000000002 /* AIConfigurationStore.swift in Sources */,
 				A10000000000000000000003 /* CloudSyncService.swift in Sources */,

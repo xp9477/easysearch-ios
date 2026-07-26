@@ -6,6 +6,7 @@ public struct DashboardView: View {
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var registry: FeatureRegistry
     @EnvironmentObject private var statusCenter: FeatureStatusCenter
+    @EnvironmentObject private var navigationState: AppNavigationState
 
     @StateObject private var hidden4KHDViewModel = HiddenSpaceViewModel()
     @StateObject private var hiddenJavDBViewModel = HiddenJavDBViewModel()
@@ -109,8 +110,21 @@ public struct DashboardView: View {
         }
         .task(id: isTabActive) {
             guard isTabActive else { return }
+            consumePendingWorkbenchRoute()
             await statusCenter.refresh()
         }
+        .onChange(of: navigationState.pendingWorkbenchFeatureID) { _ in
+            guard isTabActive else { return }
+            consumePendingWorkbenchRoute()
+        }
+    }
+
+    private func consumePendingWorkbenchRoute() {
+        guard let featureID = navigationState.pendingWorkbenchFeatureID else { return }
+        navigationState.pendingWorkbenchFeatureID = nil
+        guard let feature = registry.moduleListFeatures.first(where: { $0.id == featureID }) else { return }
+        path = NavigationPath()
+        openFeature(feature)
     }
 
     // MARK: - Data
