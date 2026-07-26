@@ -2,15 +2,13 @@ import Foundation
 
 /// 引擎使用频次统计,用于常用置顶与"最近使用"默认引擎。
 final class SearchEngineUsageStore {
-    private static let countsKey = "search.engineUsage.counts.v1"
-    private static let lastUsedKey = "search.engineUsage.lastUsed.v1"
+    static let countsKey = "search.engineUsage.counts.v1"
+    static let lastUsedKey = "search.engineUsage.lastUsed.v1"
 
     private let userDefaults: UserDefaults
 
-    init(userDefaults: UserDefaults? = nil) {
+    init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
-            ?? UserDefaults(suiteName: SearchHistoryStore.appGroupID)
-            ?? .standard
     }
 
     var lastUsedEngineName: String? {

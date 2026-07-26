@@ -1,23 +1,46 @@
 import Foundation
 
-/// App 与 Widget 共享的 App Group 存储。
+/// 曾经为 Widget 共享数据而使用的 App Group UserDefaults。
+///
+/// Widget 已下线,数据回归 `UserDefaults.standard`;此处只保留一次性回退迁移,
+/// 把装过 Widget 版本期间写入 App Group 的数据搬回 standard。
 enum AppGroupStorage {
     static let suiteName = "group.com.easysearch.xp9477"
 
-    static let shared: UserDefaults = UserDefaults(suiteName: suiteName) ?? .standard
+    static let rollbackMarkerKey = "appgroup.rollback.v1"
 
-    /// 把旧的 standard UserDefaults 数据一次性迁移到 App Group(带迁移标记)。
-    static func migrateIfNeeded(keys: [String], migrationKey: String) {
-        let target = shared
-        guard target !== UserDefaults.standard else { return }
-        guard !target.bool(forKey: migrationKey) else { return }
+    /// Widget 时期落在 App Group 的数据 key。
+    static let sharedKeys = [
+        UTTrackerStorage.entriesKey,
+        TrainingLogStorage.snapshotKey,
+        ExpenseAssistantStorage.snapshotKey,
+        SearchHistoryStore.storageKey,
+        SearchEngineUsageStore.countsKey,
+        SearchEngineUsageStore.lastUsedKey
+    ]
 
-        let source = UserDefaults.standard
-        for key in keys where target.object(forKey: key) == nil {
-            if let value = source.object(forKey: key) {
-                target.set(value, forKey: key)
+    /// 节假日缓存 key 前缀(按年份动态生成,迁移时按前缀匹配)。
+    static let holidayCacheKeyPrefix = "ut_holiday_calendar_"
+
+    /// 把 App Group 里的数据一次性覆盖写回 standard。只执行一次。
+    static func rollbackToStandardIfNeeded(
+        standard: UserDefaults = .standard,
+        group: UserDefaults? = UserDefaults(suiteName: suiteName)
+    ) {
+        guard !standard.bool(forKey: rollbackMarkerKey) else { return }
+        defer { standard.set(true, forKey: rollbackMarkerKey) }
+
+        guard let group, group !== standard else { return }
+
+        for key in sharedKeys {
+            if let value = group.object(forKey: key) {
+                standard.set(value, forKey: key)
             }
         }
-        target.set(true, forKey: migrationKey)
+
+        for (key, value) in group.dictionaryRepresentation()
+        where key.hasPrefix(holidayCacheKeyPrefix) {
+            standard.set(value, forKey: key)
+        }
     }
 }

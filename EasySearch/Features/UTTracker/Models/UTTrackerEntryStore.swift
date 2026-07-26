@@ -1,5 +1,4 @@
 import Foundation
-import WidgetKit
 
 extension Notification.Name {
     static let utTrackerEntriesDidChange = Notification.Name("utTrackerEntriesDidChange")
@@ -13,16 +12,8 @@ protocol UTTrackerEntryStore {
 struct UTTrackerLocalStore: UTTrackerEntryStore {
     private let userDefaults: UserDefaults
 
-    init(userDefaults: UserDefaults? = nil) {
-        if let userDefaults {
-            self.userDefaults = userDefaults
-        } else {
-            AppGroupStorage.migrateIfNeeded(
-                keys: [UTTrackerStorage.entriesKey],
-                migrationKey: "uttracker.appgroup.migrated"
-            )
-            self.userDefaults = AppGroupStorage.shared
-        }
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
     }
 
     func loadEntries() -> [UTEntry] {
@@ -38,6 +29,5 @@ struct UTTrackerLocalStore: UTTrackerEntryStore {
         guard let data = try? JSONEncoder().encode(entries) else { return }
         userDefaults.set(data, forKey: UTTrackerStorage.entriesKey)
         NotificationCenter.default.post(name: .utTrackerEntriesDidChange, object: nil)
-        WidgetCenter.shared.reloadAllTimelines()
     }
 }

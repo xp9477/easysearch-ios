@@ -8,19 +8,15 @@ struct SearchHistoryEntry: Codable, Identifiable, Equatable {
     var id: String { "\(query)|\(engineName)" }
 }
 
-/// 搜索历史(App Group 存储,供主 App 与 Widget 共享)。
+/// 搜索历史。
 final class SearchHistoryStore {
-    static let appGroupID = "group.com.easysearch.xp9477"
-    private static let storageKey = "search.history.v1"
-    private static let migrationKey = "search.history.migrated"
+    static let storageKey = "search.history.v1"
     static let maxEntries = 20
 
     private let userDefaults: UserDefaults
 
-    init(userDefaults: UserDefaults? = nil) {
+    init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
-            ?? UserDefaults(suiteName: Self.appGroupID)
-            ?? .standard
     }
 
     func load() -> [SearchHistoryEntry] {

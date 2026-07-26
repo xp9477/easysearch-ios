@@ -78,6 +78,10 @@ struct EasySearchApp: App {
     @StateObject private var registry = FeatureRegistry()
     @StateObject private var statusCenter = FeatureStatusCenter.shared
 
+    init() {
+        AppGroupStorage.rollbackToStandardIfNeeded()
+    }
+
     var body: some Scene {
         WindowGroup {
             AppShellView()

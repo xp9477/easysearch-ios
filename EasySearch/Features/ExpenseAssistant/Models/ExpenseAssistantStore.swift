@@ -1,5 +1,4 @@
 import Foundation
-import WidgetKit
 
 protocol ExpenseAssistantStore {
     func loadSnapshot() -> ExpenseAssistantSnapshot
@@ -9,16 +8,8 @@ protocol ExpenseAssistantStore {
 struct ExpenseAssistantLocalStore: ExpenseAssistantStore {
     private let userDefaults: UserDefaults
 
-    init(userDefaults: UserDefaults? = nil) {
-        if let userDefaults {
-            self.userDefaults = userDefaults
-        } else {
-            AppGroupStorage.migrateIfNeeded(
-                keys: [ExpenseAssistantStorage.snapshotKey],
-                migrationKey: "expense.appgroup.migrated"
-            )
-            self.userDefaults = AppGroupStorage.shared
-        }
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
     }
 
     func loadSnapshot() -> ExpenseAssistantSnapshot {
@@ -34,6 +25,5 @@ struct ExpenseAssistantLocalStore: ExpenseAssistantStore {
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         userDefaults.set(data, forKey: ExpenseAssistantStorage.snapshotKey)
         NotificationCenter.default.post(name: .expenseAssistantDataDidChange, object: nil)
-        WidgetCenter.shared.reloadAllTimelines()
     }
 }
