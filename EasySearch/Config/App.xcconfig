@@ -1,0 +1,6 @@
+// App target 的基础配置。
+//
+// Supabase 凭证不入库:本地开发复制 Supabase.xcconfig.example 为 Supabase.xcconfig
+// 并填入真实值;CI 则通过 xcodebuild 命令行参数注入(优先级高于 xcconfig)。
+// 两者都缺失时下面的变量为空,App 会自动降级为"仅本地保存"。
+#include? "Supabase.xcconfig"

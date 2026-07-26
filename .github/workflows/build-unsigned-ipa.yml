@@ -30,8 +30,15 @@ jobs:
           xcodebuild -project EasySearch.xcodeproj -scheme EasySearch -showdestinations
 
       - name: Build unsigned app
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
           set -euo pipefail
+          if [[ -z "${SUPABASE_URL:-}" || -z "${SUPABASE_PUBLISHABLE_KEY:-}" ]]; then
+            echo "Missing SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY repository secrets." >&2
+            exit 1
+          fi
           xcodebuild \
             -project EasySearch.xcodeproj \
             -scheme EasySearch \
@@ -44,6 +51,8 @@ jobs:
             AD_HOC_CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM='' \
             CODE_SIGN_IDENTITY='' \
+            SUPABASE_URL="$SUPABASE_URL" \
+            SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY" \
             clean build
 
       - name: Package unsigned IPA
@@ -55,6 +64,15 @@ jobs:
           test -x "$APP_PATH/EasySearch"
           test -d "$SHARE_EXTENSION"
           test -x "$SHARE_EXTENSION/EasySearchShare"
+
+          # Supabase credentials must be injected from secrets, not left as $(VAR).
+          for key in SUPABASE_URL SUPABASE_PUBLISHABLE_KEY; do
+            value="$(/usr/libexec/PlistBuddy -c "Print :$key" "$APP_PATH/Info.plist")"
+            if [[ -z "$value" || "$value" == *'$('* ]]; then
+              echo "Info.plist $key was not substituted (got: '$value')." >&2
+              exit 1
+            fi
+          done
 
           find "$APP_PATH" -type d -name '_CodeSignature' -prune -exec rm -rf {} +
           find "$APP_PATH" -type f -name 'embedded.mobileprovision' -delete

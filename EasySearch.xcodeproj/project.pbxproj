@@ -175,6 +175,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AC1000000000000000000102 /* Supabase.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text; name = Supabase.xcconfig.example; path = EasySearch/Config/Supabase.xcconfig.example; sourceTree = SOURCE_ROOT; };
+		AC1000000000000000000101 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = App.xcconfig; path = EasySearch/Config/App.xcconfig; sourceTree = SOURCE_ROOT; };
 		97DE174DF032B26557966A53 /* AppGroupRollbackTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppGroupRollbackTests.swift; path = EasySearchTests/AppGroupRollbackTests.swift; sourceTree = SOURCE_ROOT; };
 		84EBDFADB034D60847F5EBC5 /* ESGestureMotion.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ESGestureMotion.swift; path = EasySearch/Core/UIComponents/ESGestureMotion.swift; sourceTree = SOURCE_ROOT; };
 		D162DF46FC74A1346E743D8B /* AppGroupStorage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppGroupStorage.swift; path = EasySearch/Core/Architecture/AppGroupStorage.swift; sourceTree = SOURCE_ROOT; };
@@ -336,6 +338,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		AC1000000000000000000201 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				AC1000000000000000000101 /* App.xcconfig */,
+				AC1000000000000000000102 /* Supabase.xcconfig.example */,
+			);
+			name = Config;
+			sourceTree = "<group>";
+		};
 		A10000000000000000000201 /* Security */ = {
 			isa = PBXGroup;
 			children = (
@@ -492,6 +503,7 @@
 		A5000001 /* EasySearch */ = {
 			isa = PBXGroup;
 			children = (
+				AC1000000000000000000201 /* Config */,
 				B98B4BEC9BF3900EB352D608 /* App */,
 				1306B2A371C9CE9DF0C7EB7F /* Core */,
 				CABB44AE871E03479E9CEB1F /* Features */,
@@ -1480,6 +1492,7 @@
 		};
 		A9000002 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AC1000000000000000000101 /* App.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -1513,6 +1526,7 @@
 		};
 		A9000003 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = AC1000000000000000000101 /* App.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
