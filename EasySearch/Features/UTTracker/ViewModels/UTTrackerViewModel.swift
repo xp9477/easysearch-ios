@@ -172,14 +172,3 @@ final class UTTrackerViewModel: ObservableObject {
         return [currentYear - 1, currentYear, currentYear + 1]
     }
 }
-
-extension Calendar {
-    static let utTracker: Calendar = {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.locale = .autoupdatingCurrent
-        calendar.timeZone = .autoupdatingCurrent
-        calendar.firstWeekday = 2
-        calendar.minimumDaysInFirstWeek = 4
-        return calendar
-    }()
-}

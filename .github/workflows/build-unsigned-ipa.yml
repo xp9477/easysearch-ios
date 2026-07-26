@@ -51,10 +51,13 @@ jobs:
           set -euo pipefail
           APP_PATH="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/EasySearch.app"
           SHARE_EXTENSION="$APP_PATH/PlugIns/EasySearchShare.appex"
+          WIDGET_EXTENSION="$APP_PATH/PlugIns/EasySearchWidgets.appex"
           test -d "$APP_PATH"
           test -x "$APP_PATH/EasySearch"
           test -d "$SHARE_EXTENSION"
           test -x "$SHARE_EXTENSION/EasySearchShare"
+          test -d "$WIDGET_EXTENSION"
+          test -x "$WIDGET_EXTENSION/EasySearchWidgets"
 
           find "$APP_PATH" -type d -name '_CodeSignature' -prune -exec rm -rf {} +
           find "$APP_PATH" -type f -name 'embedded.mobileprovision' -delete

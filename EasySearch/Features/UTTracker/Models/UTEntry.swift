@@ -90,7 +90,7 @@ struct UTHolidayCalendarStore {
     private let userDefaults: UserDefaults
     private let session: URLSession
 
-    init(userDefaults: UserDefaults = .standard, session: URLSession = .shared) {
+    init(userDefaults: UserDefaults = AppGroupStorage.shared, session: URLSession = .shared) {
         self.userDefaults = userDefaults
         self.session = session
     }
@@ -222,7 +222,7 @@ struct UTMonthSummary: Identifiable, Hashable {
 
 enum UTTrackerSnapshot {
     static func currentMonthSummary(
-        userDefaults: UserDefaults = .standard,
+        userDefaults: UserDefaults = AppGroupStorage.shared,
         calendar: Calendar = .utTracker,
         now: Date = Date(),
         holidayCalendar: UTHolidayCalendar? = nil
@@ -277,4 +277,15 @@ extension Calendar {
         }
         return result
     }
+}
+
+extension Calendar {
+    static let utTracker: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = .autoupdatingCurrent
+        calendar.timeZone = .autoupdatingCurrent
+        calendar.firstWeekday = 2
+        calendar.minimumDaysInFirstWeek = 4
+        return calendar
+    }()
 }
