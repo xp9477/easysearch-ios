@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		82F5A334AA8EBA0FA8FB2618 /* DashboardTodaySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAE0F136D3E546ED1089E952 /* DashboardTodaySection.swift */; };
+		06DCDABF4557789B9FBF046F /* CurrencyFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBEB7492C5DED403E3AAAB4 /* CurrencyFeature.swift */; };
+		80AFE97CC743592B5C4F0EF9 /* AIAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C659529B18ADF13CD86CA80F /* AIAssistantView.swift */; };
+		27972158FBC629B24B91CF78 /* AIAssistantFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184257EDD42B0873CBFBEFF8 /* AIAssistantFeature.swift */; };
 		331AB74744F432C47AD1BFB6 /* SearchEngineUsageStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5FBB6B3F3C019DD9B453577 /* SearchEngineUsageStoreTests.swift */; };
 		7266B44E95760BE7B3328C3C /* SearchHistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A79591701176A19AE5D8AAA /* SearchHistoryStoreTests.swift */; };
 		BA2CB1D6A65F89117084ADF7 /* AppShortcutRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A450D1ECB108220409C6CCD8 /* AppShortcutRouter.swift */; };
@@ -63,14 +67,12 @@
 		D2A000000000000000000008 /* Hidden4KHDAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000108 /* Hidden4KHDAPI.swift */; };
 		D2A000000000000000000009 /* HiddenJavDBViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000109 /* HiddenJavDBViews.swift */; };
 		D2A000000000000000000010 /* HiddenJavDBAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000110 /* HiddenJavDBAPI.swift */; };
-		079FA5536E042C37ED839E7D /* UtilitiesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10881B6CB925A5285200D50B /* UtilitiesView.swift */; };
 		C800000000000000000000001 /* ExchangeRateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000000000000101 /* ExchangeRateService.swift */; };
 		C800000000000000000000002 /* CurrencyConverterViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000000000000102 /* CurrencyConverterViewModel.swift */; };
 		C800000000000000000000003 /* CurrencyConverterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000000000000103 /* CurrencyConverterView.swift */; };
 		C800000000000000000000004 /* CurrencyConverterViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000000000000104 /* CurrencyConverterViewModelTests.swift */; };
 		C800000000000000000000005 /* ExchangeRateServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000000000000105 /* ExchangeRateServiceTests.swift */; };
 		08F64AB6A4B3B085A9FDDA21 /* AppFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7776F48C8127AD4F470DB7EF /* AppFeature.swift */; };
-		0FEC531B128C7323644248F0 /* UtilitiesFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5905F9F946A778C37D0F7CCD /* UtilitiesFeature.swift */; };
 		36B9C9E9DE2EAFB91FE29C76 /* ImageTranslateHistoryReducerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AED5424721AE4AFD4354443F /* ImageTranslateHistoryReducerTests.swift */; };
 		385A49DB482D3D46438A8BBE /* ImageTranslateFileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3195DD59E264422624CF152A /* ImageTranslateFileStoreTests.swift */; };
 		45B8F0995303899D66B4CFFF /* EasySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D66418FE785F8E727F9BAE4 /* EasySearchView.swift */; };
@@ -169,6 +171,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		EAE0F136D3E546ED1089E952 /* DashboardTodaySection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DashboardTodaySection.swift; path = EasySearch/Features/Dashboard/Views/DashboardTodaySection.swift; sourceTree = SOURCE_ROOT; };
+		3CBEB7492C5DED403E3AAAB4 /* CurrencyFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CurrencyFeature.swift; path = EasySearch/Features/Utilities/CurrencyFeature.swift; sourceTree = SOURCE_ROOT; };
+		C659529B18ADF13CD86CA80F /* AIAssistantView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AIAssistantView.swift; path = EasySearch/Features/AIAssistant/AIAssistantView.swift; sourceTree = SOURCE_ROOT; };
+		184257EDD42B0873CBFBEFF8 /* AIAssistantFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AIAssistantFeature.swift; path = EasySearch/Features/AIAssistant/AIAssistantFeature.swift; sourceTree = SOURCE_ROOT; };
 		F5FBB6B3F3C019DD9B453577 /* SearchEngineUsageStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchEngineUsageStoreTests.swift; path = EasySearchTests/SearchEngineUsageStoreTests.swift; sourceTree = SOURCE_ROOT; };
 		9A79591701176A19AE5D8AAA /* SearchHistoryStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchHistoryStoreTests.swift; path = EasySearchTests/SearchHistoryStoreTests.swift; sourceTree = SOURCE_ROOT; };
 		A450D1ECB108220409C6CCD8 /* AppShortcutRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppShortcutRouter.swift; path = EasySearch/App/AppShortcutRouter.swift; sourceTree = SOURCE_ROOT; };
@@ -230,7 +236,6 @@
 		D2A000000000000000000110 /* HiddenJavDBAPI.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenJavDBAPI.swift; path = EasySearch/Features/Dashboard/Views/HiddenJavDBAPI.swift; sourceTree = SOURCE_ROOT; };
 		015EF0031C7687BCB7F6A2EE /* ImageOCRService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageOCRService.swift; sourceTree = "<group>"; };
 		0F142A2111DC88139890E4CC /* DashboardView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DashboardView.swift; path = EasySearch/Features/Dashboard/Views/DashboardView.swift; sourceTree = SOURCE_ROOT; };
-		10881B6CB925A5285200D50B /* UtilitiesView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UtilitiesView.swift; path = EasySearch/Features/Utilities/Views/UtilitiesView.swift; sourceTree = SOURCE_ROOT; };
 		C800000000000000000000101 /* ExchangeRateService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExchangeRateService.swift; path = EasySearch/Features/Utilities/CurrencyConverter/ExchangeRateService.swift; sourceTree = SOURCE_ROOT; };
 		C800000000000000000000102 /* CurrencyConverterViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CurrencyConverterViewModel.swift; path = EasySearch/Features/Utilities/CurrencyConverter/CurrencyConverterViewModel.swift; sourceTree = SOURCE_ROOT; };
 		C800000000000000000000103 /* CurrencyConverterView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CurrencyConverterView.swift; path = EasySearch/Features/Utilities/CurrencyConverter/CurrencyConverterView.swift; sourceTree = SOURCE_ROOT; };
@@ -240,7 +245,6 @@
 		3533C5449EDD66685F0582EE /* FeatureRegistry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FeatureRegistry.swift; path = EasySearch/Core/Architecture/FeatureRegistry.swift; sourceTree = SOURCE_ROOT; };
 		3FA114C3137BB97879C05067 /* EasySearchFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EasySearchFeature.swift; path = EasySearch/Features/EasySearch/EasySearchFeature.swift; sourceTree = SOURCE_ROOT; };
 		5166978A4A4BE388668D0139 /* EasySearchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EasySearchApp.swift; path = EasySearch/App/EasySearchApp.swift; sourceTree = SOURCE_ROOT; };
-		5905F9F946A778C37D0F7CCD /* UtilitiesFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UtilitiesFeature.swift; path = EasySearch/Features/Utilities/UtilitiesFeature.swift; sourceTree = SOURCE_ROOT; };
 		7776F48C8127AD4F470DB7EF /* AppFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppFeature.swift; path = EasySearch/Core/Architecture/AppFeature.swift; sourceTree = SOURCE_ROOT; };
 		77B71B90FD37F678F1BE7721 /* TextAlignment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TextAlignment.swift; sourceTree = "<group>"; };
 		795E17200E5B98842C811DAF /* CategoryTabBar.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CategoryTabBar.swift; path = EasySearch/Features/EasySearch/Views/CategoryTabBar.swift; sourceTree = SOURCE_ROOT; };
@@ -398,7 +402,6 @@
 		51D1A4B114AD7B94AC04D42D /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				10881B6CB925A5285200D50B /* UtilitiesView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -450,7 +453,7 @@
 		9184EB6BD9CBA9B4D5FB8E9F /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
-				5905F9F946A778C37D0F7CCD /* UtilitiesFeature.swift */,
+				3CBEB7492C5DED403E3AAAB4 /* CurrencyFeature.swift */,
 				C800000000000000000000200 /* CurrencyConverter */,
 				51D1A4B114AD7B94AC04D42D /* Views */,
 			);
@@ -535,6 +538,7 @@
 			isa = PBXGroup;
 			children = (
 				0F142A2111DC88139890E4CC /* DashboardView.swift */,
+				EAE0F136D3E546ED1089E952 /* DashboardTodaySection.swift */,
 				D2A000000000000000000106 /* HiddenSpaceCoreViews.swift */,
 				D2A000000000000000000107 /* Hidden4KHDViews.swift */,
 				D2A000000000000000000113 /* Hidden4KHDViewModel.swift */,
@@ -563,6 +567,8 @@
 		CABB44AE871E03479E9CEB1F /* Features */ = {
 			isa = PBXGroup;
 			children = (
+				C659529B18ADF13CD86CA80F /* AIAssistantView.swift */,
+				184257EDD42B0873CBFBEFF8 /* AIAssistantFeature.swift */,
 				CD7CFE82B7B0EDACEF2A77A2 /* Dashboard */,
 				214A4883BB1976CD8E3A4676 /* EasySearch */,
 				E100000000000000000000201 /* ExpenseAssistant */,
@@ -1126,6 +1132,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				82F5A334AA8EBA0FA8FB2618 /* DashboardTodaySection.swift in Sources */,
+				06DCDABF4557789B9FBF046F /* CurrencyFeature.swift in Sources */,
+				80AFE97CC743592B5C4F0EF9 /* AIAssistantView.swift in Sources */,
+				27972158FBC629B24B91CF78 /* AIAssistantFeature.swift in Sources */,
 				BA2CB1D6A65F89117084ADF7 /* AppShortcutRouter.swift in Sources */,
 				21DEA2D2748C6A24AA8A6FD1 /* SearchEngineUsageStore.swift in Sources */,
 				0FF6BE28FA79922C54450A2D /* SearchHistoryStore.swift in Sources */,
@@ -1226,8 +1236,6 @@
 				D600000000000000000000002 /* EmailAssistantCoordinator.swift in Sources */,
 				D600000000000000000000005 /* EmailAssistantView.swift in Sources */,
 				D700000000000000000000001 /* DeepSeekClient.swift in Sources */,
-				0FEC531B128C7323644248F0 /* UtilitiesFeature.swift in Sources */,
-				079FA5536E042C37ED839E7D /* UtilitiesView.swift in Sources */,
 				C800000000000000000000001 /* ExchangeRateService.swift in Sources */,
 				C800000000000000000000002 /* CurrencyConverterViewModel.swift in Sources */,
 				C800000000000000000000003 /* CurrencyConverterView.swift in Sources */,

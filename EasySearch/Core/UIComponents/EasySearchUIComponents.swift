@@ -43,7 +43,9 @@ enum ESUI {
         case "qinglong-management": return .green
         case "image-translate": return .purple
         case "email-assistant": return .teal
+        case "ai-assistant": return .purple
         case "webdav": return .blue
+        case "currency": return .gray
         case "utilities": return .gray
         case "hidden-space": return Color(.systemPurple)
         default: return .blue

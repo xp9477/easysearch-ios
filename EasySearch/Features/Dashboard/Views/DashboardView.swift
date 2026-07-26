@@ -27,6 +27,12 @@ public struct DashboardView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
+                    DashboardTodaySection { featureID in
+                        if let feature = moduleFeatures.first(where: { $0.id == featureID }) {
+                            openFeature(feature)
+                        }
+                    }
+
                     if moduleFeatures.isEmpty && unlockedHiddenFeatures.isEmpty {
                         ESEmptyState(
                             title: "暂无模块",

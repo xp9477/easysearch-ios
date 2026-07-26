@@ -15,7 +15,7 @@ struct CurrencyConverterView: View {
                 ESModuleHero(
                     title: "汇率换算",
                     subtitle: "CNY · TWD · USD · JPY · KRW · TRY · INR",
-                    featureID: "utilities",
+                    featureID: "currency",
                     systemImage: "yensign.circle"
                 )
                 rateHeaderCard

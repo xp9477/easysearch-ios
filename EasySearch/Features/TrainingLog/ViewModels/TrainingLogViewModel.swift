@@ -171,6 +171,40 @@ final class TrainingLogViewModel: ObservableObject {
         persist()
     }
 
+    /// 找到选中日之前最近的一个训练日,把整组动作复制到选中日。
+    @discardableResult
+    func repeatLastWorkout() -> Bool {
+        guard let source = lastTrainedDay(before: selectedDay) else { return false }
+        let key = selectedDayKey
+        var day = snapshot.days[key] ?? WorkoutDay(
+            id: key,
+            dayStart: TrainingLogCalendar.startOfDay(selectedDay),
+            lines: [],
+            note: nil
+        )
+        for line in source.lines {
+            day.lines.append(
+                WorkoutLine(
+                    exerciseID: line.exerciseID,
+                    exerciseName: line.exerciseName,
+                    amount: line.amount,
+                    unit: line.unit
+                )
+            )
+        }
+        snapshot.days[key] = day
+        persist()
+        return true
+    }
+
+    /// 选中日之前最近的训练日(不含选中日),用于"重复上次"。
+    func lastTrainedDay(before date: Date) -> WorkoutDay? {
+        let dayStart = TrainingLogCalendar.startOfDay(date)
+        return snapshot.days.values
+            .filter { $0.hasTraining && $0.dayStart < dayStart }
+            .max(by: { $0.dayStart < $1.dayStart })
+    }
+
     // MARK: - Private
 
     private func persist() {

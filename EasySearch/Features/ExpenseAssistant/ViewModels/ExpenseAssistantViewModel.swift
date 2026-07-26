@@ -174,6 +174,50 @@ final class ExpenseAssistantViewModel: ObservableObject {
         }
     }
 
+    /// 把所有逾期项一键置为"已提交"(仍可在详情内继续改状态)。
+    func markAllOverdueSubmitted() {
+        let overdueMonthlyIDs = overdueMonthlyClaimIDs
+        let overdueTravelIDs = overdueTravelClaimIDs
+        guard !overdueMonthlyIDs.isEmpty || !overdueTravelIDs.isEmpty else { return }
+
+        var changedMonthly: [MonthlyExpenseClaim] = []
+        var changedTravel: [TravelExpenseClaim] = []
+
+        for index in snapshot.monthlyClaims.indices where overdueMonthlyIDs.contains(snapshot.monthlyClaims[index].id) {
+            for field in MonthlyExpenseField.allCases where !snapshot.monthlyClaims[index].status(for: field).isResolved {
+                snapshot.monthlyClaims[index].setStatus(.submitted, for: field)
+            }
+            changedMonthly.append(snapshot.monthlyClaims[index])
+        }
+
+        for index in snapshot.travelClaims.indices where overdueTravelIDs.contains(snapshot.travelClaims[index].id) {
+            for field in TravelExpenseField.allCases where !snapshot.travelClaims[index].status(for: field).isResolved {
+                snapshot.travelClaims[index].setStatus(.submitted, for: field)
+            }
+            snapshot.travelClaims[index].updatedAt = nowProvider()
+            changedTravel.append(snapshot.travelClaims[index])
+        }
+
+        let normalizedSnapshot = ExpenseAssistantReminderEngine.normalized(
+            snapshot: snapshot,
+            now: nowProvider(),
+            calendar: calendar
+        )
+        snapshot = normalizedSnapshot
+        store.saveSnapshot(normalizedSnapshot)
+        Task {
+            await ExpenseAssistantNotificationManager.shared.refreshSchedulesIfAuthorized()
+            for claim in changedMonthly {
+                let latest = normalizedSnapshot.monthlyClaims.first(where: { $0.id == claim.id }) ?? claim
+                await CloudSyncViewModel.shared.syncExpenseMonthlyClaimIfPossible(latest)
+            }
+            for claim in changedTravel {
+                let latest = normalizedSnapshot.travelClaims.first(where: { $0.id == claim.id }) ?? claim
+                await CloudSyncViewModel.shared.syncExpenseTravelClaimIfPossible(latest)
+            }
+        }
+    }
+
     private func reloadFromStore() {
         let reloadedSnapshot = ExpenseAssistantReminderEngine.normalized(
             snapshot: store.loadSnapshot(),
