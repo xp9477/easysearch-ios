@@ -119,7 +119,7 @@ final class ExpenseAssistantViewModel: ObservableObject {
             updatedAt: nowProvider()
         )
         snapshot.travelClaims.insert(claim, at: 0)
-        persistSnapshot()
+        persistSnapshot(syncMonthly: nil, syncTravel: claim)
         return claim
     }
 
@@ -190,7 +190,8 @@ final class ExpenseAssistantViewModel: ObservableObject {
     ) {
         guard let index = snapshot.monthlyClaims.firstIndex(where: { $0.id == claimID }) else { return }
         mutation(&snapshot.monthlyClaims[index])
-        persistSnapshot()
+        let claim = snapshot.monthlyClaims[index]
+        persistSnapshot(syncMonthly: claim, syncTravel: nil)
     }
 
     private func mutateTravelClaim(
@@ -200,10 +201,14 @@ final class ExpenseAssistantViewModel: ObservableObject {
         guard let index = snapshot.travelClaims.firstIndex(where: { $0.id == claimID }) else { return }
         mutation(&snapshot.travelClaims[index])
         snapshot.travelClaims[index].updatedAt = nowProvider()
-        persistSnapshot()
+        let claim = snapshot.travelClaims[index]
+        persistSnapshot(syncMonthly: nil, syncTravel: claim)
     }
 
-    private func persistSnapshot() {
+    private func persistSnapshot(
+        syncMonthly: MonthlyExpenseClaim? = nil,
+        syncTravel: TravelExpenseClaim? = nil
+    ) {
         let normalizedSnapshot = ExpenseAssistantReminderEngine.normalized(
             snapshot: snapshot,
             now: nowProvider(),
@@ -213,6 +218,14 @@ final class ExpenseAssistantViewModel: ObservableObject {
         store.saveSnapshot(normalizedSnapshot)
         Task {
             await ExpenseAssistantNotificationManager.shared.refreshSchedulesIfAuthorized()
+            if let syncMonthly {
+                let claim = normalizedSnapshot.monthlyClaims.first(where: { $0.id == syncMonthly.id }) ?? syncMonthly
+                await CloudSyncViewModel.shared.syncExpenseMonthlyClaimIfPossible(claim)
+            }
+            if let syncTravel {
+                let claim = normalizedSnapshot.travelClaims.first(where: { $0.id == syncTravel.id }) ?? syncTravel
+                await CloudSyncViewModel.shared.syncExpenseTravelClaimIfPossible(claim)
+            }
         }
     }
 }

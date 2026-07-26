@@ -174,7 +174,22 @@ final class TrainingLogViewModel: ObservableObject {
     // MARK: - Private
 
     private func persist() {
+        let previousKeys = Set(store.loadSnapshot().days.keys)
         store.saveSnapshot(snapshot)
+        let currentKeys = Set(snapshot.days.keys)
+        let deletedKeys = previousKeys.subtracting(currentKeys)
+        let upsertKeys = currentKeys
+
+        Task {
+            for key in deletedKeys {
+                await CloudSyncViewModel.shared.syncTrainingDayDeletionIfPossible(dayID: key)
+            }
+            for key in upsertKeys {
+                if let day = snapshot.days[key] {
+                    await CloudSyncViewModel.shared.syncTrainingDayUpsertIfPossible(day)
+                }
+            }
+        }
     }
 
     private func monthDayKeys(for month: Date) -> [String] {

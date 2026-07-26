@@ -8,8 +8,8 @@
 |------|------------|------|----------|--------|------|
 | 搜索 | easysearch | 主 Tab | 引擎配置 UserDefaults | 否（远程 JSON 配置） | — |
 | UT 记录 | uttracker | 工作台 | UserDefaults | 是 | — |
-| 训练记录 | training-log | 工作台 | UserDefaults | **否** | — |
-| 报销助手 | expense-assistant | 工作台 | UserDefaults | **否** | — |
+| 训练记录 | training-log | 工作台 | UserDefaults | 是（按日） | — |
+| 报销助手 | expense-assistant | 工作台 | UserDefaults | 是（月度 + 出差） | — |
 | 翻译 | image-translate | 工作台 | 会话文件 + 目标语言 | 否 | AI Key → Keychain |
 | 邮件助手 | email-assistant | 工作台 | 内存/本地偏好 | 否 | 共用 AI Key |
 | 青龙 | qinglong-management | 工作台 | profile UserDefaults | profile 是 | client secret → Keychain |
@@ -35,7 +35,7 @@ App → Core + Features
 Features → Core
 Core 不依赖具体 Feature Store（状态由 Feature 自报）
 Email → Core AI（不依赖 ImageTranslate）
-UT / 青龙 / Hidden → CloudSyncViewModel（中性 API）
+UT / 训练 / 报销 / 青龙 / Hidden → CloudSyncViewModel（中性 API）
 ```
 
 ## 安全预期

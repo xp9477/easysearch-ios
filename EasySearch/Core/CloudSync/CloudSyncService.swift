@@ -123,6 +123,102 @@ enum HiddenCloudMerge {
 
         return merged
     }
+
+    static func workoutDays(primary: [WorkoutDay], secondary: [WorkoutDay]) -> [WorkoutDay] {
+        var byID: [String: WorkoutDay] = [:]
+
+        for day in primary + secondary {
+            if let existing = byID[day.id] {
+                byID[day.id] = mergeWorkoutDay(existing, day)
+            } else {
+                byID[day.id] = day
+            }
+        }
+
+        return byID.values
+            .filter { $0.hasTraining || !($0.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .sorted { $0.dayStart > $1.dayStart }
+    }
+
+    private static func mergeWorkoutDay(_ lhs: WorkoutDay, _ rhs: WorkoutDay) -> WorkoutDay {
+        var linesByID: [UUID: WorkoutLine] = [:]
+        for line in lhs.lines + rhs.lines {
+            if let existing = linesByID[line.id] {
+                if line.createdAt >= existing.createdAt {
+                    linesByID[line.id] = line
+                }
+            } else {
+                linesByID[line.id] = line
+            }
+        }
+
+        let note: String?
+        let lhsNote = lhs.note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let rhsNote = rhs.note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !lhsNote.isEmpty {
+            note = lhs.note
+        } else if !rhsNote.isEmpty {
+            note = rhs.note
+        } else {
+            note = nil
+        }
+
+        return WorkoutDay(
+            id: lhs.id,
+            dayStart: lhs.dayStart,
+            lines: linesByID.values.sorted { $0.createdAt < $1.createdAt },
+            note: note
+        )
+    }
+
+    static func monthlyExpenseClaims(
+        primary: [MonthlyExpenseClaim],
+        secondary: [MonthlyExpenseClaim]
+    ) -> [MonthlyExpenseClaim] {
+        var byID: [String: MonthlyExpenseClaim] = [:]
+        for claim in primary + secondary {
+            if let existing = byID[claim.id] {
+                byID[claim.id] = mergeMonthlyClaim(existing, claim)
+            } else {
+                byID[claim.id] = claim
+            }
+        }
+        return byID.values.sorted { $0.monthStart > $1.monthStart }
+    }
+
+    private static func mergeMonthlyClaim(
+        _ lhs: MonthlyExpenseClaim,
+        _ rhs: MonthlyExpenseClaim
+    ) -> MonthlyExpenseClaim {
+        MonthlyExpenseClaim(
+            monthStart: lhs.monthStart,
+            taxi: preferExpenseStatus(lhs.taxi, rhs.taxi),
+            parking: preferExpenseStatus(lhs.parking, rhs.parking),
+            phoneBill: preferExpenseStatus(lhs.phoneBill, rhs.phoneBill),
+            misc: preferExpenseStatus(lhs.misc, rhs.misc)
+        )
+    }
+
+    private static func preferExpenseStatus(
+        _ lhs: ExpenseClaimItemStatus,
+        _ rhs: ExpenseClaimItemStatus
+    ) -> ExpenseClaimItemStatus {
+        if lhs != .pending { return lhs }
+        return rhs
+    }
+
+    static func travelExpenseClaims(
+        primary: [TravelExpenseClaim],
+        secondary: [TravelExpenseClaim]
+    ) -> [TravelExpenseClaim] {
+        let candidates = (primary + secondary).sorted { $0.updatedAt > $1.updatedAt }
+        var merged: [TravelExpenseClaim] = []
+        var seen = Set<UUID>()
+        for claim in candidates where seen.insert(claim.id).inserted {
+            merged.append(claim)
+        }
+        return merged
+    }
 }
 
 private enum Hidden4KHDURLNormalizer {
@@ -612,6 +708,174 @@ private struct HiddenSupabaseQingLongPanelProfilePayload: Encodable {
     }
 }
 
+private struct HiddenSupabaseTrainingLineDTO: Codable {
+    let id: UUID
+    let exercise_id: String
+    let exercise_name: String
+    let amount: Int
+    let unit: String
+    let created_at: String
+
+    init(line: WorkoutLine) {
+        id = line.id
+        exercise_id = line.exerciseID
+        exercise_name = line.exerciseName
+        amount = line.amount
+        unit = line.unit.rawValue
+        created_at = HiddenSupabaseDateFormatter.string(from: line.createdAt)
+    }
+
+    func asLine() -> WorkoutLine? {
+        guard let unit = ExerciseUnit(rawValue: unit) else { return nil }
+        return WorkoutLine(
+            id: id,
+            exerciseID: exercise_id,
+            exerciseName: exercise_name,
+            amount: amount,
+            unit: unit,
+            createdAt: HiddenSupabaseDateFormatter.date(from: created_at) ?? Date()
+        )
+    }
+}
+
+private struct HiddenSupabaseTrainingDayRow: Decodable {
+    let day_id: String
+    let day_start: String
+    let note: String
+    let lines: [HiddenSupabaseTrainingLineDTO]
+    let updated_at: String
+
+    func asDay() -> WorkoutDay? {
+        guard let dayStart = HiddenSupabaseDateFormatter.date(from: day_start) else {
+            return nil
+        }
+        let noteValue = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        return WorkoutDay(
+            id: day_id,
+            dayStart: dayStart,
+            lines: lines.compactMap { $0.asLine() },
+            note: noteValue.isEmpty ? nil : note
+        )
+    }
+}
+
+private struct HiddenSupabaseTrainingDayPayload: Encodable {
+    let day_id: String
+    let day_start: String
+    let note: String
+    let lines: [HiddenSupabaseTrainingLineDTO]
+    let updated_at: String
+
+    init(day: WorkoutDay) {
+        day_id = day.id
+        day_start = HiddenSupabaseDateFormatter.string(from: day.dayStart)
+        note = day.note ?? ""
+        lines = day.lines.map(HiddenSupabaseTrainingLineDTO.init(line:))
+        let maxLineDate = day.lines.map(\.createdAt).max() ?? day.dayStart
+        updated_at = HiddenSupabaseDateFormatter.string(from: maxLineDate)
+    }
+}
+
+private struct HiddenSupabaseExpenseMonthlyRow: Decodable {
+    let claim_id: String
+    let month_start: String
+    let taxi: String
+    let parking: String
+    let phone_bill: String
+    let misc: String
+
+    func asClaim() -> MonthlyExpenseClaim? {
+        guard let monthStart = HiddenSupabaseDateFormatter.date(from: month_start) else {
+            return nil
+        }
+        return MonthlyExpenseClaim(
+            monthStart: monthStart,
+            taxi: ExpenseClaimItemStatus(rawValue: taxi) ?? .pending,
+            parking: ExpenseClaimItemStatus(rawValue: parking) ?? .pending,
+            phoneBill: ExpenseClaimItemStatus(rawValue: phone_bill) ?? .pending,
+            misc: ExpenseClaimItemStatus(rawValue: misc) ?? .pending
+        )
+    }
+}
+
+private struct HiddenSupabaseExpenseMonthlyPayload: Encodable {
+    let claim_id: String
+    let month_start: String
+    let taxi: String
+    let parking: String
+    let phone_bill: String
+    let misc: String
+    let updated_at: String
+
+    init(claim: MonthlyExpenseClaim) {
+        claim_id = claim.id
+        month_start = HiddenSupabaseDateFormatter.string(from: claim.monthStart)
+        taxi = claim.taxi.rawValue
+        parking = claim.parking.rawValue
+        phone_bill = claim.phoneBill.rawValue
+        misc = claim.misc.rawValue
+        updated_at = HiddenSupabaseDateFormatter.string(from: Date())
+    }
+}
+
+private struct HiddenSupabaseExpenseTravelRow: Decodable {
+    let claim_id: UUID
+    let title: String
+    let start_date: String
+    let end_date: String?
+    let travel_approval_status: String
+    let per_diem_status: String
+    let expense_status: String
+    let created_at: String
+    let updated_at: String
+
+    func asClaim() -> TravelExpenseClaim? {
+        guard
+            let startDate = HiddenSupabaseDateFormatter.date(from: start_date),
+            let createdAt = HiddenSupabaseDateFormatter.date(from: created_at),
+            let updatedAt = HiddenSupabaseDateFormatter.date(from: updated_at)
+        else {
+            return nil
+        }
+
+        return TravelExpenseClaim(
+            id: claim_id,
+            title: title,
+            startDate: startDate,
+            endDate: end_date.flatMap(HiddenSupabaseDateFormatter.date(from:)),
+            travelApprovalStatus: TravelApprovalStatus(rawValue: travel_approval_status) ?? .pending,
+            perDiemStatus: ExpenseClaimItemStatus(rawValue: per_diem_status) ?? .pending,
+            expenseStatus: ExpenseClaimItemStatus(rawValue: expense_status) ?? .pending,
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
+    }
+}
+
+private struct HiddenSupabaseExpenseTravelPayload: Encodable {
+    let claim_id: UUID
+    let title: String
+    let start_date: String
+    let end_date: String?
+    let travel_approval_status: String
+    let per_diem_status: String
+    let expense_status: String
+    let created_at: String
+    let updated_at: String
+
+    init(claim: TravelExpenseClaim) {
+        claim_id = claim.id
+        title = claim.title
+        start_date = HiddenSupabaseDateFormatter.string(from: claim.startDate)
+        end_date = claim.endDate.map(HiddenSupabaseDateFormatter.string(from:))
+        travel_approval_status = claim.travelApprovalStatus.rawValue
+        per_diem_status = claim.perDiemStatus.rawValue
+        expense_status = claim.expenseStatus.rawValue
+        created_at = HiddenSupabaseDateFormatter.string(from: claim.createdAt)
+        updated_at = HiddenSupabaseDateFormatter.string(from: claim.updatedAt)
+    }
+}
+
 private enum HiddenSupabaseDateFormatter {
     private static let preciseFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -961,6 +1225,86 @@ actor HiddenSupabaseService {
         _ = try await performDataRequest(request)
     }
 
+    func fetchTrainingDays() async throws -> [WorkoutDay] {
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/training_log_days",
+            method: "GET",
+            queryItems: [
+                URLQueryItem(name: "select", value: "*"),
+                URLQueryItem(name: "order", value: "updated_at.desc")
+            ]
+        )
+        let data = try await performDataRequest(request)
+        let rows = try JSONDecoder().decode([HiddenSupabaseTrainingDayRow].self, from: data)
+        return rows.compactMap { $0.asDay() }
+    }
+
+    func upsertTrainingDays(_ days: [WorkoutDay]) async throws {
+        guard !days.isEmpty else { return }
+        try await upsertTrainingDaysPayload(days.map(HiddenSupabaseTrainingDayPayload.init(day:)))
+    }
+
+    func upsertTrainingDay(_ day: WorkoutDay) async throws {
+        try await upsertTrainingDaysPayload([HiddenSupabaseTrainingDayPayload(day: day)])
+    }
+
+    func deleteTrainingDay(dayID: String) async throws {
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/training_log_days",
+            method: "DELETE",
+            queryItems: [
+                URLQueryItem(name: "day_id", value: "eq.\(dayID)")
+            ]
+        )
+        _ = try await performDataRequest(request)
+    }
+
+    func fetchExpenseMonthlyClaims() async throws -> [MonthlyExpenseClaim] {
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/expense_monthly_claims",
+            method: "GET",
+            queryItems: [
+                URLQueryItem(name: "select", value: "*"),
+                URLQueryItem(name: "order", value: "month_start.desc")
+            ]
+        )
+        let data = try await performDataRequest(request)
+        let rows = try JSONDecoder().decode([HiddenSupabaseExpenseMonthlyRow].self, from: data)
+        return rows.compactMap { $0.asClaim() }
+    }
+
+    func upsertExpenseMonthlyClaims(_ claims: [MonthlyExpenseClaim]) async throws {
+        guard !claims.isEmpty else { return }
+        try await upsertExpenseMonthlyClaimsPayload(claims.map(HiddenSupabaseExpenseMonthlyPayload.init(claim:)))
+    }
+
+    func upsertExpenseMonthlyClaim(_ claim: MonthlyExpenseClaim) async throws {
+        try await upsertExpenseMonthlyClaimsPayload([HiddenSupabaseExpenseMonthlyPayload(claim: claim)])
+    }
+
+    func fetchExpenseTravelClaims() async throws -> [TravelExpenseClaim] {
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/expense_travel_claims",
+            method: "GET",
+            queryItems: [
+                URLQueryItem(name: "select", value: "*"),
+                URLQueryItem(name: "order", value: "updated_at.desc")
+            ]
+        )
+        let data = try await performDataRequest(request)
+        let rows = try JSONDecoder().decode([HiddenSupabaseExpenseTravelRow].self, from: data)
+        return rows.compactMap { $0.asClaim() }
+    }
+
+    func upsertExpenseTravelClaims(_ claims: [TravelExpenseClaim]) async throws {
+        guard !claims.isEmpty else { return }
+        try await upsertExpenseTravelClaimsPayload(claims.map(HiddenSupabaseExpenseTravelPayload.init(claim:)))
+    }
+
+    func upsertExpenseTravelClaim(_ claim: TravelExpenseClaim) async throws {
+        try await upsertExpenseTravelClaimsPayload([HiddenSupabaseExpenseTravelPayload(claim: claim)])
+    }
+
     private func upsertFavoritesPayload(_ payload: [HiddenSupabaseFavoritePayload]) async throws {
         let body = try JSONEncoder().encode(payload)
         let request = try await authorizedRESTRequest(
@@ -1048,6 +1392,48 @@ actor HiddenSupabaseService {
             prefer: "resolution=merge-duplicates,missing=default,return=minimal"
         )
 
+        _ = try await performDataRequest(request)
+    }
+
+    private func upsertTrainingDaysPayload(_ payload: [HiddenSupabaseTrainingDayPayload]) async throws {
+        let body = try JSONEncoder().encode(payload)
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/training_log_days",
+            method: "POST",
+            queryItems: [
+                URLQueryItem(name: "on_conflict", value: "user_id,day_id")
+            ],
+            body: body,
+            prefer: "resolution=merge-duplicates,missing=default,return=minimal"
+        )
+        _ = try await performDataRequest(request)
+    }
+
+    private func upsertExpenseMonthlyClaimsPayload(_ payload: [HiddenSupabaseExpenseMonthlyPayload]) async throws {
+        let body = try JSONEncoder().encode(payload)
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/expense_monthly_claims",
+            method: "POST",
+            queryItems: [
+                URLQueryItem(name: "on_conflict", value: "user_id,claim_id")
+            ],
+            body: body,
+            prefer: "resolution=merge-duplicates,missing=default,return=minimal"
+        )
+        _ = try await performDataRequest(request)
+    }
+
+    private func upsertExpenseTravelClaimsPayload(_ payload: [HiddenSupabaseExpenseTravelPayload]) async throws {
+        let body = try JSONEncoder().encode(payload)
+        let request = try await authorizedRESTRequest(
+            path: "/rest/v1/expense_travel_claims",
+            method: "POST",
+            queryItems: [
+                URLQueryItem(name: "on_conflict", value: "user_id,claim_id")
+            ],
+            body: body,
+            prefer: "resolution=merge-duplicates,missing=default,return=minimal"
+        )
         _ = try await performDataRequest(request)
     }
 

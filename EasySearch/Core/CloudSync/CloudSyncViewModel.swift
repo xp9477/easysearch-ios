@@ -170,6 +170,46 @@ final class CloudSyncViewModel: ObservableObject {
         }
     }
 
+    func syncTrainingDayUpsertIfPossible(_ day: WorkoutDay) async {
+        guard await prepareForMutationIfNeeded() else { return }
+        do {
+            try await cloudService.upsertTrainingDay(day)
+            cloudStatusMessage = "已同步训练记录到云端"
+        } catch {
+            handleCloudMutationError(error, fallbackMessage: "训练记录云端同步失败")
+        }
+    }
+
+    func syncTrainingDayDeletionIfPossible(dayID: String) async {
+        guard await prepareForMutationIfNeeded() else { return }
+        do {
+            try await cloudService.deleteTrainingDay(dayID: dayID)
+            cloudStatusMessage = "已从云端移除训练日"
+        } catch {
+            handleCloudMutationError(error, fallbackMessage: "训练记录云端删除失败")
+        }
+    }
+
+    func syncExpenseMonthlyClaimIfPossible(_ claim: MonthlyExpenseClaim) async {
+        guard await prepareForMutationIfNeeded() else { return }
+        do {
+            try await cloudService.upsertExpenseMonthlyClaim(claim)
+            cloudStatusMessage = "已同步报销到云端"
+        } catch {
+            handleCloudMutationError(error, fallbackMessage: "报销云端同步失败")
+        }
+    }
+
+    func syncExpenseTravelClaimIfPossible(_ claim: TravelExpenseClaim) async {
+        guard await prepareForMutationIfNeeded() else { return }
+        do {
+            try await cloudService.upsertExpenseTravelClaim(claim)
+            cloudStatusMessage = "已同步出差报销到云端"
+        } catch {
+            handleCloudMutationError(error, fallbackMessage: "出差报销云端同步失败")
+        }
+    }
+
     private func syncNow(reason: String) async {
         guard isCloudAuthenticated else { return }
 
@@ -258,6 +298,51 @@ final class CloudSyncViewModel: ObservableObject {
                 },
                 upsertRemote: { try await self.cloudService.upsertQingLongPanelProfiles($0) },
                 merge: HiddenCloudMerge.qingLongProfiles
+            ).eraseToAnyCollection(),
+            CloudSyncCollection(
+                label: "训练",
+                unit: "天",
+                loadLocal: {
+                    Array(TrainingLogLocalStore().loadSnapshot().days.values)
+                },
+                fetchRemote: { try await self.cloudService.fetchTrainingDays() },
+                saveLocal: { days in
+                    var map: [String: WorkoutDay] = [:]
+                    for day in days {
+                        map[day.id] = day
+                    }
+                    TrainingLogLocalStore().saveSnapshot(TrainingLogSnapshot(days: map))
+                },
+                upsertRemote: { try await self.cloudService.upsertTrainingDays($0) },
+                merge: HiddenCloudMerge.workoutDays
+            ).eraseToAnyCollection(),
+            CloudSyncCollection(
+                label: "月度报销",
+                unit: "条",
+                loadLocal: { ExpenseAssistantLocalStore().loadSnapshot().monthlyClaims },
+                fetchRemote: { try await self.cloudService.fetchExpenseMonthlyClaims() },
+                saveLocal: { monthly in
+                    let store = ExpenseAssistantLocalStore()
+                    var snapshot = store.loadSnapshot()
+                    snapshot.monthlyClaims = monthly
+                    store.saveSnapshot(snapshot)
+                },
+                upsertRemote: { try await self.cloudService.upsertExpenseMonthlyClaims($0) },
+                merge: HiddenCloudMerge.monthlyExpenseClaims
+            ).eraseToAnyCollection(),
+            CloudSyncCollection(
+                label: "出差报销",
+                unit: "条",
+                loadLocal: { ExpenseAssistantLocalStore().loadSnapshot().travelClaims },
+                fetchRemote: { try await self.cloudService.fetchExpenseTravelClaims() },
+                saveLocal: { travel in
+                    let store = ExpenseAssistantLocalStore()
+                    var snapshot = store.loadSnapshot()
+                    snapshot.travelClaims = travel
+                    store.saveSnapshot(snapshot)
+                },
+                upsertRemote: { try await self.cloudService.upsertExpenseTravelClaims($0) },
+                merge: HiddenCloudMerge.travelExpenseClaims
             ).eraseToAnyCollection()
         ]
     }
