@@ -3,24 +3,60 @@ import Combine
 
 @MainActor
 final class CurrencyConverterViewModel: ObservableObject {
-    @Published private(set) var cnyAmount: String = ""
-    @Published private(set) var twdAmount: String = ""
-    @Published private(set) var rate: Double?
-    @Published private(set) var rateUpdatedAt: Date?
-    @Published private(set) var rateSource: ExchangeRateSource?
+    @Published var topCurrency: ConverterCurrency = .cny {
+        didSet {
+            guard oldValue != topCurrency else { return }
+            if topCurrency == bottomCurrency {
+                bottomCurrency = oldValue
+            }
+            recalculateFromSourceField()
+        }
+    }
+
+    @Published var bottomCurrency: ConverterCurrency = .twd {
+        didSet {
+            guard oldValue != bottomCurrency else { return }
+            if bottomCurrency == topCurrency {
+                topCurrency = oldValue
+            }
+            recalculateFromSourceField()
+        }
+    }
+
+    @Published private(set) var topAmount: String = ""
+    @Published private(set) var bottomAmount: String = ""
+    @Published private(set) var rateSnapshot: ExchangeRateResult?
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var errorMessage: String?
 
     /// Which field the user last edited; used by swap and rate refresh.
     private enum SourceField {
-        case cny
-        case twd
+        case top
+        case bottom
     }
 
-    private var sourceField: SourceField = .cny
+    private var sourceField: SourceField = .top
     private let service: ExchangeRateService
+
     init(service: ExchangeRateService = .shared) {
         self.service = service
+    }
+
+    // MARK: - Derived
+
+    var rateUpdatedAt: Date? { rateSnapshot?.updatedAt }
+    var rateSource: ExchangeRateSource? { rateSnapshot?.source }
+
+    /// Units of bottom currency per 1 top currency.
+    var pairRate: Double? {
+        guard let snapshot = rateSnapshot else { return nil }
+        return snapshot.convert(amount: 1, from: topCurrency, to: bottomCurrency)
+    }
+
+    /// Units of top currency per 1 bottom currency.
+    var inversePairRate: Double? {
+        guard let rate = pairRate, rate > 0 else { return nil }
+        return 1 / rate
     }
 
     // MARK: - Rate
@@ -41,91 +77,97 @@ final class CurrencyConverterViewModel: ObservableObject {
 
     /// Applies a rate result and recalculates conversion fields.
     func apply(_ result: ExchangeRateResult) {
-        rate = result.rate
-        rateUpdatedAt = result.updatedAt
-        rateSource = result.source
+        rateSnapshot = result
+        // If cache is TWD-only legacy and bottom is unsupported, fall back to TWD.
+        if result.rate(of: bottomCurrency) == nil, result.rate(of: .twd) != nil {
+            bottomCurrency = .twd
+        }
         recalculateFromSourceField()
     }
 
     // MARK: - Input
 
-    func updateCNYAmount(_ text: String) {
+    func updateTopAmount(_ text: String) {
         let sanitized = Self.sanitizeAmountInput(text)
-        setCNYAmount(sanitized)
-        sourceField = .cny
-        convertFromCNY()
+        topAmount = sanitized
+        sourceField = .top
+        convertFromTop()
     }
 
-    func updateTWDAmount(_ text: String) {
+    func updateBottomAmount(_ text: String) {
         let sanitized = Self.sanitizeAmountInput(text)
-        setTWDAmount(sanitized)
-        sourceField = .twd
-        convertFromTWD()
+        bottomAmount = sanitized
+        sourceField = .bottom
+        convertFromBottom()
     }
 
-    /// Move the currently entered number to the other currency, then recalculate.
-    /// Example: 100 CNY -> 440 TWD, after swap becomes 100 TWD -> 22.71 CNY.
+    /// Move the currently entered number to the other currency field, then recalculate.
     func swapFields() {
-        guard rate != nil else { return }
+        guard rateSnapshot != nil else { return }
+
+        let previousTop = topCurrency
+        topCurrency = bottomCurrency
+        bottomCurrency = previousTop
 
         switch sourceField {
-        case .cny:
-            let amount = cnyAmount
-            sourceField = .twd
-            setTWDAmount(amount)
-            convertFromTWD()
-        case .twd:
-            let amount = twdAmount
-            sourceField = .cny
-            setCNYAmount(amount)
-            convertFromCNY()
+        case .top:
+            let amount = topAmount
+            sourceField = .bottom
+            bottomAmount = amount
+            convertFromBottom()
+        case .bottom:
+            let amount = bottomAmount
+            sourceField = .top
+            topAmount = amount
+            convertFromTop()
         }
     }
 
     // MARK: - Conversion
 
-    private func convertFromCNY() {
-        guard let rate else {
-            setTWDAmount(cnyAmount.isEmpty ? "" : "--")
+    private func convertFromTop() {
+        guard let snapshot = rateSnapshot else {
+            bottomAmount = topAmount.isEmpty ? "" : "--"
             return
         }
-        guard let value = Double(cnyAmount) else {
-            setTWDAmount(cnyAmount.isEmpty ? "" : "")
+        guard let value = Double(topAmount) else {
+            bottomAmount = topAmount.isEmpty ? "" : ""
             return
         }
-        setTWDAmount(Self.formatAmount(value * rate))
+        guard let converted = snapshot.convert(amount: value, from: topCurrency, to: bottomCurrency) else {
+            bottomAmount = "--"
+            return
+        }
+        bottomAmount = Self.formatAmount(converted)
     }
 
-    private func convertFromTWD() {
-        guard let rate, rate > 0 else {
-            setCNYAmount(twdAmount.isEmpty ? "" : "--")
+    private func convertFromBottom() {
+        guard let snapshot = rateSnapshot else {
+            topAmount = bottomAmount.isEmpty ? "" : "--"
             return
         }
-        guard let value = Double(twdAmount) else {
-            setCNYAmount(twdAmount.isEmpty ? "" : "")
+        guard let value = Double(bottomAmount) else {
+            topAmount = bottomAmount.isEmpty ? "" : ""
             return
         }
-        setCNYAmount(Self.formatAmount(value / rate))
+        guard let converted = snapshot.convert(amount: value, from: bottomCurrency, to: topCurrency) else {
+            topAmount = "--"
+            return
+        }
+        topAmount = Self.formatAmount(converted)
     }
 
     private func recalculateFromSourceField() {
         switch sourceField {
-        case .cny:
-            convertFromCNY()
-        case .twd:
-            convertFromTWD()
+        case .top:
+            convertFromTop()
+        case .bottom:
+            convertFromBottom()
         }
     }
 
-    private func setCNYAmount(_ value: String) {
-        cnyAmount = value
-    }
-
-    private func setTWDAmount(_ value: String) {
-        twdAmount = value
-    }
-
     static func formatAmount(_ value: Double) -> String {
+        // JPY/KRW often shown without decimals; keep 2 for consistency across currencies.
         String(format: "%.2f", value)
     }
 
@@ -144,5 +186,24 @@ final class CurrencyConverterViewModel: ObservableObject {
         }
 
         return result
+    }
+}
+
+// MARK: - Backward-compatible test aliases
+
+extension CurrencyConverterViewModel {
+    var cnyAmount: String { topCurrency == .cny ? topAmount : (bottomCurrency == .cny ? bottomAmount : topAmount) }
+    var twdAmount: String { topCurrency == .twd ? topAmount : (bottomCurrency == .twd ? bottomAmount : bottomAmount) }
+
+    func updateCNYAmount(_ text: String) {
+        if topCurrency != .cny { topCurrency = .cny }
+        if bottomCurrency == .cny { bottomCurrency = .twd }
+        updateTopAmount(text)
+    }
+
+    func updateTWDAmount(_ text: String) {
+        if bottomCurrency != .twd { bottomCurrency = .twd }
+        if topCurrency == .twd { topCurrency = .cny }
+        updateBottomAmount(text)
     }
 }

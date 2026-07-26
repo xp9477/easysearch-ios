@@ -5,8 +5,8 @@ struct CurrencyConverterView: View {
     @FocusState private var focusedField: Field?
 
     private enum Field {
-        case cny
-        case twd
+        case top
+        case bottom
     }
 
     var body: some View {
@@ -14,7 +14,7 @@ struct CurrencyConverterView: View {
             VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
                 ESModuleHero(
                     title: "汇率换算",
-                    subtitle: "CNY ↔ TWD",
+                    subtitle: "CNY · TWD · USD · JPY · KRW · TRY · INR",
                     featureID: "utilities",
                     systemImage: "yensign.circle"
                 )
@@ -57,12 +57,14 @@ struct CurrencyConverterView: View {
         VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             ESSectionHeader(title: "实时汇率")
 
-            if let rate = viewModel.rate {
-                Text("1 CNY = \(rate, specifier: "%.4f") TWD")
+            if let rate = viewModel.pairRate {
+                Text("1 \(viewModel.topCurrency.code) = \(rate, specifier: "%.4f") \(viewModel.bottomCurrency.code)")
                     .font(.title3.weight(.semibold).monospacedDigit())
-                Text("1 TWD = \(1.0 / rate, specifier: "%.4f") CNY")
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                if let inverse = viewModel.inversePairRate {
+                    Text("1 \(viewModel.bottomCurrency.code) = \(inverse, specifier: "%.4f") \(viewModel.topCurrency.code)")
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             } else if viewModel.isLoading {
                 ESLoadingState(message: "加载中…")
             } else {
@@ -97,41 +99,59 @@ struct CurrencyConverterView: View {
     private var conversionSection: some View {
         VStack(spacing: 0) {
             currencyInputRow(
-                code: "CNY",
-                label: "人民币",
-                text: viewModel.cnyAmount,
-                field: .cny,
-                onChange: viewModel.updateCNYAmount
+                currency: $viewModel.topCurrency,
+                text: viewModel.topAmount,
+                field: .top,
+                onChange: viewModel.updateTopAmount
             )
 
             swapButton
 
             currencyInputRow(
-                code: "TWD",
-                label: "新台币",
-                text: viewModel.twdAmount,
-                field: .twd,
-                onChange: viewModel.updateTWDAmount
+                currency: $viewModel.bottomCurrency,
+                text: viewModel.bottomAmount,
+                field: .bottom,
+                onChange: viewModel.updateBottomAmount
             )
         }
     }
 
     private func currencyInputRow(
-        code: String,
-        label: String,
+        currency: Binding<ConverterCurrency>,
         text: String,
         field: Field,
         onChange: @escaping (String) -> Void
     ) -> some View {
         HStack(spacing: ESUI.Space.sm) {
-            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
-                Text(code)
-                    .font(.body.weight(.semibold))
-                Text(label)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Menu {
+                ForEach(ConverterCurrency.allCases) { option in
+                    Button {
+                        currency.wrappedValue = option
+                    } label: {
+                        if option == currency.wrappedValue {
+                            Label("\(option.code) \(option.label)", systemImage: "checkmark")
+                        } else {
+                            Text("\(option.code) \(option.label)")
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
+                        Text(currency.wrappedValue.code)
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text(currency.wrappedValue.label)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(minWidth: 96, alignment: .leading)
             }
-            .frame(width: 72, alignment: .leading)
+            .buttonStyle(.plain)
 
             TextField(
                 "输入金额",
@@ -182,7 +202,7 @@ struct CurrencyConverterView: View {
     }
 
     private var dataSourceFooter: some View {
-        Text("数据来源：ExchangeRate-API · 输入任一侧金额即可换算")
+        Text("数据来源：ExchangeRate-API · 点击币种可切换 · 支持 CNY / TWD / USD / JPY / KRW / TRY / INR")
             .font(.caption)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)

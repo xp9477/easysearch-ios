@@ -1,5 +1,38 @@
 import Foundation
 
+// MARK: - Currency
+
+enum ConverterCurrency: String, CaseIterable, Identifiable, Codable, Hashable {
+    case cny = "CNY"
+    case twd = "TWD"
+    case usd = "USD"
+    case jpy = "JPY"
+    case krw = "KRW"
+    case tryLira = "TRY"
+    case inr = "INR"
+
+    var id: String { rawValue }
+
+    var code: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .cny: return "人民币"
+        case .twd: return "新台币"
+        case .usd: return "美元"
+        case .jpy: return "日元"
+        case .krw: return "韩元"
+        case .tryLira: return "土耳其里拉"
+        case .inr: return "印度卢比"
+        }
+    }
+
+    /// Currencies quoted against CNY by the remote API (CNY itself is always 1).
+    static var remoteQuotedCurrencies: [ConverterCurrency] {
+        allCases.filter { $0 != .cny }
+    }
+}
+
 // MARK: - Models
 
 enum ExchangeRateSource: String, Codable {
@@ -8,9 +41,29 @@ enum ExchangeRateSource: String, Codable {
 }
 
 struct ExchangeRateResult {
-    let rate: Double
+    /// Units of each currency per 1 CNY. Always includes `CNY: 1`.
+    let ratesAgainstCNY: [ConverterCurrency: Double]
     let updatedAt: Date
     let source: ExchangeRateSource
+
+    /// Convenience for CNY → TWD (legacy call sites / tests).
+    var rate: Double? {
+        ratesAgainstCNY[.twd]
+    }
+
+    func rate(of currency: ConverterCurrency) -> Double? {
+        ratesAgainstCNY[currency]
+    }
+
+    /// Convert `amount` from `from` into `to` using CNY-based rates.
+    func convert(amount: Double, from: ConverterCurrency, to: ConverterCurrency) -> Double? {
+        guard let fromRate = ratesAgainstCNY[from], fromRate > 0,
+              let toRate = ratesAgainstCNY[to] else {
+            return nil
+        }
+        // amount_from / fromRate = CNY, * toRate = amount_to
+        return amount / fromRate * toRate
+    }
 }
 
 // MARK: - Service
@@ -22,8 +75,11 @@ actor ExchangeRateService {
     private let userDefaults: UserDefaults
 
     private static let apiURL = URL(string: "https://open.er-api.com/v6/latest/CNY")!
-    private static let cacheRateKey = "currencyConverter.cachedRate"
-    private static let cacheDateKey = "currencyConverter.cachedDate"
+    private static let cacheRatesKey = "currencyConverter.cachedRates.v2"
+    private static let cacheDateKey = "currencyConverter.cachedDate.v2"
+    /// Legacy single-rate cache (TWD only).
+    private static let legacyCacheRateKey = "currencyConverter.cachedRate"
+    private static let legacyCacheDateKey = "currencyConverter.cachedDate"
     private static let cacheValiditySeconds: TimeInterval = 30 * 60 // 30 minutes
 
     private var lastFetchedResult: ExchangeRateResult?
@@ -33,32 +89,26 @@ actor ExchangeRateService {
         self.userDefaults = userDefaults
     }
 
-    /// Fetch the CNY → TWD exchange rate.
-    /// - Parameter force: When `true`, ignores cache validity and fetches from network.
-    /// - Returns: The exchange rate result, from network or cache.
+    /// Fetch CNY-based rates for all supported currencies.
     func fetchRate(force: Bool = false) async throws -> ExchangeRateResult {
-        // Return in-memory cached result if still valid and not forced
         if !force, let cached = lastFetchedResult,
            Date().timeIntervalSince(cached.updatedAt) < Self.cacheValiditySeconds {
             return cached
         }
 
-        // Check disk cache validity when not forced
-        if !force, let diskResult = loadCachedRate(),
+        if !force, let diskResult = loadCachedRates(),
            Date().timeIntervalSince(diskResult.updatedAt) < Self.cacheValiditySeconds {
             lastFetchedResult = diskResult
             return diskResult
         }
 
-        // Attempt network fetch
         do {
             let result = try await fetchFromNetwork()
             lastFetchedResult = result
-            persistRate(result)
+            persistRates(result)
             return result
         } catch {
-            // Fallback to disk cache on network failure
-            if let cached = loadCachedRate() {
+            if let cached = loadCachedRates() {
                 lastFetchedResult = cached
                 return cached
             }
@@ -85,12 +135,16 @@ actor ExchangeRateService {
             throw ExchangeRateError.apiError(decoded.result)
         }
 
-        guard let twdRate = decoded.rates["TWD"] else {
-            throw ExchangeRateError.missingRate("TWD")
+        var rates: [ConverterCurrency: Double] = [.cny: 1]
+        for currency in ConverterCurrency.remoteQuotedCurrencies {
+            guard let value = decoded.rates[currency.rawValue], value > 0 else {
+                throw ExchangeRateError.missingRate(currency.rawValue)
+            }
+            rates[currency] = value
         }
 
         return ExchangeRateResult(
-            rate: twdRate,
+            ratesAgainstCNY: rates,
             updatedAt: Date(),
             source: .network
         )
@@ -98,21 +152,54 @@ actor ExchangeRateService {
 
     // MARK: - Cache
 
-    private func persistRate(_ result: ExchangeRateResult) {
-        userDefaults.set(result.rate, forKey: Self.cacheRateKey)
+    private func persistRates(_ result: ExchangeRateResult) {
+        let payload = result.ratesAgainstCNY.reduce(into: [String: Double]()) { dict, pair in
+            dict[pair.key.rawValue] = pair.value
+        }
+        if let data = try? JSONEncoder().encode(payload) {
+            userDefaults.set(data, forKey: Self.cacheRatesKey)
+        }
         userDefaults.set(result.updatedAt.timeIntervalSince1970, forKey: Self.cacheDateKey)
+
+        // Keep legacy TWD key warm for older builds / tests that only check it.
+        if let twd = result.ratesAgainstCNY[.twd] {
+            userDefaults.set(twd, forKey: Self.legacyCacheRateKey)
+            userDefaults.set(result.updatedAt.timeIntervalSince1970, forKey: Self.legacyCacheDateKey)
+        }
     }
 
-    private func loadCachedRate() -> ExchangeRateResult? {
-        let rate = userDefaults.double(forKey: Self.cacheRateKey)
-        let timestamp = userDefaults.double(forKey: Self.cacheDateKey)
-        guard rate > 0, timestamp > 0 else { return nil }
+    private func loadCachedRates() -> ExchangeRateResult? {
+        if let data = userDefaults.data(forKey: Self.cacheRatesKey),
+           let payload = try? JSONDecoder().decode([String: Double].self, from: data) {
+            var rates: [ConverterCurrency: Double] = [:]
+            for currency in ConverterCurrency.allCases {
+                if let value = payload[currency.rawValue], value > 0 {
+                    rates[currency] = value
+                }
+            }
+            rates[.cny] = 1
+            let timestamp = userDefaults.double(forKey: Self.cacheDateKey)
+            if rates.count == ConverterCurrency.allCases.count, timestamp > 0 {
+                return ExchangeRateResult(
+                    ratesAgainstCNY: rates,
+                    updatedAt: Date(timeIntervalSince1970: timestamp),
+                    source: .cache
+                )
+            }
+        }
 
-        return ExchangeRateResult(
-            rate: rate,
-            updatedAt: Date(timeIntervalSince1970: timestamp),
-            source: .cache
-        )
+        // Migrate legacy TWD-only cache if present.
+        let legacyRate = userDefaults.double(forKey: Self.legacyCacheRateKey)
+        let legacyTimestamp = userDefaults.double(forKey: Self.legacyCacheDateKey)
+        if legacyRate > 0, legacyTimestamp > 0 {
+            return ExchangeRateResult(
+                ratesAgainstCNY: [.cny: 1, .twd: legacyRate],
+                updatedAt: Date(timeIntervalSince1970: legacyTimestamp),
+                source: .cache
+            )
+        }
+
+        return nil
     }
 }
 

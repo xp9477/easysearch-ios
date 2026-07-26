@@ -23,7 +23,7 @@ final class ExchangeRateServiceTests: XCTestCase {
         super.tearDown()
     }
 
-    func testFetchRateParsesTWDFromNetworkResponse() async throws {
+    func testFetchRateParsesAllSupportedCurrenciesFromNetworkResponse() async throws {
         MockURLProtocol.requestHandler = { request in
             XCTAssertEqual(request.url?.absoluteString, "https://open.er-api.com/v6/latest/CNY")
             let body = """
@@ -31,7 +31,11 @@ final class ExchangeRateServiceTests: XCTestCase {
               "result": "success",
               "rates": {
                 "TWD": 4.321,
-                "USD": 0.14
+                "USD": 0.14,
+                "JPY": 21.5,
+                "KRW": 190.2,
+                "TRY": 4.8,
+                "INR": 11.6
               }
             }
             """.data(using: .utf8)!
@@ -51,14 +55,44 @@ final class ExchangeRateServiceTests: XCTestCase {
 
         let result = try await service.fetchRate(force: true)
 
-        XCTAssertEqual(result.rate, 4.321, accuracy: 0.0001)
+        XCTAssertEqual(result.rate(of: .twd), 4.321, accuracy: 0.0001)
+        XCTAssertEqual(result.rate(of: .usd), 0.14, accuracy: 0.0001)
+        XCTAssertEqual(result.rate(of: .jpy), 21.5, accuracy: 0.0001)
+        XCTAssertEqual(result.rate(of: .krw), 190.2, accuracy: 0.0001)
+        XCTAssertEqual(result.rate(of: .tryLira), 4.8, accuracy: 0.0001)
+        XCTAssertEqual(result.rate(of: .inr), 11.6, accuracy: 0.0001)
+        XCTAssertEqual(result.rate(of: .cny), 1, accuracy: 0.0001)
         XCTAssertEqual(result.source, .network)
         XCTAssertEqual(userDefaults.double(forKey: "currencyConverter.cachedRate"), 4.321, accuracy: 0.0001)
     }
 
+    func testConvertAcrossNonCNYPair() {
+        let result = ExchangeRateResult(
+            ratesAgainstCNY: [
+                .cny: 1,
+                .usd: 0.1,
+                .jpy: 15
+            ],
+            updatedAt: Date(),
+            source: .network
+        )
+        // 2 USD -> 20 CNY -> 300 JPY
+        let converted = result.convert(amount: 2, from: .usd, to: .jpy)
+        XCTAssertEqual(converted ?? 0, 300, accuracy: 0.0001)
+    }
+
     func testNetworkFailureFallsBackToCache() async throws {
-        userDefaults.set(4.2, forKey: "currencyConverter.cachedRate")
-        userDefaults.set(Date().timeIntervalSince1970 - 3600, forKey: "currencyConverter.cachedDate")
+        let payload: [String: Double] = [
+            "CNY": 1,
+            "TWD": 4.2,
+            "USD": 0.14,
+            "JPY": 21,
+            "KRW": 190,
+            "TRY": 4.8,
+            "INR": 11.5
+        ]
+        userDefaults.set(try! JSONEncoder().encode(payload), forKey: "currencyConverter.cachedRates.v2")
+        userDefaults.set(Date().timeIntervalSince1970 - 3600, forKey: "currencyConverter.cachedDate.v2")
 
         MockURLProtocol.requestHandler = { _ in
             throw URLError(.notConnectedToInternet)
@@ -71,20 +105,29 @@ final class ExchangeRateServiceTests: XCTestCase {
 
         let result = try await service.fetchRate(force: true)
 
-        XCTAssertEqual(result.rate, 4.2, accuracy: 0.0001)
+        XCTAssertEqual(result.rate(of: .twd), 4.2, accuracy: 0.0001)
         XCTAssertEqual(result.source, .cache)
     }
 
     func testFreshCacheSkipsNetworkWhenNotForced() async throws {
         let now = Date()
-        userDefaults.set(4.11, forKey: "currencyConverter.cachedRate")
-        userDefaults.set(now.timeIntervalSince1970, forKey: "currencyConverter.cachedDate")
+        let payload: [String: Double] = [
+            "CNY": 1,
+            "TWD": 4.11,
+            "USD": 0.14,
+            "JPY": 21,
+            "KRW": 190,
+            "TRY": 4.8,
+            "INR": 11.5
+        ]
+        userDefaults.set(try! JSONEncoder().encode(payload), forKey: "currencyConverter.cachedRates.v2")
+        userDefaults.set(now.timeIntervalSince1970, forKey: "currencyConverter.cachedDate.v2")
 
         var networkCallCount = 0
         MockURLProtocol.requestHandler = { request in
             networkCallCount += 1
             let body = """
-            {"result":"success","rates":{"TWD":9.99}}
+            {"result":"success","rates":{"TWD":9.99,"USD":0.1,"JPY":1,"KRW":1,"TRY":1,"INR":1}}
             """.data(using: .utf8)!
             let response = HTTPURLResponse(
                 url: request.url!,
@@ -102,7 +145,7 @@ final class ExchangeRateServiceTests: XCTestCase {
 
         let result = try await service.fetchRate(force: false)
 
-        XCTAssertEqual(result.rate, 4.11, accuracy: 0.0001)
+        XCTAssertEqual(result.rate(of: .twd), 4.11, accuracy: 0.0001)
         XCTAssertEqual(result.source, .cache)
         XCTAssertEqual(networkCallCount, 0)
     }
