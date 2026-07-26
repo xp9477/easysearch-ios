@@ -94,7 +94,7 @@ struct KeychainStore {
     /// Replace semantics used by some callers: delete then add.
     func replaceData(_ data: Data, account: String) throws {
         delete(account: account)
-        var insert: [String: Any] = [
+        let insert: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,

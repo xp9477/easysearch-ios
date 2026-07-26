@@ -5,7 +5,7 @@ import Security
 // App-wide cloud sync backend (Supabase). Lives in Core/CloudSync.
 // Collections: Jav favorites/playbacks, 4KHD albums/images, UT entries, QingLong profiles.
 
-private extension String {
+extension String {
     var cloudNonEmpty: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
