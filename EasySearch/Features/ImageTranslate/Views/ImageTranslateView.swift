@@ -5,90 +5,113 @@ import UIKit
 public struct ImageTranslateView: View {
     @EnvironmentObject private var navigationState: AppNavigationState
     @StateObject private var viewModel = ImageTranslateViewModel()
+    @FocusState private var isInputFocused: Bool
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var cameraImage: UIImage?
     @State private var cropSource: ImageTranslateCropSource?
     @State private var isPhotoPickerPresented = false
     @State private var isCameraPresented = false
-    @State private var activeContentTab: ImageTranslateContentTab = .workspace
+    @State private var detailSheet: ImageTranslateDetailSheet?
+    @State private var isHistoryPresented = false
 
     public init() {}
 
-    private var hasActiveSession: Bool {
-        viewModel.selectedImage != nil
-            || !viewModel.extractedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            || viewModel.hasTranslation
+    private var trimmedInput: String {
+        viewModel.extractedText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private var hasRecognizedText: Bool {
-        !viewModel.extractedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    private var hasInputText: Bool {
+        !trimmedInput.isEmpty
     }
 
-    private var primaryActionTitle: String {
-        if hasRecognizedText {
-            return viewModel.hasTranslation ? "重新翻译" : "AI 翻译"
+    private var isBusy: Bool {
+        viewModel.isRecognizingText || viewModel.isTranslating
+    }
+
+    private var canSubmit: Bool {
+        hasInputText ? viewModel.canTranslate : viewModel.canRecognizeSelectedImage
+    }
+
+    private var sourceLanguageTitle: String {
+        if let detected = viewModel.detectedSourceLanguage, !detected.isEmpty {
+            return detected
         }
-
-        return viewModel.hasConfiguredAPIKey ? "识别并翻译" : "识别文字"
+        return "自动检测"
     }
 
-    private var primaryActionIcon: String {
-        hasRecognizedText ? "sparkles" : "text.viewfinder"
-    }
-
-    private var canRunPrimaryAction: Bool {
-        hasRecognizedText ? viewModel.canTranslate : viewModel.canRecognizeSelectedImage
+    private var detailCount: Int {
+        viewModel.meanings.count + viewModel.examples.count + viewModel.collocations.count
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
-                ESModuleHero(
-                    title: "翻译",
-                    subtitle: "文本 · 图片 · 即用",
-                    featureID: "image-translate",
-                    systemImage: "globe"
-                )
-                if !viewModel.hasConfiguredAPIKey {
-                    setupGuidance
+        ZStack(alignment: .bottom) {
+            ScrollView {
+                VStack(spacing: ESUI.Space.md) {
+                    languageBar
+
+                    if !viewModel.hasConfiguredAPIKey {
+                        setupBanner
+                    }
+
+                    inputCard
+
+                    if viewModel.hasTranslation {
+                        translationCard
+                    }
                 }
-
-                captureDeck
-
-                if availableContentTabs.count > 1 {
-                    contentTabStrip
-                }
-
-                currentContentCard
-
-                if viewModel.hasHistory {
-                    historySection
-                }
+                .padding(.horizontal, ESUI.screenHorizontalPadding)
+                .padding(.top, ESUI.Space.sm)
+                .padding(.bottom, 104)
             }
-            .padding(.horizontal, ESUI.screenHorizontalPadding)
-            .padding(.top, ESUI.Space.md)
-            .padding(.bottom, ESUI.Space.xxxl)
+            .scrollDismissesKeyboard(.interactively)
+
+            toolbarDock
         }
         .esScreenBackground()
         .navigationTitle("翻译")
         .navigationBarTitleDisplayMode(.inline)
-        .scrollDismissesKeyboard(.interactively)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button {
+                        viewModel.startFreshSession()
+                        isInputFocused = true
+                    } label: {
+                        Label("新建翻译", systemImage: "square.and.pencil")
+                    }
+
+                    Picker("输出语言", selection: targetLanguageBinding) {
+                        ForEach(ImageTranslateTargetLanguage.allCases) { language in
+                            Text(language.title).tag(language)
+                        }
+                    }
+
+                    Divider()
+
+                    Button {
+                        navigationState.openSettings(.imageTranslate)
+                    } label: {
+                        Label("AI 配置", systemImage: "slider.horizontal.3")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
         .overlay(alignment: .top) {
-            if let notice = viewModel.notice {
+            if let notice = viewModel.notice, notice.tone != .neutral {
                 noticeToast(notice)
                     .padding(.horizontal, ESUI.screenHorizontalPadding)
-                    .padding(.top, ESUI.Space.sm)
+                    .padding(.top, ESUI.Space.xs)
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.28, dampingFraction: 0.9), value: viewModel.notice)
+        .animation(.spring(response: 0.3, dampingFraction: 0.9), value: viewModel.notice)
+        .animation(.spring(response: 0.3, dampingFraction: 0.9), value: viewModel.latestTranslation)
         .task {
             await viewModel.prepare()
-        }
-        .onChange(of: viewModel.latestTranslation) { newValue in
-            let hasTranslation = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
-                activeContentTab = hasTranslation ? .translation : .workspace
+            if !viewModel.hasTranslation && !hasInputText && viewModel.selectedImage == nil {
+                isInputFocused = true
             }
         }
         .photosPicker(
@@ -121,95 +144,366 @@ public struct ImageTranslateView: View {
                 }
             }
         }
-    }
-
-    // MARK: - Setup
-
-    private var setupGuidance: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            ESNeedsSetupState(
-                title: "尚未配置 AI",
-                message: "可先识别图片文字；翻译与进阶能力需要配置 API Key。",
-                actionTitle: "去配置"
-            ) {
-                navigationState.openSettings(.imageTranslate)
-            }
+        .sheet(item: $detailSheet) { sheet in
+            ImageTranslateDetailSheetView(sheet: sheet, viewModel: viewModel)
         }
-        .esCard()
+        .sheet(isPresented: $isHistoryPresented) {
+            ImageTranslateHistorySheet(viewModel: viewModel)
+        }
     }
 
-    // MARK: - Capture
-
-    private var captureDeck: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.md) {
-            HStack(alignment: .top, spacing: ESUI.Space.sm) {
-                ESFeatureIcon(systemName: "text.viewfinder", color: .accentColor, size: 44)
-
-                VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
-                    Text("翻译工作区")
-                        .font(.title3.weight(.semibold))
-                        .foregroundStyle(.primary)
-
-                    Text("支持文本、截图和拍照翻译")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: ESUI.Space.xs)
-
-                Button {
-                    viewModel.startFreshSession()
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 36, height: 36)
-                        .background(Circle().fill(ESUI.fill))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("新建会话")
+    private var targetLanguageBinding: Binding<ImageTranslateTargetLanguage> {
+        Binding(
+            get: { viewModel.targetLanguage },
+            set: { newValue in
+                Task { await switchTargetLanguage(to: newValue) }
             }
+        )
+    }
 
-            HStack(spacing: ESUI.Space.xs) {
-                ESStatusBadge(text: viewModel.targetLanguage.title, tone: .accent)
+    // MARK: - Language bar
 
-                if viewModel.isRecognizingText {
-                    ESStatusBadge(text: "识别中", tone: .warning)
-                } else if viewModel.isTranslating {
-                    ESStatusBadge(text: "翻译中", tone: .accent)
-                }
+    private var languageBar: some View {
+        HStack(spacing: 0) {
+            languageSegment(title: sourceLanguageTitle, isActive: false)
 
-                if hasActiveSession {
-                    ESStatusBadge(
-                        text: viewModel.hasTranslation
-                            ? "已生成结果"
-                            : (viewModel.selectedImage != nil
-                               ? (hasRecognizedText ? "可继续处理" : "待识别")
-                               : "可直接开始"),
-                        tone: viewModel.hasTranslation ? .success : .neutral
-                    )
-                }
+            Button {
+                Task { await swapLanguages() }
+            } label: {
+                Image(systemName: "arrow.left.arrow.right")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+                    .frame(width: 44, height: 40)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("切换语言方向")
 
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: ESUI.Space.sm), count: 3),
-                spacing: ESUI.Space.sm
-            ) {
-                deckActionButton(title: "粘贴截图", icon: "doc.on.clipboard") {
-                    Task {
-                        await viewModel.importClipboardImage()
+            Menu {
+                ForEach(ImageTranslateTargetLanguage.allCases) { language in
+                    Button(language.title) {
+                        Task { await switchTargetLanguage(to: language) }
                     }
                 }
+            } label: {
+                languageSegment(title: viewModel.targetLanguage.title, isActive: true)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(4)
+        .background(
+            Capsule(style: .continuous)
+                .fill(Color(.tertiarySystemFill))
+        )
+    }
 
-                deckActionButton(title: "选图片", icon: "photo.on.rectangle.angled") {
+    private func languageSegment(title: String, isActive: Bool) -> some View {
+        Text(title)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(isActive ? Color.primary : Color.secondary)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity)
+            .frame(height: 34)
+            .background {
+                if isActive {
+                    Capsule(style: .continuous)
+                        .fill(Color(.systemBackground))
+                        .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+                }
+            }
+    }
+
+    private var setupBanner: some View {
+        Button {
+            navigationState.openSettings(.imageTranslate)
+        } label: {
+            HStack(spacing: ESUI.Space.sm) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .foregroundStyle(ESUI.warning)
+
+                Text("未配置 AI，仅能识别图片文字")
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+
+                Spacer(minLength: 0)
+
+                Text("去配置")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+            }
+            .padding(.horizontal, ESUI.Space.md)
+            .padding(.vertical, ESUI.Space.sm)
+            .background(
+                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                    .fill(Color(.secondarySystemGroupedBackground))
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Input
+
+    private var inputCard: some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            if let image = viewModel.selectedImage {
+                imageStrip(image)
+            }
+
+            ZStack(alignment: .topLeading) {
+                if viewModel.extractedText.isEmpty {
+                    Text("输入文本")
+                        .font(.system(size: 26, weight: .regular))
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 8)
+                        .padding(.leading, 5)
+                        .allowsHitTesting(false)
+                }
+
+                TextEditor(text: $viewModel.extractedText)
+                    .font(.system(size: 26, weight: .regular))
+                    .scrollContentBackground(.hidden)
+                    .focused($isInputFocused)
+                    .frame(minHeight: viewModel.selectedImage == nil ? 150 : 92)
+            }
+
+            HStack(alignment: .bottom, spacing: ESUI.Space.sm) {
+                Text(inputHintText)
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+
+                submitButton
+            }
+        }
+        .padding(ESUI.Space.md)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
+
+    private var inputHintText: String {
+        if viewModel.isRecognizingText { return "正在识别图片文字…" }
+        if viewModel.isTranslating { return "正在翻译…" }
+        if viewModel.needsRetranslation { return "文本已修改，可重新翻译" }
+        if hasInputText { return "\(trimmedInput.count) 字" }
+        return "粘贴文本或从下方导入图片"
+    }
+
+    private var submitButton: some View {
+        Button {
+            isInputFocused = false
+            Task {
+                if hasInputText {
+                    await viewModel.translateCurrentText()
+                } else {
+                    await viewModel.reRecognizeSelectedImage()
+                }
+            }
+        } label: {
+            Group {
+                if isBusy {
+                    ProgressView()
+                        .tint(.white)
+                } else {
+                    Image(systemName: hasInputText ? "arrow.right" : "text.viewfinder")
+                        .font(.system(size: 19, weight: .semibold))
+                }
+            }
+            .foregroundStyle(.white)
+            .frame(width: 46, height: 46)
+            .background(
+                Circle().fill(canSubmit ? Color.accentColor : Color(.tertiaryLabel))
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(!canSubmit)
+        .accessibilityLabel(hasInputText ? "翻译" : "识别文字")
+    }
+
+    private func imageStrip(_ image: UIImage) -> some View {
+        HStack(spacing: ESUI.Space.sm) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(viewModel.imageStatusText)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Text(hasInputText ? "已识别 \(trimmedInput.count) 字" : "尚未识别文字")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+
+            Button {
+                cropSource = ImageTranslateCropSource(image: image, mode: .recropCurrentImage)
+            } label: {
+                Image(systemName: "crop")
+                    .font(.footnote.weight(.semibold))
+                    .frame(width: 32, height: 32)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.accentColor)
+            .disabled(isBusy)
+
+            Button {
+                Task { await viewModel.reRecognizeSelectedImage() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.footnote.weight(.semibold))
+                    .frame(width: 32, height: 32)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.accentColor)
+            .disabled(isBusy)
+        }
+        .padding(ESUI.Space.xs)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(.tertiarySystemFill))
+        )
+    }
+
+    // MARK: - Translation
+
+    private var translationCard: some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            HStack(spacing: ESUI.Space.sm) {
+                Text(viewModel.targetLanguage.title)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                Spacer(minLength: 0)
+
+                Button {
+                    viewModel.copyText(viewModel.latestTranslation, successMessage: "已复制译文。")
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .font(.system(size: 17, weight: .medium))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.accentColor)
+                .accessibilityLabel("复制译文")
+            }
+
+            if !trimmedInput.isEmpty {
+                Text(trimmedInput)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Text(viewModel.latestTranslation)
+                .font(.system(size: 22, weight: .regular))
+                .foregroundStyle(Color.accentColor)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            if !viewModel.translationNotes.isEmpty {
+                Text(viewModel.translationNotes)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if detailCount > 0 || !viewModel.alignedSections.isEmpty {
+                Divider()
+                    .padding(.vertical, ESUI.Space.xxs)
+
+                VStack(spacing: ESUI.Space.xs) {
+                    if detailCount > 0 {
+                        detailRow(
+                            title: "详细释义",
+                            systemImage: "text.book.closed.fill",
+                            color: .blue,
+                            trailing: "\(detailCount) 条"
+                        ) {
+                            detailSheet = .details
+                        }
+                    }
+
+                    if !viewModel.alignedSections.isEmpty {
+                        detailRow(
+                            title: "原文对照",
+                            systemImage: "arrow.left.arrow.right",
+                            color: .indigo,
+                            trailing: "\(viewModel.alignedSections.count) 段"
+                        ) {
+                            detailSheet = .comparison
+                        }
+                    }
+                }
+            }
+        }
+        .padding(ESUI.Space.md)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+    }
+
+    private func detailRow(
+        title: String,
+        systemImage: String,
+        color: Color,
+        trailing: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: ESUI.Space.sm) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(color)
+                    .frame(width: 28, height: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(color.opacity(0.14))
+                    )
+
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+
+                Spacer(minLength: 0)
+
+                Text(trailing)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Dock
+
+    private var toolbarDock: some View {
+        GlassEffectContainer(spacing: ESUI.Space.xs) {
+            HStack(spacing: ESUI.Space.xs) {
+                dockButton(title: "粘贴截图", systemImage: "doc.on.clipboard") {
+                    Task { await viewModel.importClipboardImage() }
+                }
+
+                dockButton(title: "选图片", systemImage: "photo") {
                     isPhotoPickerPresented = true
                 }
 
-                deckActionButton(
-                    title: "拍照",
-                    icon: "camera.fill",
-                    isEnabled: UIImagePickerController.isSourceTypeAvailable(.camera)
-                ) {
+                dockButton(title: "拍照", systemImage: "camera") {
                     guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
                         viewModel.presentNotice(
                             tone: .caution,
@@ -219,546 +513,53 @@ public struct ImageTranslateView: View {
                     }
                     isCameraPresented = true
                 }
-            }
 
-            HStack(spacing: ESUI.Space.sm) {
-                Menu {
-                    ForEach(ImageTranslateTargetLanguage.allCases) { language in
-                        Button(language.title) {
-                            viewModel.targetLanguage = language
-                        }
-                    }
-                } label: {
-                    controlPill(
-                        systemImage: "globe.asia.australia.fill",
-                        title: "输出",
-                        value: viewModel.targetLanguage.title
-                    )
+                dockButton(title: "历史", systemImage: "clock") {
+                    isHistoryPresented = true
                 }
-                .buttonStyle(.plain)
-
-                Spacer(minLength: 0)
-            }
-
-            HStack(spacing: ESUI.Space.sm) {
-                quickDirectionButton(title: "中译英", targetLanguage: .english)
-                quickDirectionButton(title: "英译中", targetLanguage: .simplifiedChinese)
             }
         }
-        .esCard()
+        .padding(.horizontal, ESUI.screenHorizontalPadding)
+        .padding(.bottom, ESUI.Space.xs)
     }
 
-    // MARK: - Tabs
-
-    private var availableContentTabs: [ImageTranslateContentTab] {
-        var tabs: [ImageTranslateContentTab] = [.workspace]
-
-        if viewModel.hasTranslation {
-            tabs.append(.translation)
-
-            if !viewModel.alignedSections.isEmpty {
-                tabs.append(.comparison)
-            }
-        }
-
-        return tabs
-    }
-
-    private var resolvedContentTab: ImageTranslateContentTab {
-        availableContentTabs.contains(activeContentTab) ? activeContentTab : .workspace
-    }
-
-    @ViewBuilder
-    private var currentContentCard: some View {
-        switch resolvedContentTab {
-        case .workspace:
-            workspaceCard
-        case .translation:
-            translationCard
-        case .comparison:
-            comparisonCard
-        }
-    }
-
-    private var contentTabStrip: some View {
-        HStack(spacing: ESUI.Space.xs) {
-            ForEach(availableContentTabs) { tab in
-                Button {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
-                        activeContentTab = tab
-                    }
-                } label: {
-                    HStack(spacing: ESUI.Space.xs) {
-                        Image(systemName: tab.symbolName)
-                            .font(.caption.weight(.semibold))
-                        Text(tab.title)
-                            .font(.subheadline.weight(.semibold))
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, ESUI.Space.sm)
-                    .foregroundStyle(resolvedContentTab == tab ? Color.white : Color.primary)
-                    .background {
-                        RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                            .fill(resolvedContentTab == tab ? Color.accentColor : ESUI.fill)
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(ESUI.Space.xs)
-        .esSurface(cornerRadius: ESUI.cardCornerRadius)
-    }
-
-    // MARK: - Workspace
-
-    private var workspaceCard: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.md) {
-            HStack(alignment: .center, spacing: ESUI.Space.sm) {
-                Text("工作区")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
-                Spacer(minLength: ESUI.Space.xs)
-
-                if !viewModel.extractedText.isEmpty {
-                    ESStatusBadge(text: "\(viewModel.extractedText.count) 字", tone: .neutral)
-                }
-
-                if viewModel.needsRetranslation {
-                    ESStatusBadge(text: "待重翻", tone: .warning)
-                }
-            }
-
-            if let image = viewModel.selectedImage {
-                imageWorkbench(image)
-            } else {
-                emptyWorkbench
-            }
-
-            textWorkbench
-
-            Button {
-                Task {
-                    if hasRecognizedText {
-                        await viewModel.translateCurrentText()
-                    } else {
-                        await viewModel.reRecognizeSelectedImage()
-                    }
-                }
-            } label: {
-                HStack(spacing: ESUI.Space.sm) {
-                    Image(systemName: primaryActionIcon)
-                    Text(primaryActionTitle)
-                    Spacer()
-                    if viewModel.isRecognizingText || viewModel.isTranslating {
-                        ProgressView().tint(.white)
-                    }
-                }
-                .font(.body.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, ESUI.Space.xs)
-            }
-            .buttonStyle(.glassProminent)
-            .disabled(!canRunPrimaryAction)
-        }
-        .esCard()
-    }
-
-    private func imageWorkbench(_ image: UIImage) -> some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: ESUI.Space.sm) {
-                VStack(alignment: .leading, spacing: ESUI.Space.xs) {
-                    ESStatusBadge(text: viewModel.imageStatusText, tone: .accent)
-
-                    if viewModel.isRecognizingText {
-                        ESStatusBadge(text: "识别中", tone: .warning)
-                    } else if viewModel.isTranslating {
-                        ESStatusBadge(text: "翻译中", tone: .success)
-                    }
-                }
-
-                Spacer(minLength: 0)
-
-                HStack(spacing: ESUI.Space.xs) {
-                    imageToolButton(title: "裁剪", systemImage: "crop") {
-                        cropSource = ImageTranslateCropSource(
-                            image: image,
-                            mode: .recropCurrentImage
-                        )
-                    }
-                    .disabled(viewModel.isRecognizingText || viewModel.isTranslating)
-
-                    imageToolButton(
-                        title: hasRecognizedText ? "重识别" : "识别全文",
-                        systemImage: "viewfinder"
-                    ) {
-                        Task {
-                            await viewModel.reRecognizeSelectedImage()
-                        }
-                    }
-                    .disabled(viewModel.isRecognizingText || viewModel.isTranslating)
-                }
-            }
-            .padding(ESUI.Space.sm)
-
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .frame(maxWidth: .infinity, maxHeight: 280)
-                .padding(.horizontal, ESUI.Space.sm)
-                .padding(.bottom, ESUI.Space.sm)
-        }
-        .background(
-            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
-                .fill(ESUI.fill)
-        )
-    }
-
-    private var emptyWorkbench: some View {
-        HStack(spacing: ESUI.Space.sm) {
-            ESFeatureIcon(systemName: "photo.badge.plus", color: .accentColor, size: 48)
-
-            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
-                Text("直接输入文本，或导入图片")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-
-                Text("支持文本翻译和图片翻译")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(ESUI.Space.md)
-        .background(
-            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
-                .fill(ESUI.fill)
-        )
-    }
-
-    private var textWorkbench: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            HStack(alignment: .center, spacing: ESUI.Space.sm) {
-                Text("待翻译文本")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                if !viewModel.extractedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Button {
-                        viewModel.copyText(viewModel.extractedText, successMessage: "已复制识别文本。")
-                    } label: {
-                        Image(systemName: "doc.on.doc")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 32, height: 32)
-                            .background(Circle().fill(ESUI.fill))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("复制识别文本")
-                }
-            }
-
-            ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                    .fill(ESUI.fill)
-
-                if viewModel.extractedText.isEmpty {
-                    Text("可直接输入或粘贴文本")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, ESUI.Space.md)
-                        .padding(.vertical, ESUI.Space.md)
-                }
-
-                TextEditor(text: $viewModel.extractedText)
-                    .scrollContentBackground(.hidden)
-                    .padding(.horizontal, ESUI.Space.sm)
-                    .padding(.vertical, ESUI.Space.sm)
-                    .frame(minHeight: 168)
-                    .background(Color.clear)
-            }
-        }
-    }
-
-    // MARK: - Translation
-
-    private var translationCard: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.md) {
-            HStack(alignment: .center, spacing: ESUI.Space.sm) {
-                Text("译文")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                Button {
-                    viewModel.copyText(viewModel.latestTranslation, successMessage: "已复制翻译结果。")
-                } label: {
-                    Label("复制", systemImage: "doc.on.doc")
-                        .font(.caption.weight(.semibold))
-                }
-                .buttonStyle(.glass)
-            }
-
-            VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-                Text(viewModel.latestTranslation)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                    .textSelection(.enabled)
-
-                HStack(spacing: ESUI.Space.xs) {
-                    if let detectedSourceLanguage = viewModel.detectedSourceLanguage,
-                       !detectedSourceLanguage.isEmpty {
-                        ESStatusBadge(text: "源 \(detectedSourceLanguage)", tone: .neutral)
-                    }
-
-                    ESStatusBadge(text: "目标 \(viewModel.targetLanguage.title)", tone: .accent)
-                }
-            }
-            .padding(ESUI.Space.md)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                    .fill(ESUI.fill)
-            )
-
-            if !viewModel.translationNotes.isEmpty {
-                translationDetailSection(title: "补充说明", systemImage: "text.quote") {
-                    Text(viewModel.translationNotes)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-
-            if !viewModel.meanings.isEmpty {
-                translationDetailSection(title: "详细释义", systemImage: "text.book.closed") {
-                    VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-                        ForEach(Array(viewModel.meanings.enumerated()), id: \.offset) { _, item in
-                            translationMeaningRow(item)
-                        }
-                    }
-                }
-            }
-
-            if !viewModel.examples.isEmpty {
-                translationDetailSection(title: "例句", systemImage: "quote.bubble") {
-                    VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-                        ForEach(Array(viewModel.examples.enumerated()), id: \.offset) { _, item in
-                            translationExampleRow(item)
-                        }
-                    }
-                }
-            }
-
-            if !viewModel.collocations.isEmpty {
-                translationDetailSection(title: "常用搭配", systemImage: "text.append") {
-                    VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-                        ForEach(Array(viewModel.collocations.enumerated()), id: \.offset) { _, item in
-                            translationCollocationRow(item)
-                        }
-                    }
-                }
-            }
-
-            if !viewModel.alignedSections.isEmpty {
-                Button {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
-                        activeContentTab = .comparison
-                    }
-                } label: {
-                    HStack(spacing: ESUI.Space.xs) {
-                        Label("查看对照", systemImage: "square.split.2x1")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-
-                        Spacer()
-
-                        Text("\(viewModel.alignedSections.count) 段")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .padding(ESUI.Space.md)
-                    .background(
-                        RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                            .fill(ESUI.fill)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .esCard()
-    }
-
-    private func translationDetailSection<Content: View>(
+    private func dockButton(
         title: String,
         systemImage: String,
-        @ViewBuilder content: () -> Content
+        action: @escaping () -> Void
     ) -> some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            Label(title, systemImage: systemImage)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-
-            content()
-        }
-        .padding(ESUI.Space.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                .fill(ESUI.fill)
-        )
-    }
-
-    private func translationMeaningRow(_ item: ImageTranslateMeaning) -> some View {
-        HStack(alignment: .top, spacing: ESUI.Space.sm) {
-            if !item.partOfSpeech.isEmpty {
-                ESStatusBadge(text: item.partOfSpeech, tone: .accent)
+        Button(action: action) {
+            VStack(spacing: 5) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 19, weight: .medium))
+                Text(title)
+                    .font(.caption2.weight(.medium))
+                    .lineLimit(1)
             }
-
-            Text(item.meaning)
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Spacer(minLength: 0)
+            .foregroundStyle(Color.accentColor)
+            .frame(maxWidth: .infinity)
+            .frame(height: 58)
         }
-    }
-
-    private func translationExampleRow(_ item: ImageTranslateExample) -> some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
-            Text(item.source)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-                .textSelection(.enabled)
-
-            Text(item.translation)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func translationCollocationRow(_ item: ImageTranslateCollocation) -> some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
-            Text(item.phrase)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-                .textSelection(.enabled)
-
-            Text(item.translation)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            if !item.note.isEmpty {
-                Text(item.note)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: - Comparison
-
-    private var comparisonCard: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.md) {
-            ESSectionHeader(
-                title: "对照",
-                trailing: "\(viewModel.alignedSections.count) 段"
-            )
-
-            ForEach(viewModel.alignedSections) { section in
-                comparisonRow(section)
-            }
-        }
-        .esCard()
-    }
-
-    private func comparisonRow(_ section: AlignedTextSection) -> some View {
-        HStack(alignment: .top, spacing: ESUI.Space.sm) {
-            VStack(alignment: .leading, spacing: ESUI.Space.xs) {
-                ESStatusBadge(text: "原文", tone: .neutral)
-
-                Text(section.sourceText.isEmpty ? " " : section.sourceText)
-                    .font(.subheadline)
-                    .foregroundStyle(.primary)
-                    .textSelection(.enabled)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: ESUI.Space.xs) {
-                ESStatusBadge(text: "译文", tone: .accent)
-
-                Text(section.translatedText.isEmpty ? " " : section.translatedText)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .textSelection(.enabled)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(ESUI.Space.md)
-        .background(
-            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                .fill(ESUI.fill)
-        )
-    }
-
-    // MARK: - History
-
-    private var historySection: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            ESSectionHeader(title: "历史", trailing: "\(viewModel.history.count)")
-
-            ForEach(viewModel.history.prefix(8)) { record in
-                Button {
-                    viewModel.loadHistorySession(record)
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
-                        activeContentTab = viewModel.hasTranslation ? .translation : .workspace
-                    }
-                } label: {
-                    VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
-                        Text(record.title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-
-                        if !record.translationSnippet.isEmpty {
-                            Text(record.translationSnippet)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(2)
-                        }
-
-                        Text(record.updatedAt.formatted(.relative(presentation: .named)))
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(ESUI.Space.md)
-                    .background(
-                        RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                            .fill(ESUI.fill)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .esCard()
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 18, style: .continuous))
     }
 
     // MARK: - Actions
+
+    private func swapLanguages() async {
+        let next: ImageTranslateTargetLanguage = viewModel.targetLanguage == .simplifiedChinese
+            ? .english
+            : .simplifiedChinese
+        await switchTargetLanguage(to: next)
+    }
+
+    private func switchTargetLanguage(to language: ImageTranslateTargetLanguage) async {
+        guard language != viewModel.targetLanguage else { return }
+        await viewModel.updateTargetLanguage(language)
+
+        guard hasInputText, viewModel.canTranslate else { return }
+        await viewModel.translateCurrentText()
+    }
 
     private func loadPhoto(from item: PhotosPickerItem) async {
         do {
@@ -801,20 +602,12 @@ public struct ImageTranslateView: View {
         }
     }
 
-    // MARK: - Chrome Helpers
-
     private func noticeToast(_ notice: ImageTranslateNotice) -> some View {
-        let tone: ESStatusBadge.Tone = {
-            switch notice.tone {
-            case .neutral: return .neutral
-            case .success: return .success
-            case .caution: return .warning
-            }
-        }()
+        let tone: ESStatusBadge.Tone = notice.tone == .caution ? .warning : .success
 
         return ESStatusBanner(
             title: notice.message,
-            systemImage: notice.tone == .caution ? "exclamationmark.triangle.fill" : "info.circle.fill",
+            systemImage: notice.tone == .caution ? "exclamationmark.triangle.fill" : "checkmark.circle.fill",
             tone: tone
         )
         .background(
@@ -822,134 +615,184 @@ public struct ImageTranslateView: View {
                 .fill(.ultraThinMaterial)
         )
     }
-
-    private func deckActionButton(
-        title: String,
-        icon: String,
-        isEnabled: Bool = true,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-                Image(systemName: icon)
-                    .font(.body.weight(.semibold))
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(2)
-            }
-            .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
-            .padding(ESUI.Space.sm)
-            .foregroundStyle(isEnabled ? Color.primary : Color.secondary)
-            .background(
-                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                    .fill(ESUI.fill)
-            )
-            .opacity(isEnabled ? 1 : 0.55)
-        }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
-    }
-
-    private func controlPill(systemImage: String, title: String, value: String) -> some View {
-        HStack(spacing: ESUI.Space.xs) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            Text(value)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-
-            Image(systemName: "chevron.up.chevron.down")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.tertiary)
-        }
-        .padding(.horizontal, ESUI.Space.sm)
-        .padding(.vertical, ESUI.Space.sm)
-        .background(
-            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                .fill(ESUI.fill)
-        )
-    }
-
-    private func quickDirectionButton(
-        title: String,
-        targetLanguage: ImageTranslateTargetLanguage
-    ) -> some View {
-        let isActive = viewModel.targetLanguage == targetLanguage
-
-        return Button {
-            viewModel.targetLanguage = targetLanguage
-
-            guard hasRecognizedText,
-                  viewModel.hasConfiguredAPIKey,
-                  !viewModel.isRecognizingText,
-                  !viewModel.isTranslating else {
-                return
-            }
-
-            Task {
-                await viewModel.translateCurrentText()
-            }
-        } label: {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(isActive ? Color.white : Color.primary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, ESUI.Space.sm)
-                .background(
-                    RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                        .fill(isActive ? Color.accentColor : ESUI.fill)
-                )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func imageToolButton(
-        title: String,
-        systemImage: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, ESUI.Space.sm)
-                .padding(.vertical, ESUI.Space.xs)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(Color(.secondarySystemBackground))
-                )
-        }
-        .buttonStyle(.plain)
-    }
 }
 
-private enum ImageTranslateContentTab: String, Identifiable {
-    case workspace
-    case translation
+// MARK: - Detail sheets
+
+private enum ImageTranslateDetailSheet: String, Identifiable {
+    case details
     case comparison
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .workspace: return "工作区"
-        case .translation: return "译文"
-        case .comparison: return "对照"
+        case .details: return "详细释义"
+        case .comparison: return "原文对照"
+        }
+    }
+}
+
+private struct ImageTranslateDetailSheetView: View {
+    let sheet: ImageTranslateDetailSheet
+    @ObservedObject var viewModel: ImageTranslateViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                switch sheet {
+                case .details:
+                    detailSections
+                case .comparison:
+                    comparisonSection
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle(sheet.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完成") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    @ViewBuilder
+    private var detailSections: some View {
+        if !viewModel.meanings.isEmpty {
+            Section("释义") {
+                ForEach(Array(viewModel.meanings.enumerated()), id: \.offset) { _, item in
+                    VStack(alignment: .leading, spacing: 4) {
+                        if !item.partOfSpeech.isEmpty {
+                            Text(item.partOfSpeech)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Color.accentColor)
+                        }
+                        Text(item.meaning)
+                            .font(.subheadline)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+
+        if !viewModel.examples.isEmpty {
+            Section("例句") {
+                ForEach(Array(viewModel.examples.enumerated()), id: \.offset) { _, item in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.source)
+                            .font(.subheadline.weight(.medium))
+                        Text(item.translation)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+        }
+
+        if !viewModel.collocations.isEmpty {
+            Section("常用搭配") {
+                ForEach(Array(viewModel.collocations.enumerated()), id: \.offset) { _, item in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.phrase)
+                            .font(.subheadline.weight(.medium))
+                        Text(item.translation)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        if !item.note.isEmpty {
+                            Text(item.note)
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
         }
     }
 
-    var symbolName: String {
-        switch self {
-        case .workspace: return "square.and.pencil"
-        case .translation: return "text.quote"
-        case .comparison: return "square.split.2x1"
+    private var comparisonSection: some View {
+        Section {
+            ForEach(viewModel.alignedSections) { section in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(section.sourceText.isEmpty ? " " : section.sourceText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Text(section.translatedText.isEmpty ? " " : section.translatedText)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.accentColor)
+                }
+                .padding(.vertical, 4)
+            }
         }
+    }
+}
+
+private struct ImageTranslateHistorySheet: View {
+    @ObservedObject var viewModel: ImageTranslateViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if viewModel.history.isEmpty {
+                    ESEmptyState(
+                        title: "暂无历史",
+                        message: "翻译过的内容会保存在这里。",
+                        systemImage: "clock"
+                    )
+                } else {
+                    List {
+                        ForEach(viewModel.history) { record in
+                            Button {
+                                viewModel.loadHistorySession(record)
+                                dismiss()
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(record.title)
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+
+                                    if !record.translationSnippet.isEmpty {
+                                        Text(record.translationSnippet)
+                                            .font(.footnote)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(2)
+                                    }
+
+                                    Text(record.updatedAt.formatted(.relative(presentation: .named)))
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                .padding(.vertical, 2)
+                            }
+                        }
+                        .onDelete { indexSet in
+                            for index in indexSet {
+                                viewModel.deleteHistoryRecord(viewModel.history[index])
+                            }
+                        }
+                    }
+                    .listStyle(.insetGrouped)
+                }
+            }
+            .navigationTitle("历史")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完成") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }
 
