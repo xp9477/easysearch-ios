@@ -8,23 +8,25 @@ struct EasySearchView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: ESUI.Space.md) {
-                    HStack(spacing: ESUI.Space.sm) {
-                        SearchBar(
-                            text: $viewModel.searchQuery,
-                            isFocused: $isSearchFieldFocused,
-                            onSubmit: { _ = viewModel.performDefaultSearch() }
-                        )
+                    GlassEffectContainer(spacing: ESUI.Space.sm) {
+                        HStack(spacing: ESUI.Space.sm) {
+                            SearchBar(
+                                text: $viewModel.searchQuery,
+                                isFocused: $isSearchFieldFocused,
+                                onSubmit: { _ = viewModel.performDefaultSearch() }
+                            )
 
-                        Button {
-                            _ = viewModel.performDefaultSearch()
-                        } label: {
-                            Image(systemName: "arrow.right")
-                                .font(.body.weight(.semibold))
-                                .frame(width: 32, height: 32)
+                            Button {
+                                _ = viewModel.performDefaultSearch()
+                            } label: {
+                                Image(systemName: "arrow.right")
+                                    .font(.body.weight(.semibold))
+                                    .frame(width: 32, height: 32)
+                            }
+                            .buttonStyle(.glassProminent)
+                            .disabled(!viewModel.hasValidQuery)
+                            .accessibilityLabel("默认搜索")
                         }
-                        .buttonStyle(.glassProminent)
-                        .disabled(!viewModel.hasValidQuery)
-                        .accessibilityLabel("默认搜索")
                     }
 
                     CategoryTabBar(

@@ -435,13 +435,9 @@ private struct HiddenInAppVideoPlayerView: View {
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 58, height: 58)
-                .background(Color.black.opacity(0.42), in: Circle())
-                .overlay(
-                    Circle()
-                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                )
         }
         .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .circle)
     }
 
     private var shouldShowPlaybackRateHUD: Bool {
