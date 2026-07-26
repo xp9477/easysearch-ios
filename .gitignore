@@ -6,3 +6,6 @@ xcuserdata/
 
 # Local secrets (never commit)
 EasySearch/Config/Supabase.xcconfig
+
+# Local build artifacts
+output/
