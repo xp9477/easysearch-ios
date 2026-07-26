@@ -28,7 +28,7 @@ struct WebDAVShareUploadView: View {
                         systemImage: "externaldrive.badge.questionmark"
                     )
                     Button("打开 WebDAV 设置") { isShowingSettings = true }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.glassProminent)
                 }
                 .padding(20)
             } else {
@@ -87,7 +87,7 @@ struct WebDAVShareUploadView: View {
                         Label("存储到当前文件夹", systemImage: "arrow.up.circle.fill")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                     .disabled(isUploading || items.isEmpty)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)

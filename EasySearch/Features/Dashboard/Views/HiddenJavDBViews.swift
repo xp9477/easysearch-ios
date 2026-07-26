@@ -95,7 +95,7 @@ struct HiddenJavDBFeatureView: View {
                 Button("搜索") {
                     performMovieSearch()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .disabled(viewModel.isSearchingMovies || normalizedSearchQuery.isEmpty)
             }
 
@@ -168,7 +168,7 @@ struct HiddenJavDBFeatureView: View {
                         .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .disabled(viewModel.isLoadingRandomMovie)
             } else if viewModel.isLoadingRandomMovie {
                 HiddenMediaPlaceholder(mode: .loading("正在抓取随机 9 部..."), systemImage: "film.stack")
@@ -199,7 +199,7 @@ struct HiddenJavDBFeatureView: View {
                 Button(issue.primaryActionTitle) {
                     retry()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
 
                 if issue.kind == .javDBAgeConfirmation {
                     Button(issue.secondaryActionTitle ?? "打开确认页") {
@@ -208,7 +208,7 @@ struct HiddenJavDBFeatureView: View {
                             url: URL(string: "https://javdb.com/")!
                         )
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glass)
                 }
             }
         }
@@ -276,13 +276,13 @@ struct HiddenJavDBFavoriteMoviesView: View {
                                 Text(isResolvingRandomPlayback ? "正在随机播放..." : "随机播放")
                             }
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(.glassProminent)
                         .disabled(isResolvingRandomPlayback || viewModel.favoriteMovies.isEmpty)
 
                         Button(showDetails ? "隐藏详细信息" : "显示详细信息") {
                             showDetails.toggle()
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.glass)
 
                         Spacer(minLength: 0)
                     }
@@ -512,7 +512,7 @@ struct HiddenJavDBMovieDetailView: View {
                 Button(showDetails ? "隐藏详细信息" : "显示详细信息") {
                     showDetails.toggle()
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
 
                 if showDetails {
                     HiddenJavDBMovieDetailSummaryView(
@@ -657,7 +657,7 @@ struct HiddenJavDBMovieDetailView: View {
                         await openWatchSite(site: .missAV, pageURL: pageURL)
                     }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .disabled(isResolvingWatchPlayback)
 
                 switch issue.kind {
@@ -668,12 +668,12 @@ struct HiddenJavDBMovieDetailView: View {
                             url: pageURL
                         )
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glass)
                 case .missAVUnavailable:
                     NavigationLink(value: HiddenSpaceRoute.javDBSettings) {
                         Text(issue.secondaryActionTitle ?? "修改域名")
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glass)
                 default:
                     EmptyView()
                 }

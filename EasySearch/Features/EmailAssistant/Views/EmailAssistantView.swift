@@ -87,7 +87,7 @@ public struct EmailAssistantView: View {
                 Label("AI 配置", systemImage: "slider.horizontal.3")
                     .font(.footnote.weight(.semibold))
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.glass)
         }
         .esCard()
     }
@@ -226,7 +226,7 @@ public struct EmailAssistantView: View {
                         Label("清空对话", systemImage: "trash")
                             .font(.caption.weight(.semibold))
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glass)
                     .tint(.red)
                 }
             }
@@ -256,7 +256,7 @@ public struct EmailAssistantView: View {
                         screenshotPreviewImage = nil
                         viewModel.resetAll()
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glass)
 
                     Button {
                         Task {
@@ -274,7 +274,7 @@ public struct EmailAssistantView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, ESUI.Space.xs)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                     .disabled(!viewModel.canSend)
                 }
 
@@ -366,10 +366,6 @@ public struct EmailAssistantView: View {
             RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
                 .fill(ESUI.fill)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                .stroke(Color.primary.opacity(0.05), lineWidth: 1)
-        )
     }
 
     private func cropPreviewCard(_ image: UIImage) -> some View {
@@ -384,10 +380,6 @@ public struct EmailAssistantView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(maxHeight: 170)
                 .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
         }
     }
 
@@ -427,7 +419,7 @@ public struct EmailAssistantView: View {
                     viewModel.presentNotice(tone: .success, message: "已复制。")
                 }
                 .font(.caption.weight(.semibold))
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
             }
 
             Text(text)
@@ -440,10 +432,6 @@ public struct EmailAssistantView: View {
         .background(
             RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
                 .fill(ESUI.fill)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
         )
     }
 

@@ -260,7 +260,7 @@ private struct QingLongSubscriptionRow: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 9)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .tint(subscription.isRunning || subscription.isQueued ? .orange : .green)
                 .disabled(isPending || (!subscription.isEnabled && !subscription.isRunning && !subscription.isQueued))
 
@@ -281,7 +281,7 @@ private struct QingLongSubscriptionRow: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 9)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
                 .tint(.accentColor)
                 .disabled(isPending || isLogLoading || !subscription.hasLog)
 
@@ -295,7 +295,7 @@ private struct QingLongSubscriptionRow: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 9)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
                 .tint(.secondary)
                 .disabled(isPending)
             }
@@ -441,7 +441,7 @@ private struct QingLongCronWorkspace: View {
                     Label(sharedButtonTitle, systemImage: "shippingbox")
                         .font(.caption.weight(.semibold))
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
             }
 
             QingLongSearchField(text: $viewModel.cronSearchText, placeholder: "搜索任务")
@@ -635,7 +635,7 @@ private struct QingLongLinkedEnvironmentSummary: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, ESUI.Space.xs)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.glass)
             .tint(.blue)
         }
         .padding(.horizontal, ESUI.Space.sm)
@@ -792,7 +792,7 @@ struct QingLongEnvironmentEditorSheet: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.glass)
                         .tint(environment.isEnabled ? .orange : .green)
                         .disabled(isExistingEnvironmentPending || isSaving)
                     }
@@ -1081,7 +1081,7 @@ private struct QingLongCronSummaryCard: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glass)
                     .tint(.blue)
                     .disabled(isEnvironmentPending)
                 }
@@ -1122,7 +1122,7 @@ private struct QingLongCronSummaryCard: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.glassProminent)
         .tint(cron.isRunning ? .orange : .green)
         .disabled(isPending)
     }
@@ -1145,7 +1145,7 @@ private struct QingLongCronSummaryCard: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(.glass)
         .tint(.accentColor)
         .disabled(isPending || !cron.hasLog || isLogLoading)
     }
@@ -1161,7 +1161,7 @@ private struct QingLongCronSummaryCard: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(.glass)
         .tint(.secondary)
         .disabled(isPending)
     }
@@ -1211,7 +1211,7 @@ private struct QingLongCronScheduleCard: View {
                         Label("编辑", systemImage: "square.and.pencil")
                             .font(.caption.weight(.semibold))
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glass)
                     .tint(.blue)
                 }
 
@@ -1262,7 +1262,7 @@ private struct QingLongCronScriptCard<Destination: View>: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glass)
                     .tint(.blue)
                 }
             } else {
@@ -1649,10 +1649,6 @@ private struct QingLongSharedEnvironmentHeaderCard: View {
             RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
                 .fill(ESUI.surface)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-        )
     }
 
     private var summaryText: String {
@@ -1721,7 +1717,7 @@ private struct QingLongSharedEnvironmentRow: View {
                         .padding(.horizontal, ESUI.Space.sm)
                         .padding(.vertical, ESUI.Space.xs)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
                 .tint(environment.isEnabled ? .orange : .green)
                 .disabled(isPending)
 
@@ -1731,7 +1727,7 @@ private struct QingLongSharedEnvironmentRow: View {
                         .padding(.horizontal, ESUI.Space.sm)
                         .padding(.vertical, ESUI.Space.xs)
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
                 .tint(.blue)
 
                 Spacer(minLength: 0)

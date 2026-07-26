@@ -18,7 +18,7 @@ struct UtilitiesView: View {
                         title: "人民币 / 新台币",
                         summary: "实时汇率换算",
                         systemImage: "yensign.circle",
-                        color: Color(red: 0.35, green: 0.40, blue: 0.48)
+                        color: .gray
                     )
                 }
                 .buttonStyle(ESCardButtonStyle())

@@ -89,7 +89,7 @@ struct Hidden4KHDFeatureView: View {
                 Button("搜索") {
                     performAlbumSearch()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .disabled(viewModel.isSearchingAlbums || normalizedSearchQuery.isEmpty)
             }
 
@@ -156,7 +156,7 @@ struct Hidden4KHDFeatureView: View {
                         .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .disabled(viewModel.isLoadingRandomAlbum)
             } else {
                 VStack(spacing: ESUI.Space.sm) {
@@ -167,7 +167,7 @@ struct Hidden4KHDFeatureView: View {
                             await viewModel.loadRandomAlbums()
                         }
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.glass)
                 }
                 .frame(maxWidth: .infinity, minHeight: 200)
             }
@@ -286,7 +286,7 @@ struct Hidden4KHDFavoritesView: View {
                         .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .disabled(isLoadingRandomFavorite)
             } else if isLoadingRandomFavorite {
                 ESLoadingState(message: "正在汇总喜欢图片…")
@@ -657,11 +657,11 @@ private struct HiddenPagedFavoritesControls: View {
             Spacer()
 
             Button("上一页", action: onPrevious)
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
                 .disabled(!canGoPrevious)
 
             Button("下一页", action: onNext)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
                 .disabled(!canGoNext)
         }
     }

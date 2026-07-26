@@ -152,7 +152,7 @@ struct WebDAVPreviewView: View {
                 ShareLink(item: url) {
                     Label("用其他 App 打开", systemImage: "square.and.arrow.up")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glassProminent)
             }
             .padding(20)
         }

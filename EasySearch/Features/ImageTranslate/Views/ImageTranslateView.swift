@@ -501,7 +501,7 @@ public struct ImageTranslateView: View {
                     Label("复制", systemImage: "doc.on.doc")
                         .font(.caption.weight(.semibold))
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.glass)
             }
 
             VStack(alignment: .leading, spacing: ESUI.Space.sm) {

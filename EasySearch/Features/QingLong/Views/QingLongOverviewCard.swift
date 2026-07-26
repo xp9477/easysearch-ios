@@ -92,7 +92,7 @@ struct QingLongOverviewCard: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, ESUI.Space.xs)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
                     .disabled(viewModel.isRefreshing || viewModel.isConnecting)
 
                     if let openPanelAction {
@@ -102,7 +102,7 @@ struct QingLongOverviewCard: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, ESUI.Space.xs)
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.glass)
                     }
                 }
             }
