@@ -86,11 +86,54 @@ enum ESHaptics {
 
 // MARK: - Motion
 
+/// 动效 token。遵循两条硬规则:
+/// 1. UI 动画一律 < 300ms,越频繁的操作动得越少;
+/// 2. 开启「减弱动态效果」时降级为纯淡入淡出,绝不 spring / 位移。
 enum ESMotion {
-    /// 轻量按压/展开动效。
-    static let quick = Animation.spring(response: 0.26, dampingFraction: 0.86)
-    /// 内容出现/切换。
-    static let content = Animation.spring(response: 0.34, dampingFraction: 0.9)
+    private static var reduceMotion: Bool {
+        UIAccessibility.isReduceMotionEnabled
+    }
+
+    /// 按压反馈:高频动作动得越少越好,固定 140ms ease-out。
+    static var press: Animation {
+        .easeOut(duration: 0.14)
+    }
+
+    /// 高频切换(分类、日期、状态胶囊)。
+    static var quick: Animation {
+        reduceMotion ? .linear(duration: 0.12) : .spring(duration: 0.24, bounce: 0)
+    }
+
+    /// 内容出现、结果切换等低频转场。
+    static var content: Animation {
+        reduceMotion ? .easeOut(duration: 0.16) : .spring(duration: 0.32, bounce: 0.08)
+    }
+
+    /// 进度条、环形进度等数值补间。
+    static var value: Animation {
+        reduceMotion ? .linear(duration: 0.16) : .spring(duration: 0.45, bounce: 0)
+    }
+
+    /// 内容插入/移除的过渡:减弱动态时只做淡入淡出。
+    static var appear: AnyTransition {
+        reduceMotion
+            ? .opacity
+            : .opacity.combined(with: .move(edge: .bottom))
+    }
+
+    /// 顶部横幅/toast。
+    static var reduceMotionSafeTopBanner: AnyTransition {
+        reduceMotion
+            ? .opacity
+            : .opacity.combined(with: .move(edge: .top))
+    }
+
+    /// 元素在原地出现(译文卡、气泡)。永不从 scale(0) 开始。
+    static var pop: AnyTransition {
+        reduceMotion
+            ? .opacity
+            : .opacity.combined(with: .scale(scale: 0.96))
+    }
 }
 
 // MARK: - Button Style
@@ -100,9 +143,9 @@ struct ESCardButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .opacity(configuration.isPressed ? 0.86 : 1)
+            .opacity(configuration.isPressed ? 0.9 : 1)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(ESMotion.quick, value: configuration.isPressed)
+            .animation(ESMotion.press, value: configuration.isPressed)
             .onChange(of: configuration.isPressed) { isPressed in
                 guard haptics, isPressed else { return }
                 ESHaptics.tap()

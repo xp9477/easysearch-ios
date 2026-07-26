@@ -102,7 +102,9 @@ public struct EmailAssistantView: View {
         .onAppear {
             hasConfiguredAPIKey = AIConfigurationStore.shared.loadConfiguration().hasAPIKey
         }
-        .onChange(of: viewModel.completedConversation.count) { _ in
+        .onChange(of: viewModel.isGenerating) { isGenerating in
+            // 只在一次生成真正完成时反馈,避免发送用户消息时误触。
+            guard !isGenerating, viewModel.hasConversation else { return }
             ESHaptics.success()
         }
         .onChange(of: viewModel.notice) { notice in
@@ -144,7 +146,7 @@ public struct EmailAssistantView: View {
                             ForEach(viewModel.completedConversation) { message in
                                 messageRow(message)
                                     .id(message.id)
-                                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                                    .transition(ESMotion.appear)
                             }
                         }
 
@@ -172,7 +174,7 @@ public struct EmailAssistantView: View {
     private var generatingAnchorID: String { "generating-anchor" }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy) {
-        withAnimation(.easeOut(duration: 0.25)) {
+        withAnimation(ESMotion.content) {
             if viewModel.isGenerating {
                 proxy.scrollTo(generatingAnchorID, anchor: .bottom)
             } else if let last = viewModel.completedConversation.last {

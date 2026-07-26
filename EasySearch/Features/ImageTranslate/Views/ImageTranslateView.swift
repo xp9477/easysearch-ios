@@ -57,7 +57,7 @@ public struct ImageTranslateView: View {
 
                     if viewModel.hasTranslation {
                         translationCard
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                            .transition(ESMotion.pop)
                     }
                 }
                 .padding(.horizontal, ESUI.screenHorizontalPadding)
@@ -104,7 +104,7 @@ public struct ImageTranslateView: View {
                 noticeToast(notice)
                     .padding(.horizontal, ESUI.screenHorizontalPadding)
                     .padding(.top, ESUI.Space.xs)
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(ESMotion.reduceMotionSafeTopBanner)
             }
         }
         .animation(ESMotion.content, value: viewModel.notice)

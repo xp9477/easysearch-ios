@@ -376,7 +376,7 @@ private extension DashboardView {
                 )
             }
             .buttonStyle(.plain)
-            .transition(.opacity.combined(with: .move(edge: .top)))
+            .transition(ESMotion.reduceMotionSafeTopBanner)
         }
     }
 }

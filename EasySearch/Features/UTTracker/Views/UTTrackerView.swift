@@ -69,7 +69,7 @@ public struct UTTrackerView: View {
                             style: StrokeStyle(lineWidth: 10, lineCap: .round)
                         )
                         .rotationEffect(.degrees(-90))
-                        .animation(.spring(response: 0.5, dampingFraction: 0.9), value: progress)
+                        .animation(ESMotion.value, value: progress)
 
                     VStack(spacing: 0) {
                         Text(percentText(for: summary.targetProgress))
