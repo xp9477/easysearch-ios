@@ -1,3 +1,4 @@
+import UIKit
 import SwiftUI
 
 public struct TrainingLogView: View {
@@ -195,11 +196,31 @@ public struct TrainingLogView: View {
                 }
             }
 
-            ESPrimaryCTA(
-                title: "添加动作",
-                systemImage: "plus.circle.fill",
-                action: { showingAddLine = true }
-            )
+            HStack(spacing: ESUI.Space.sm) {
+                Button {
+                    showingAddLine = true
+                } label: {
+                    Label("添加动作", systemImage: "plus.circle.fill")
+                        .font(.body.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, ESUI.Space.xs)
+                }
+                .buttonStyle(.glassProminent)
+
+                if viewModel.lastTrainedDay(before: viewModel.selectedDay) != nil {
+                    Button {
+                        if viewModel.repeatLastWorkout() {
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        }
+                    } label: {
+                        Label("重复上次", systemImage: "arrow.counterclockwise")
+                            .font(.body.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, ESUI.Space.xs)
+                    }
+                    .buttonStyle(.glass)
+                }
+            }
 
             if !viewModel.selectedLines.isEmpty {
                 Button(role: .destructive) {

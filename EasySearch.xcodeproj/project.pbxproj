@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D00D9A381C53C800921C6BAC /* ExpenseAssistantMarkOverdueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4646F906A597F1920A4801F6 /* ExpenseAssistantMarkOverdueTests.swift */; };
+		4B340B0FC56B67FCC38D8CB1 /* TrainingLogRepeatWorkoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409E3F66D770693C4E471DC9 /* TrainingLogRepeatWorkoutTests.swift */; };
 		82F5A334AA8EBA0FA8FB2618 /* DashboardTodaySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAE0F136D3E546ED1089E952 /* DashboardTodaySection.swift */; };
 		06DCDABF4557789B9FBF046F /* CurrencyFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBEB7492C5DED403E3AAAB4 /* CurrencyFeature.swift */; };
 		80AFE97CC743592B5C4F0EF9 /* AIAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C659529B18ADF13CD86CA80F /* AIAssistantView.swift */; };
@@ -171,6 +173,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		4646F906A597F1920A4801F6 /* ExpenseAssistantMarkOverdueTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantMarkOverdueTests.swift; path = EasySearchTests/ExpenseAssistantMarkOverdueTests.swift; sourceTree = SOURCE_ROOT; };
+		409E3F66D770693C4E471DC9 /* TrainingLogRepeatWorkoutTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrainingLogRepeatWorkoutTests.swift; path = EasySearchTests/TrainingLogRepeatWorkoutTests.swift; sourceTree = SOURCE_ROOT; };
 		EAE0F136D3E546ED1089E952 /* DashboardTodaySection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DashboardTodaySection.swift; path = EasySearch/Features/Dashboard/Views/DashboardTodaySection.swift; sourceTree = SOURCE_ROOT; };
 		3CBEB7492C5DED403E3AAAB4 /* CurrencyFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CurrencyFeature.swift; path = EasySearch/Features/Utilities/CurrencyFeature.swift; sourceTree = SOURCE_ROOT; };
 		C659529B18ADF13CD86CA80F /* AIAssistantView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AIAssistantView.swift; path = EasySearch/Features/AIAssistant/AIAssistantView.swift; sourceTree = SOURCE_ROOT; };
@@ -514,6 +518,8 @@
 		B924F2B5DBEE2D8D30100156 /* EasySearchTests */ = {
 			isa = PBXGroup;
 			children = (
+				4646F906A597F1920A4801F6 /* ExpenseAssistantMarkOverdueTests.swift */,
+				409E3F66D770693C4E471DC9 /* TrainingLogRepeatWorkoutTests.swift */,
 				F5FBB6B3F3C019DD9B453577 /* SearchEngineUsageStoreTests.swift */,
 				9A79591701176A19AE5D8AAA /* SearchHistoryStoreTests.swift */,
 				F40000000000000000000114 /* WebDAVClientTests.swift */,
@@ -1110,6 +1116,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D00D9A381C53C800921C6BAC /* ExpenseAssistantMarkOverdueTests.swift in Sources */,
+				4B340B0FC56B67FCC38D8CB1 /* TrainingLogRepeatWorkoutTests.swift in Sources */,
 				331AB74744F432C47AD1BFB6 /* SearchEngineUsageStoreTests.swift in Sources */,
 				7266B44E95760BE7B3328C3C /* SearchHistoryStoreTests.swift in Sources */,
 				F40000000000000000000011 /* WebDAVClientTests.swift in Sources */,

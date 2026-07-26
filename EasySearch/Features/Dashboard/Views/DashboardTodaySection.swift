@@ -30,11 +30,11 @@ struct DashboardTodaySection: View {
             attentionBanner
         }
         .confirmationDialog(
-            "把所有逾期项标记为已提交?",
+            "把所有逾期项标记为已完成?",
             isPresented: $showingExpenseConfirm,
             titleVisibility: .visible
         ) {
-            Button("全部标记已提交") {
+            Button("全部标记已完成") {
                 expenseViewModel.markAllOverdueSubmitted()
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             }
@@ -200,7 +200,7 @@ struct DashboardTodaySection: View {
                 Button {
                     showingExpenseConfirm = true
                 } label: {
-                    Text("全部已提交")
+                    Text("全部已完成")
                         .font(.footnote.weight(.semibold))
                 }
                 .buttonStyle(.glass)

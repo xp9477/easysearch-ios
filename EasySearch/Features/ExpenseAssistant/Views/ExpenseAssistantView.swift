@@ -137,8 +137,33 @@ public struct ExpenseAssistantView: View {
                     NavigationLink(value: claim) {
                         MonthlyClaimRow(
                             claim: claim,
-                            isOverdue: viewModel.overdueMonthlyClaimIDs.contains(claim.id)
+                            isOverdue: viewModel.overdueMonthlyClaimIDs.contains(claim.id),
+                            onCycleStatus: { field in
+                                let current = claim.status(for: field)
+                                viewModel.updateMonthlyStatus(
+                                    claimID: claim.id,
+                                    field: field,
+                                    status: current.nextCycled
+                                )
+                            }
                         )
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if !claim.isCompleted {
+                            Button {
+                                for field in MonthlyExpenseField.allCases
+                                where !claim.status(for: field).isResolved {
+                                    viewModel.updateMonthlyStatus(
+                                        claimID: claim.id,
+                                        field: field,
+                                        status: .completed
+                                    )
+                                }
+                            } label: {
+                                Label("全部完成", systemImage: "checkmark.circle.fill")
+                            }
+                            .tint(.green)
+                        }
                     }
                 }
             }
@@ -207,6 +232,7 @@ public struct ExpenseAssistantView: View {
 private struct MonthlyClaimRow: View {
     let claim: MonthlyExpenseClaim
     let isOverdue: Bool
+    let onCycleStatus: (MonthlyExpenseField) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: ESUI.Space.xs) {
@@ -222,19 +248,86 @@ private struct MonthlyClaimRow: View {
                 }
             }
 
-            Text(claimSummaryText)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            HStack(spacing: ESUI.Space.xs) {
+                ForEach(MonthlyExpenseField.allCases) { field in
+                    statusCapsule(field)
+                }
+            }
         }
         .padding(.vertical, ESUI.Space.xxs)
     }
 
-    private var claimSummaryText: String {
-        if claim.isCompleted {
-            return "4 项已处理完成"
+    private func statusCapsule(_ field: MonthlyExpenseField) -> some View {
+        let status = claim.status(for: field)
+        return Button {
+            onCycleStatus(field)
+        } label: {
+            VStack(spacing: 2) {
+                Image(systemName: status.capsuleSymbol)
+                    .font(.caption.weight(.semibold))
+                Text(field.shortTitle)
+                    .font(.caption2.weight(.medium))
+            }
+            .foregroundStyle(status.capsuleColor)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(status.capsuleColor.opacity(0.12))
+            )
         }
+        .buttonStyle(.borderless)
+        .accessibilityLabel("\(field.title)\(status.title)，点击切换")
+    }
+}
 
-        return "\(claim.completedItemCount)/4 项已处理"
+private extension MonthlyExpenseField {
+    var shortTitle: String {
+        switch self {
+        case .taxi:
+            return "打车"
+        case .parking:
+            return "停车"
+        case .phoneBill:
+            return "话费"
+        case .misc:
+            return "杂费"
+        }
+    }
+}
+
+extension ExpenseClaimItemStatus {
+    var nextCycled: ExpenseClaimItemStatus {
+        switch self {
+        case .pending:
+            return .completed
+        case .completed:
+            return .notNeeded
+        case .notNeeded:
+            return .pending
+        }
+    }
+
+    var capsuleSymbol: String {
+        switch self {
+        case .pending:
+            return "circle"
+        case .completed:
+            return "checkmark.circle.fill"
+        case .notNeeded:
+            return "minus.circle"
+        }
+    }
+
+    var capsuleColor: Color {
+        switch self {
+        case .pending:
+            return .orange
+        case .completed:
+            return .green
+        case .notNeeded:
+            return .secondary
+        }
     }
 }
 

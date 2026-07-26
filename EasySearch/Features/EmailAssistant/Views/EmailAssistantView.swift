@@ -8,6 +8,7 @@ public struct EmailAssistantView: View {
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var cropSource: EmailAssistantCropSource?
     @State private var screenshotPreviewImage: UIImage?
+    @State private var hasConfiguredAPIKey = true
 
     public init() {}
 
@@ -20,8 +21,19 @@ public struct EmailAssistantView: View {
                     featureID: "email-assistant",
                     systemImage: "envelope.badge"
                 )
-                contextCard
-                conversationCard
+                if hasConfiguredAPIKey {
+                    contextCard
+                    conversationCard
+                } else {
+                    ESNeedsSetupState(
+                        title: "尚未配置 AI",
+                        message: "邮件助手需要 AI API Key 才能生成内容。",
+                        actionTitle: "去配置"
+                    ) {
+                        navigationState.openSettings(.emailAssistant)
+                    }
+                    .esCard()
+                }
             }
             .padding(.horizontal, ESUI.screenHorizontalPadding)
             .padding(.top, ESUI.Space.md)
@@ -33,6 +45,10 @@ public struct EmailAssistantView: View {
         .scrollDismissesKeyboard(.interactively)
         .task {
             await viewModel.prepare()
+            hasConfiguredAPIKey = AIConfigurationStore.shared.loadConfiguration().hasAPIKey
+        }
+        .onAppear {
+            hasConfiguredAPIKey = AIConfigurationStore.shared.loadConfiguration().hasAPIKey
         }
         .sheet(item: $cropSource) { source in
             EmailAssistantCropImageEditor(image: source.image) { selection in
