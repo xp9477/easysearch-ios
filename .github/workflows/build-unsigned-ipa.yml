@@ -91,6 +91,7 @@ jobs:
           S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
           S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
           S3_PUBLIC_BASE_URL: ${{ secrets.S3_PUBLIC_BASE_URL }}
+          EVENT_BEFORE: ${{ github.event.before }}
         run: |
           set -euo pipefail
 
@@ -110,13 +111,56 @@ jobs:
           fi
           IPA_PUBLIC_URL="${PUBLIC_BASE}/EasySearch-unsigned.ipa"
           RELEASED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          NOTES="GitHub run #${GITHUB_RUN_NUMBER} (${GITHUB_SHA::7})"
 
           VERSION="$VERSION" BUILD="$BUILD" IPA_PUBLIC_URL="$IPA_PUBLIC_URL" \
-          RELEASED_AT="$RELEASED_AT" NOTES="$NOTES" \
+          RELEASED_AT="$RELEASED_AT" EVENT_BEFORE="${EVENT_BEFORE:-}" \
           python3 - <<'PY' > latest.json
           import json
           import os
+          import subprocess
+
+          def git_output(*args: str) -> str:
+              try:
+                  return subprocess.check_output(["git", *args], text=True).strip()
+              except subprocess.CalledProcessError:
+                  return ""
+
+          def build_release_notes() -> str:
+              """Human-readable update notes for in-app 检测更新 (not GitHub run IDs)."""
+              before = (os.environ.get("EVENT_BEFORE") or "").strip()
+              sha_zero = "0" * 40
+              subjects: list[str] = []
+
+              if before and before != sha_zero and git_output("cat-file", "-t", before) == "commit":
+                  log = git_output("log", "--reverse", "--pretty=format:%s", f"{before}..HEAD")
+                  subjects = [line.strip() for line in log.splitlines() if line.strip()]
+
+              if not subjects:
+                  subject = git_output("log", "-1", "--pretty=format:%s")
+                  body = git_output("log", "-1", "--pretty=format:%b")
+                  parts: list[str] = []
+                  if subject:
+                      parts.append(subject)
+                  if body:
+                      # Drop empty trailing lines from conventional commit bodies.
+                      body_lines = [line.rstrip() for line in body.splitlines()]
+                      while body_lines and not body_lines[-1]:
+                          body_lines.pop()
+                      while body_lines and not body_lines[0]:
+                          body_lines.pop(0)
+                      if body_lines:
+                          if parts:
+                              parts.append("")
+                          parts.extend(body_lines)
+                  notes = "\n".join(parts).strip()
+              else:
+                  # One bullet per commit in this push.
+                  notes = "\n".join(f"• {s}" for s in subjects)
+
+              notes = notes.strip() or "版本更新"
+              if len(notes) > 2000:
+                  notes = notes[:1997] + "..."
+              return notes
 
           build = os.environ["BUILD"]
           print(json.dumps({
@@ -125,7 +169,7 @@ jobs:
               "buildNumber": int(build) if str(build).isdigit() else 0,
               "ipaURL": os.environ["IPA_PUBLIC_URL"],
               "releasedAt": os.environ["RELEASED_AT"],
-              "notes": os.environ["NOTES"],
+              "notes": build_release_notes(),
           }, ensure_ascii=False, indent=2))
           PY
 

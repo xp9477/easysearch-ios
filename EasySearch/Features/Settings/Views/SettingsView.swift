@@ -63,39 +63,8 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                         .disabled(appUpdateService.isChecking || appUpdateService.isDownloading)
 
-                        if case let .updateAvailable(_, remote) = appUpdateService.lastResult {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("新版本 \(remote.displayVersion)")
-                                    .font(.subheadline.weight(.semibold))
-                                if let notes = remote.notes?.trimmingCharacters(in: .whitespacesAndNewlines),
-                                   !notes.isEmpty {
-                                    Text(notes)
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                Button {
-                                    Task {
-                                        if let fileURL = await appUpdateService.downloadLatestIPA() {
-                                            appUpdateService.presentShareSheet(for: fileURL)
-                                        }
-                                    }
-                                } label: {
-                                    HStack {
-                                        Text(appUpdateService.isDownloading ? "下载中…" : "下载并分享到签名工具")
-                                            .font(.subheadline.weight(.semibold))
-                                        Spacer()
-                                        if appUpdateService.isDownloading {
-                                            ProgressView(value: appUpdateService.downloadProgress)
-                                                .frame(width: 80)
-                                        }
-                                    }
-                                    .padding(.vertical, 4)
-                                }
-                                .disabled(appUpdateService.isDownloading)
-                            }
-                            .padding(.horizontal, 4)
-                            .padding(.top, 4)
+                        if let lastResult = appUpdateService.lastResult {
+                            updateResultSection(lastResult)
                         }
 
                         if let message = appUpdateService.statusMessage?
@@ -148,6 +117,75 @@ struct SettingsView: View {
 
             VStack(spacing: ESUI.Space.sm) {
                 content()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func updateResultSection(_ result: AppUpdateCheckResult) -> some View {
+        switch result {
+        case let .updateAvailable(_, remote):
+            VStack(alignment: .leading, spacing: 8) {
+                Text("新版本 \(remote.displayVersion)")
+                    .font(.subheadline.weight(.semibold))
+
+                updateNotesBlock(remote.notes)
+
+                Button {
+                    Task {
+                        if let fileURL = await appUpdateService.downloadLatestIPA() {
+                            appUpdateService.presentShareSheet(for: fileURL)
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(appUpdateService.isDownloading ? "下载中…" : "下载并分享到签名工具")
+                            .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        if appUpdateService.isDownloading {
+                            ProgressView(value: appUpdateService.downloadProgress)
+                                .frame(width: 80)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .disabled(appUpdateService.isDownloading)
+            }
+            .padding(.horizontal, 4)
+            .padding(.top, 4)
+
+        case let .upToDate(_, remote):
+            // Still show latest release notes so users know what landed in the current build.
+            if let notes = remote.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("当前版本说明")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(notes)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 4)
+                .padding(.top, 4)
+            }
+
+        case .unavailable:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func updateNotesBlock(_ notes: String?) -> some View {
+        if let notes = notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("更新内容")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(notes)
+                    .font(.footnote)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
