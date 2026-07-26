@@ -57,6 +57,7 @@ public struct ImageTranslateView: View {
 
                     if viewModel.hasTranslation {
                         translationCard
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
                     }
                 }
                 .padding(.horizontal, ESUI.screenHorizontalPadding)
@@ -106,8 +107,17 @@ public struct ImageTranslateView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.3, dampingFraction: 0.9), value: viewModel.notice)
-        .animation(.spring(response: 0.3, dampingFraction: 0.9), value: viewModel.latestTranslation)
+        .animation(ESMotion.content, value: viewModel.notice)
+        .animation(ESMotion.content, value: viewModel.latestTranslation)
+        .animation(ESMotion.quick, value: viewModel.selectedImage)
+        .onChange(of: viewModel.notice) { notice in
+            guard let notice else { return }
+            switch notice.tone {
+            case .success: ESHaptics.success()
+            case .caution: ESHaptics.warning()
+            case .neutral: break
+            }
+        }
         .task {
             await viewModel.prepare()
             if !viewModel.hasTranslation && !hasInputText && viewModel.selectedImage == nil {
@@ -168,6 +178,7 @@ public struct ImageTranslateView: View {
             languageSegment(title: sourceLanguageTitle, isActive: false)
 
             Button {
+                ESHaptics.selection()
                 Task { await swapLanguages() }
             } label: {
                 Image(systemName: "arrow.left.arrow.right")
@@ -295,6 +306,7 @@ public struct ImageTranslateView: View {
     private var submitButton: some View {
         Button {
             isInputFocused = false
+            ESHaptics.tap()
             Task {
                 if hasInputText {
                     await viewModel.translateCurrentText()
@@ -385,6 +397,7 @@ public struct ImageTranslateView: View {
                 Spacer(minLength: 0)
 
                 Button {
+                    ESHaptics.tap()
                     viewModel.copyText(viewModel.latestTranslation, successMessage: "已复制译文。")
                 } label: {
                     Image(systemName: "doc.on.doc")
@@ -460,7 +473,10 @@ public struct ImageTranslateView: View {
         trailing: String,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        Button {
+            ESHaptics.tap()
+            action()
+        } label: {
             HStack(spacing: ESUI.Space.sm) {
                 Image(systemName: systemImage)
                     .font(.system(size: 13, weight: .semibold))
@@ -528,7 +544,10 @@ public struct ImageTranslateView: View {
         systemImage: String,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        Button {
+            ESHaptics.tap()
+            action()
+        } label: {
             VStack(spacing: 5) {
                 Image(systemName: systemImage)
                     .font(.system(size: 19, weight: .medium))

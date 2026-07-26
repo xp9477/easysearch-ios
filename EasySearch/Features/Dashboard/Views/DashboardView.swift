@@ -27,11 +27,7 @@ public struct DashboardView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
-                    DashboardTodaySection { featureID in
-                        if let feature = moduleFeatures.first(where: { $0.id == featureID }) {
-                            openFeature(feature)
-                        }
-                    }
+                    attentionBanner
 
                     if moduleFeatures.isEmpty && unlockedHiddenFeatures.isEmpty {
                         ESEmptyState(
@@ -226,9 +222,16 @@ public struct DashboardView: View {
     }
 
     private func moduleTile(for feature: any AppFeature, isPrivate: Bool, isWide: Bool = false) -> some View {
-        let customIcon: AnyView? = feature.id == "uttracker"
-            ? AnyView(UTModuleProgressIcon(color: feature.color))
-            : nil
+        let customIcon: AnyView? = {
+            switch feature.id {
+            case "uttracker":
+                return AnyView(UTModuleProgressIcon(color: feature.color))
+            case "training-log":
+                return AnyView(TrainingModuleStatusIcon(color: feature.color))
+            default:
+                return nil
+            }
+        }()
         let badge: Int? = feature.id == "expense-assistant" ? expensePendingCount : nil
 
         return ESModuleTile(
@@ -353,6 +356,92 @@ public struct DashboardView: View {
         case let .javDBMovie(movie):
             HiddenJavDBMovieDetailView(movie: movie, viewModel: hiddenJavDBViewModel, presentationState: hiddenPresentationState)
         }
+    }
+}
+
+// MARK: - Attention Banner
+
+private extension DashboardView {
+    @ViewBuilder
+    var attentionBanner: some View {
+        if statusCenter.cloudSummary.kind == .recoverableFailure
+            || statusCenter.cloudSummary.kind == .offlineOrUnavailable {
+            Button {
+                navigationState.openSettings(.cloudSync)
+            } label: {
+                ESStatusBanner(
+                    title: "云同步异常:\(statusCenter.cloudSummary.text)",
+                    systemImage: "icloud.slash",
+                    tone: .danger
+                )
+            }
+            .buttonStyle(.plain)
+            .transition(.opacity.combined(with: .move(edge: .top)))
+        }
+    }
+}
+
+// MARK: - Training Status Icon
+
+private struct TrainingModuleStatusIcon: View {
+    let color: Color
+
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var trainedToday = false
+    @State private var monthDayCount = 0
+
+    var body: some View {
+        ZStack(alignment: .bottomTrailing) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(trainedToday ? 0.16 : 0.1))
+                    .frame(width: 40, height: 40)
+
+                Image(systemName: trainedToday ? "flame.fill" : "flame")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(trainedToday ? color : Color.secondary)
+                    .contentTransition(.symbolEffect(.replace))
+            }
+
+            if trainedToday {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(ESUI.success)
+                    .background(Circle().fill(ESUI.surface).frame(width: 12, height: 12))
+                    .offset(x: 3, y: 2)
+            } else if monthDayCount > 0 {
+                Text("\(monthDayCount)")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(ESUI.fill))
+                    .offset(x: 4, y: 2)
+            }
+        }
+        .frame(width: 40, height: 40)
+        .animation(ESMotion.quick, value: trainedToday)
+        .onAppear { refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: .trainingLogDidChange)) { _ in
+            refresh()
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active { refresh() }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("训练记录")
+        .accessibilityValue(trainedToday ? "今天已训练" : "本月 \(monthDayCount) 天")
+    }
+
+    private func refresh() {
+        let snapshot = TrainingLogLocalStore().loadSnapshot()
+        let todayKey = TrainingLogCalendar.dayKey(for: Date())
+        trainedToday = (snapshot.days[todayKey]?.lines.isEmpty == false)
+
+        let monthPrefix = String(todayKey.prefix(7))
+        monthDayCount = snapshot.days
+            .filter { $0.key.hasPrefix(monthPrefix) && !$0.value.lines.isEmpty }
+            .count
     }
 }
 

@@ -33,6 +33,7 @@ public struct TrainingLogView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
+                    ESHaptics.tap()
                     viewModel.jumpToToday()
                 } label: {
                     Text("今天")
@@ -43,6 +44,7 @@ public struct TrainingLogView: View {
         .sheet(isPresented: $showingAddLine) {
             AddWorkoutLineSheet { exercise, amount in
                 viewModel.addLine(exercise: exercise, amount: amount)
+                ESHaptics.success()
             }
         }
     }
@@ -53,6 +55,7 @@ public struct TrainingLogView: View {
         VStack(alignment: .leading, spacing: ESUI.Space.md) {
             HStack(spacing: ESUI.Space.sm) {
                 Button {
+                    ESHaptics.selection()
                     viewModel.shiftMonth(by: -1)
                 } label: {
                     Image(systemName: "chevron.left")
@@ -73,6 +76,7 @@ public struct TrainingLogView: View {
                 Spacer(minLength: ESUI.Space.xs)
 
                 Button {
+                    ESHaptics.selection()
                     viewModel.shiftMonth(by: 1)
                 } label: {
                     Image(systemName: "chevron.right")
@@ -122,7 +126,10 @@ public struct TrainingLogView: View {
         let accent = ESUI.moduleColor(for: featureID)
 
         return Button {
-            viewModel.selectDay(date)
+            ESHaptics.selection()
+            withAnimation(ESMotion.quick) {
+                viewModel.selectDay(date)
+            }
         } label: {
             VStack(spacing: 4) {
                 Text("\(dayNumber)")
@@ -198,6 +205,7 @@ public struct TrainingLogView: View {
 
             HStack(spacing: ESUI.Space.sm) {
                 Button {
+                    ESHaptics.tap()
                     showingAddLine = true
                 } label: {
                     Label("添加动作", systemImage: "plus.circle.fill")
@@ -210,7 +218,9 @@ public struct TrainingLogView: View {
                 if viewModel.lastTrainedDay(before: viewModel.selectedDay) != nil {
                     Button {
                         if viewModel.repeatLastWorkout() {
-                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            ESHaptics.success()
+                        } else {
+                            ESHaptics.warning()
                         }
                     } label: {
                         Label("重复上次", systemImage: "arrow.counterclockwise")
@@ -224,6 +234,7 @@ public struct TrainingLogView: View {
 
             if !viewModel.selectedLines.isEmpty {
                 Button(role: .destructive) {
+                    ESHaptics.impact(.rigid)
                     viewModel.clearSelectedDay()
                 } label: {
                     Text("清空当天")
@@ -250,6 +261,7 @@ public struct TrainingLogView: View {
             Spacer(minLength: ESUI.Space.xs)
 
             Button {
+                ESHaptics.tap()
                 viewModel.addAnotherSet(from: line)
             } label: {
                 Text("再一组")
@@ -261,6 +273,7 @@ public struct TrainingLogView: View {
             .buttonStyle(.plain)
 
             Button(role: .destructive) {
+                ESHaptics.impact(.rigid)
                 viewModel.deleteLine(id: line.id)
             } label: {
                 Image(systemName: "trash")

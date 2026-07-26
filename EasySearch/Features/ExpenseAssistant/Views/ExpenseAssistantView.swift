@@ -159,6 +159,7 @@ public struct ExpenseAssistantView: View {
                                         status: .completed
                                     )
                                 }
+                                ESHaptics.success()
                             } label: {
                                 Label("全部完成", systemImage: "checkmark.circle.fill")
                             }
@@ -260,6 +261,7 @@ private struct MonthlyClaimRow: View {
     private func statusCapsule(_ field: MonthlyExpenseField) -> some View {
         let status = claim.status(for: field)
         return Button {
+            ESHaptics.selection()
             onCycleStatus(field)
         } label: {
             VStack(spacing: 2) {
@@ -275,6 +277,8 @@ private struct MonthlyClaimRow: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(status.capsuleColor.opacity(0.12))
             )
+            .contentTransition(.symbolEffect(.replace))
+            .animation(ESMotion.quick, value: status)
         }
         .buttonStyle(.borderless)
         .accessibilityLabel("\(field.title)\(status.title)，点击切换")

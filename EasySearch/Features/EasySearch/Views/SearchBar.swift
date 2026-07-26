@@ -3,7 +3,9 @@ import SwiftUI
 struct SearchBar: View {
     @Binding var text: String
     var isFocused: FocusState<Bool>.Binding
+    var showsClipboardAction: Bool = false
     var onSubmit: () -> Void
+    var onPasteClipboard: () -> Void = {}
 
     var body: some View {
         HStack(spacing: ESUI.Space.sm) {
@@ -23,17 +25,31 @@ struct SearchBar: View {
             if !text.isEmpty {
                 Button {
                     text = ""
+                    ESHaptics.tap()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
+                .transition(.opacity.combined(with: .scale(scale: 0.8)))
                 .accessibilityLabel("清除")
+            } else if showsClipboardAction {
+                Button(action: onPasteClipboard) {
+                    Image(systemName: "doc.on.clipboard")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                .accessibilityLabel("粘贴剪贴板内容")
             }
         }
         .padding(.horizontal, ESUI.Space.md)
         .frame(maxWidth: .infinity, minHeight: 48)
         .glassEffect(.regular, in: .capsule)
+        .animation(ESMotion.quick, value: text.isEmpty)
         .animation(.easeOut(duration: 0.15), value: isFocused.wrappedValue)
         .accessibilityElement(children: .contain)
     }

@@ -25,7 +25,6 @@
 		D6EE2B6924FDC2E8D749EAFA /* AppGroupStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D162DF46FC74A1346E743D8B /* AppGroupStorage.swift */; };
 		D00D9A381C53C800921C6BAC /* ExpenseAssistantMarkOverdueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4646F906A597F1920A4801F6 /* ExpenseAssistantMarkOverdueTests.swift */; };
 		4B340B0FC56B67FCC38D8CB1 /* TrainingLogRepeatWorkoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409E3F66D770693C4E471DC9 /* TrainingLogRepeatWorkoutTests.swift */; };
-		82F5A334AA8EBA0FA8FB2618 /* DashboardTodaySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAE0F136D3E546ED1089E952 /* DashboardTodaySection.swift */; };
 		06DCDABF4557789B9FBF046F /* CurrencyFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBEB7492C5DED403E3AAAB4 /* CurrencyFeature.swift */; };
 		80AFE97CC743592B5C4F0EF9 /* AIAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C659529B18ADF13CD86CA80F /* AIAssistantView.swift */; };
 		27972158FBC629B24B91CF78 /* AIAssistantFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184257EDD42B0873CBFBEFF8 /* AIAssistantFeature.swift */; };
@@ -210,7 +209,6 @@
 		D162DF46FC74A1346E743D8B /* AppGroupStorage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppGroupStorage.swift; path = EasySearch/Core/Architecture/AppGroupStorage.swift; sourceTree = SOURCE_ROOT; };
 		4646F906A597F1920A4801F6 /* ExpenseAssistantMarkOverdueTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantMarkOverdueTests.swift; path = EasySearchTests/ExpenseAssistantMarkOverdueTests.swift; sourceTree = SOURCE_ROOT; };
 		409E3F66D770693C4E471DC9 /* TrainingLogRepeatWorkoutTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrainingLogRepeatWorkoutTests.swift; path = EasySearchTests/TrainingLogRepeatWorkoutTests.swift; sourceTree = SOURCE_ROOT; };
-		EAE0F136D3E546ED1089E952 /* DashboardTodaySection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DashboardTodaySection.swift; path = EasySearch/Features/Dashboard/Views/DashboardTodaySection.swift; sourceTree = SOURCE_ROOT; };
 		3CBEB7492C5DED403E3AAAB4 /* CurrencyFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CurrencyFeature.swift; path = EasySearch/Features/Utilities/CurrencyFeature.swift; sourceTree = SOURCE_ROOT; };
 		C659529B18ADF13CD86CA80F /* AIAssistantView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AIAssistantView.swift; path = EasySearch/Features/AIAssistant/AIAssistantView.swift; sourceTree = SOURCE_ROOT; };
 		184257EDD42B0873CBFBEFF8 /* AIAssistantFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AIAssistantFeature.swift; path = EasySearch/Features/AIAssistant/AIAssistantFeature.swift; sourceTree = SOURCE_ROOT; };
@@ -605,7 +603,6 @@
 			isa = PBXGroup;
 			children = (
 				0F142A2111DC88139890E4CC /* DashboardView.swift */,
-				EAE0F136D3E546ED1089E952 /* DashboardTodaySection.swift */,
 				D2A000000000000000000106 /* HiddenSpaceCoreViews.swift */,
 				D2A000000000000000000107 /* Hidden4KHDViews.swift */,
 				D2A000000000000000000113 /* Hidden4KHDViewModel.swift */,
@@ -1274,7 +1271,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				D6EE2B6924FDC2E8D749EAFA /* AppGroupStorage.swift in Sources */,
-				82F5A334AA8EBA0FA8FB2618 /* DashboardTodaySection.swift in Sources */,
 				06DCDABF4557789B9FBF046F /* CurrencyFeature.swift in Sources */,
 				80AFE97CC743592B5C4F0EF9 /* AIAssistantView.swift in Sources */,
 				27972158FBC629B24B91CF78 /* AIAssistantFeature.swift in Sources */,

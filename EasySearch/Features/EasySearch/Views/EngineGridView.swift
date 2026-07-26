@@ -20,6 +20,7 @@ struct EngineGridView: View {
                         .opacity(isEnabled ? 1 : 0.45)
                 }
                 .buttonStyle(ESCardButtonStyle())
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
                 .disabled(!isEnabled)
                 .accessibilityLabel(engine.name)
                 .accessibilityHint(isEnabled ? "打开搜索" : "请先输入搜索内容")

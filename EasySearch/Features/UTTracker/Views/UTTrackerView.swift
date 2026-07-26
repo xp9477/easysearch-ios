@@ -306,7 +306,10 @@ public struct UTTrackerView: View {
     }
 
     private func presetButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        Button {
+            ESHaptics.selection()
+            action()
+        } label: {
             Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
@@ -317,13 +320,14 @@ public struct UTTrackerView: View {
                     RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
                         .fill(isSelected ? Color.accentColor.opacity(0.12) : ESUI.fill)
                 )
+                .animation(ESMotion.quick, value: isSelected)
         }
         .buttonStyle(.plain)
     }
 
     private func saveEntry() {
         viewModel.addEntry(date: selectedDate, hours: draftHours, note: draftNote)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        ESHaptics.success()
         selectedDate = Date()
         draftHours = UTTrackerMetrics.dailyReferenceHours
         draftNote = ""

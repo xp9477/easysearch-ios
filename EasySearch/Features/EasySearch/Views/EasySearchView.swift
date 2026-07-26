@@ -17,11 +17,13 @@ struct EasySearchView: View {
                             SearchBar(
                                 text: $viewModel.searchQuery,
                                 isFocused: $isSearchFieldFocused,
-                                onSubmit: { _ = viewModel.performDefaultSearch() }
+                                showsClipboardAction: clipboardHasText,
+                                onSubmit: { submitDefaultSearch() },
+                                onPasteClipboard: { pasteClipboard() }
                             )
 
                             Button {
-                                _ = viewModel.performDefaultSearch()
+                                submitDefaultSearch()
                             } label: {
                                 Image(systemName: "arrow.right")
                                     .font(.body.weight(.semibold))
@@ -31,10 +33,6 @@ struct EasySearchView: View {
                             .disabled(!viewModel.hasValidQuery)
                             .accessibilityLabel("默认搜索")
                         }
-                    }
-
-                    if clipboardHasText && !viewModel.hasValidQuery {
-                        clipboardSuggestionChip
                     }
 
                     if !viewModel.history.isEmpty && !viewModel.hasValidQuery {
@@ -73,6 +71,8 @@ struct EasySearchView: View {
                 .padding(.bottom, ESUI.Space.lg)
             }
             .esScreenBackground()
+            .animation(ESMotion.content, value: viewModel.selectedCategory)
+            .animation(ESMotion.content, value: viewModel.hasValidQuery)
             .navigationTitle("搜索")
             .navigationBarTitleDisplayMode(.large)
             .scrollDismissesKeyboard(.interactively)
@@ -96,34 +96,35 @@ struct EasySearchView: View {
 
     // MARK: - Clipboard
 
-    private var clipboardSuggestionChip: some View {
-        Button {
-            if let text = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !text.isEmpty {
-                viewModel.searchQuery = text
-                isSearchFieldFocused = true
-            }
+    private func pasteClipboard() {
+        guard let text = UIPasteboard.general.string?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !text.isEmpty else {
             clipboardHasText = false
-        } label: {
-            HStack(spacing: ESUI.Space.xs) {
-                Image(systemName: "doc.on.clipboard")
-                    .font(.caption.weight(.semibold))
-                Text("搜索剪贴板内容")
-                    .font(.subheadline)
-                Image(systemName: "arrow.up.left")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, ESUI.Space.sm)
-            .padding(.vertical, ESUI.Space.xs)
+            ESHaptics.warning()
+            return
         }
-        .buttonStyle(.glass)
-        .accessibilityHint("将剪贴板文本填入搜索框")
+
+        withAnimation(ESMotion.quick) {
+            viewModel.searchQuery = text
+        }
+        isSearchFieldFocused = true
+        ESHaptics.tap()
+    }
+
+    private func submitDefaultSearch() {
+        if viewModel.performDefaultSearch() {
+            ESHaptics.tap()
+        } else {
+            ESHaptics.warning()
+        }
     }
 
     private func refreshClipboardState() {
         // hasStrings 不读取内容,不触发系统粘贴提示。
-        clipboardHasText = UIPasteboard.general.hasStrings
+        let hasStrings = UIPasteboard.general.hasStrings
+        withAnimation(ESMotion.quick) {
+            clipboardHasText = hasStrings
+        }
     }
 
     // MARK: - History
@@ -136,7 +137,10 @@ struct EasySearchView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 Button("清空") {
-                    viewModel.clearHistory()
+                    ESHaptics.tap()
+                    withAnimation(ESMotion.content) {
+                        viewModel.clearHistory()
+                    }
                 }
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -146,6 +150,7 @@ struct EasySearchView: View {
                 HStack(spacing: ESUI.Space.xs) {
                     ForEach(viewModel.history.prefix(8)) { entry in
                         Button {
+                            ESHaptics.tap()
                             viewModel.searchFromHistory(entry)
                         } label: {
                             HStack(spacing: 6) {

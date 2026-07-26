@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Design Tokens (Native iOS · Liquid Glass)
 
@@ -53,14 +54,59 @@ enum ESUI {
     }
 }
 
+// MARK: - Haptics
+
+/// 统一触觉反馈,保持轻量:选择切换用 selection,点击用 light,结果用 success/warning。
+enum ESHaptics {
+    static func selection() {
+        let generator = UISelectionFeedbackGenerator()
+        generator.selectionChanged()
+    }
+
+    static func tap() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
+        UIImpactFeedbackGenerator(style: style).impactOccurred()
+    }
+
+    static func success() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    static func warning() {
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+    }
+
+    static func error() {
+        UINotificationFeedbackGenerator().notificationOccurred(.error)
+    }
+}
+
+// MARK: - Motion
+
+enum ESMotion {
+    /// 轻量按压/展开动效。
+    static let quick = Animation.spring(response: 0.26, dampingFraction: 0.86)
+    /// 内容出现/切换。
+    static let content = Animation.spring(response: 0.34, dampingFraction: 0.9)
+}
+
 // MARK: - Button Style
 
 struct ESCardButtonStyle: ButtonStyle {
+    var haptics: Bool = true
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .opacity(configuration.isPressed ? 0.85 : 1)
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .animation(.spring(response: 0.25, dampingFraction: 0.9), value: configuration.isPressed)
+            .opacity(configuration.isPressed ? 0.86 : 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(ESMotion.quick, value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { isPressed in
+                guard haptics, isPressed else { return }
+                ESHaptics.tap()
+            }
     }
 }
 

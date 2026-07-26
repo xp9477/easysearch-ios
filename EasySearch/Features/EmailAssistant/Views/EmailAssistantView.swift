@@ -102,6 +102,13 @@ public struct EmailAssistantView: View {
         .onAppear {
             hasConfiguredAPIKey = AIConfigurationStore.shared.loadConfiguration().hasAPIKey
         }
+        .onChange(of: viewModel.completedConversation.count) { _ in
+            ESHaptics.success()
+        }
+        .onChange(of: viewModel.notice) { notice in
+            guard let notice, notice.tone == .caution else { return }
+            ESHaptics.warning()
+        }
         .sheet(item: $cropSource) { source in
             EmailAssistantCropImageEditor(image: source.image) { selection in
                 Task {
@@ -137,6 +144,7 @@ public struct EmailAssistantView: View {
                             ForEach(viewModel.completedConversation) { message in
                                 messageRow(message)
                                     .id(message.id)
+                                    .transition(.opacity.combined(with: .move(edge: .bottom)))
                             }
                         }
 
@@ -178,7 +186,8 @@ public struct EmailAssistantView: View {
     private var contextHeader: some View {
         VStack(spacing: 0) {
             Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+                ESHaptics.tap()
+                withAnimation(ESMotion.quick) {
                     isContextExpanded.toggle()
                 }
             } label: {
@@ -358,11 +367,13 @@ public struct EmailAssistantView: View {
 
             HStack(spacing: ESUI.Space.xs) {
                 bubbleAction(title: "复制", systemImage: "doc.on.doc") {
+                    ESHaptics.tap()
                     UIPasteboard.general.string = text
                     viewModel.presentNotice(tone: .success, message: "已复制。")
                 }
 
                 bubbleAction(title: "再改改", systemImage: "pencil") {
+                    ESHaptics.tap()
                     isComposerFocused = true
                 }
             }
@@ -447,6 +458,7 @@ public struct EmailAssistantView: View {
             HStack(spacing: ESUI.Space.xs) {
                 ForEach(quickPrompts, id: \.self) { prompt in
                     Button {
+                        ESHaptics.tap()
                         viewModel.messageDraft = prompt
                         Task { await viewModel.sendCurrentMessage() }
                     } label: {
@@ -519,6 +531,7 @@ public struct EmailAssistantView: View {
 
                 Button {
                     isComposerFocused = false
+                    ESHaptics.tap()
                     Task { await viewModel.sendCurrentMessage() }
                 } label: {
                     Group {
