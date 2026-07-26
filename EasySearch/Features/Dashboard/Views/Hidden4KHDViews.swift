@@ -1270,7 +1270,8 @@ private struct HiddenImagePreviewView: View {
     private func prefetchCurrentImages() {
         guard !imageURLs.isEmpty else { return }
 
-        let indexes = [currentIndex - 1, currentIndex, currentIndex + 1]
+        // 连续快扫时 ±1 不够用,会在下一张上看到 spinner。
+        let indexes = (currentIndex - 2 ... currentIndex + 2)
             .filter { $0 >= 0 && $0 < imageURLs.count }
         let urls = indexes.map { imageURLs[$0] }
         viewModel.prefetchImages(urls)
@@ -1295,6 +1296,9 @@ private struct HiddenImagePreviewView: View {
             .foregroundStyle(.white.opacity(0.8))
             .frame(width: size.width, height: size.height)
         }
+        // 身份跟随 URL:提交新索引时重建视图,init 同步命中缓存,
+        // 不会出现"新位置上还挂着上一张图"的那一帧。
+        .id(HiddenSpaceAPI.normalizeImageURL(url).absoluteString)
     }
 
     private var primaryImageOffset: CGSize {
@@ -1527,10 +1531,16 @@ private struct HiddenImagePreviewView: View {
             velocity: initialVelocity,
             spring: .snap
         ) {
-            currentIndex = targetIndex
-            slideAnimator.reset()
-            activeSlideDirection = nil
-            isSwitchingImage = false
+            // 索引提交与偏移归零必须在同一个非动画事务里发生,
+            // 否则两者错开一帧就会看到旧图跳回原位再被替换。
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                currentIndex = targetIndex
+                slideAnimator.reset()
+                activeSlideDirection = nil
+                isSwitchingImage = false
+            }
         }
     }
 
@@ -1870,11 +1880,18 @@ private struct HiddenCachedImage<Content: View, Placeholder: View, Failure: View
             phase = .success(cachedImage)
             return
         }
-        phase = .empty
+
+        // 已经显示着图时不要退回 placeholder,否则每次 .task 重跑都会闪一下白。
+        if case .success = phase {} else {
+            phase = .empty
+        }
+
         do {
             let image = try await HiddenImagePipeline.shared.image(for: url)
+            guard !Task.isCancelled else { return }
             phase = .success(image)
         } catch {
+            guard !Task.isCancelled else { return }
             phase = .failure
         }
     }
