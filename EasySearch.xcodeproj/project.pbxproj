@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A26DF3D5B85340C77E3F4D8F /* ESGestureMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84EBDFADB034D60847F5EBC5 /* ESGestureMotion.swift */; };
 		AB7000000000000000020101 /* EasySearchWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB7000000000000000010101 /* EasySearchWidgetsBundle.swift */; };
 		AB7000000000000000020102 /* WidgetDataProviders.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB7000000000000000010102 /* WidgetDataProviders.swift */; };
 		AB7000000000000000020103 /* WidgetIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB7000000000000000010103 /* WidgetIntents.swift */; };
@@ -196,6 +197,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		84EBDFADB034D60847F5EBC5 /* ESGestureMotion.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ESGestureMotion.swift; path = EasySearch/Core/UIComponents/ESGestureMotion.swift; sourceTree = SOURCE_ROOT; };
 		AB7000000000000000010101 /* EasySearchWidgetsBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EasySearchWidgetsBundle.swift; sourceTree = "<group>"; };
 		AB7000000000000000010102 /* WidgetDataProviders.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetDataProviders.swift; sourceTree = "<group>"; };
 		AB7000000000000000010103 /* WidgetIntents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetIntents.swift; sourceTree = "<group>"; };
@@ -886,6 +888,7 @@
 		E59C8AA3A5C7B7392A388AF9 /* UIComponents */ = {
 			isa = PBXGroup;
 			children = (
+				84EBDFADB034D60847F5EBC5 /* ESGestureMotion.swift */,
 				E800000000000000000000101 /* EasySearchUIComponents.swift */,
 			);
 			path = UIComponents;
@@ -1270,6 +1273,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A26DF3D5B85340C77E3F4D8F /* ESGestureMotion.swift in Sources */,
 				D6EE2B6924FDC2E8D749EAFA /* AppGroupStorage.swift in Sources */,
 				06DCDABF4557789B9FBF046F /* CurrencyFeature.swift in Sources */,
 				80AFE97CC743592B5C4F0EF9 /* AIAssistantView.swift in Sources */,

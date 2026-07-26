@@ -1,4 +1,5 @@
 import SwiftUI
+import QuartzCore
 import WebKit
 import AVKit
 @preconcurrency import AVFoundation
@@ -951,9 +952,13 @@ private struct HiddenImagePreviewView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var currentIndex: Int
-    @State private var slideTranslation: CGSize = .zero
+    @StateObject private var slideAnimator = ESSlideAnimator()
     @State private var activeSlideDirection: SlideDirection?
     @State private var isSwitchingImage = false
+    @State private var gestureBaseTranslation: CGSize = .zero
+    @State private var isDraggingSlide = false
+    @State private var lastDragSample: (translation: CGSize, time: TimeInterval)?
+    @State private var dragVelocity: CGFloat = 0
     @State private var didReportExit = false
     @State private var scale: CGFloat = 1
     @State private var committedScale: CGFloat = 1
@@ -966,8 +971,7 @@ private struct HiddenImagePreviewView: View {
     private let minScale: CGFloat = 1
     private let maxScale: CGFloat = 5
     private let swipeThreshold: CGFloat = 70
-    private let edgeResistance: CGFloat = 0.08
-    private let edgeTranslationCap: CGFloat = 26
+    private let edgeTranslationCap: CGFloat = 90
     private let verticalGestureScale: CGFloat = 0.97
     private let slideshowIntervalNanoseconds: UInt64 = 5_000_000_000
 
@@ -995,12 +999,8 @@ private struct HiddenImagePreviewView: View {
         activeSlideDirection
     }
 
-    private func switchAnimation(for direction: SlideDirection) -> Animation {
-        .timingCurve(0.24, 0.88, 0.34, 1, duration: switchAnimationDuration(for: direction))
-    }
-
-    private func resetAnimation(for direction: SlideDirection?) -> Animation {
-        .timingCurve(0.22, 0.82, 0.24, 1, duration: resetAnimationDuration(for: direction))
+    private var slideTranslation: CGSize {
+        slideAnimator.translation
     }
 
     private var adjacentImageURL: URL? {
@@ -1159,23 +1159,72 @@ private struct HiddenImagePreviewView: View {
                     return
                 }
 
-                if slideDistance(for: value.translation) < 6 {
+                beginSlideDragIfNeeded()
+                trackDragVelocity(value.translation)
+
+                let combined = CGSize(
+                    width: gestureBaseTranslation.width + value.translation.width,
+                    height: gestureBaseTranslation.height + value.translation.height
+                )
+
+                guard slideDistance(for: combined) >= 6 else {
                     activeSlideDirection = nil
-                    slideTranslation = .zero
+                    slideAnimator.track(.zero)
                     return
                 }
 
-                let direction = activeSlideDirection ?? resolvedSlideDirection(for: value.translation)
+                let direction = activeSlideDirection ?? resolvedSlideDirection(for: combined)
                 activeSlideDirection = direction
-                slideTranslation = adjustedSlideTranslation(value.translation, direction: direction)
+                slideAnimator.track(adjustedSlideTranslation(combined, direction: direction))
             }
             .onEnded { value in
                 guard scale > minScale else {
-                    settleSlide(translation: value.translation, predictedEndTranslation: value.predictedEndTranslation, in: containerSize)
+                    let combined = CGSize(
+                        width: gestureBaseTranslation.width + value.translation.width,
+                        height: gestureBaseTranslation.height + value.translation.height
+                    )
+                    endSlideDrag()
+                    settleSlide(translation: combined, in: containerSize)
                     return
                 }
                 committedOffset = offset
             }
+    }
+
+    /// 手指落下时抢回正在跑的落位动画,把当前呈现位置作为新的拖拽基准。
+    /// 这一步是"可打断"的核心:动画不会先跑完再理会用户。
+    private func beginSlideDragIfNeeded() {
+        guard !isDraggingSlide else { return }
+        isDraggingSlide = true
+        gestureBaseTranslation = slideAnimator.takeOver()
+        isSwitchingImage = false
+        dragVelocity = 0
+        lastDragSample = nil
+    }
+
+    private func endSlideDrag() {
+        isDraggingSlide = false
+        gestureBaseTranslation = .zero
+        lastDragSample = nil
+    }
+
+    /// 采样最近两帧算瞬时速度。`predictedEndTranslation` 在中途反向时会失真,
+    /// 自己采样才能拿到真实的释放速度。
+    private func trackDragVelocity(_ translation: CGSize) {
+        let now = CACurrentMediaTime()
+        defer { lastDragSample = (translation, now) }
+
+        guard let previous = lastDragSample else { return }
+        let elapsed = now - previous.time
+        guard elapsed > 0.001 else { return }
+
+        let deltaX = translation.width - previous.translation.width
+        let deltaY = translation.height - previous.translation.height
+        let delta = abs(deltaX) >= abs(deltaY) ? deltaX : deltaY
+        let instant = CGFloat(Double(delta) / elapsed)
+
+        // 轻度平滑,避免最后一帧抖动主导判定。
+        dragVelocity = dragVelocity * 0.3 + instant * 0.7
     }
 
     private func toggleZoom(in containerSize: CGSize) {
@@ -1196,7 +1245,7 @@ private struct HiddenImagePreviewView: View {
         committedScale = minScale
         offset = .zero
         committedOffset = .zero
-        slideTranslation = .zero
+        slideAnimator.reset()
         activeSlideDirection = nil
     }
 
@@ -1269,55 +1318,78 @@ private struct HiddenImagePreviewView: View {
         guard let direction else { return .zero }
 
         let hasTarget = targetIndex(for: direction) != nil
-        let resistance = hasTarget ? 1.0 : edgeResistance
         let projected = projectedSlideTranslation(from: translation, direction: direction)
         let gestureScale = isVertical(direction) ? verticalGestureScale : 1.0
 
         switch direction {
         case .left, .right:
-            let width = projected.width * resistance
-            let adjustedWidth = hasTarget ? width : cappedTranslation(width, limit: edgeTranslationCap)
-            return CGSize(width: adjustedWidth, height: 0)
+            // 到头时用橡皮筋渐进阻尼,而不是线性衰减后硬停。
+            let width = hasTarget
+                ? projected.width
+                : CGFloat(ESGestureProjection.rubberBand(Double(projected.width), limit: Double(edgeTranslationCap)))
+            return CGSize(width: width, height: 0)
         case .up, .down:
-            let height = projected.height * resistance * gestureScale
-            let adjustedHeight = hasTarget ? height : cappedTranslation(height, limit: edgeTranslationCap)
-            return CGSize(width: 0, height: adjustedHeight)
+            let raw = projected.height * gestureScale
+            let height = hasTarget
+                ? raw
+                : CGFloat(ESGestureProjection.rubberBand(Double(raw), limit: Double(edgeTranslationCap)))
+            return CGSize(width: 0, height: height)
         }
     }
 
-    private func settleSlide(translation: CGSize, predictedEndTranslation: CGSize, in containerSize: CGSize) {
-        guard imageURLs.count > 1, !isSwitchingImage else {
-            withAnimation(resetAnimation(for: activeSlideDirection)) {
-                slideTranslation = .zero
-                activeSlideDirection = nil
-            }
+    private func settleSlide(translation: CGSize, in containerSize: CGSize) {
+        guard imageURLs.count > 1 else {
+            cancelSlide()
             return
         }
 
-        let direction = activeSlideDirection ?? resolvedSlideDirection(for: predictedEndTranslation)
+        let direction = activeSlideDirection ?? resolvedSlideDirection(for: translation)
         guard let direction, let targetIndex = targetIndex(for: direction) else {
-            withAnimation(resetAnimation(for: direction)) {
-                slideTranslation = .zero
-                activeSlideDirection = nil
-            }
+            cancelSlide()
             return
         }
 
-        let effectiveTranslation = adjustedSlideTranslation(
-            projectedEndTranslation(current: translation, predicted: predictedEndTranslation),
-            direction: direction
+        // 是否翻页由"位移 + 速度投射的落点"共同决定,
+        // 所以快速轻扫即使位移很小也算数,慢速长拖则按位移判定。
+        let currentDistance = slideDistance(for: slideAnimator.translation)
+        let projected = CGFloat(ESGestureProjection.projectedOffset(velocity: Double(dragVelocity)))
+        let projectedDistance = currentDistance + abs(projected)
+        let isFlick = abs(dragVelocity) > 320 && isVelocityAligned(dragVelocity, with: direction)
+
+        guard projectedDistance >= swipeThreshold || isFlick else {
+            cancelSlide()
+            return
+        }
+
+        beginSlideTransition(
+            to: targetIndex,
+            direction: direction,
+            in: containerSize,
+            initialVelocity: dragVelocity
         )
+    }
 
-        guard slideDistance(for: effectiveTranslation) >= swipeThreshold else {
-            withAnimation(resetAnimation(for: direction)) {
-                slideTranslation = .zero
-                activeSlideDirection = nil
-            }
-            return
+    /// 未达翻页条件:带着当前速度弹回原位,而不是硬切回 0。
+    private func cancelSlide() {
+        slideAnimator.settle(
+            to: .zero,
+            vertical: isVertical(activeSlideDirection ?? .left),
+            velocity: dragVelocity,
+            spring: .snap
+        ) {
+            activeSlideDirection = nil
         }
+        isSwitchingImage = false
+    }
 
-        isSwitchingImage = true
-        beginSlideTransition(to: targetIndex, direction: direction, in: containerSize)
+    /// 速度方向必须与滑动方向一致,否则用户是在往回收手,不该翻页。
+    private func isVelocityAligned(_ velocity: CGFloat, with direction: SlideDirection) -> Bool {
+        switch direction {
+        case .left, .up:
+            return velocity < 0
+        case .right, .down:
+            return velocity > 0
+        }
     }
 
     private func targetIndex(for direction: SlideDirection) -> Int? {
@@ -1351,13 +1423,6 @@ private struct HiddenImagePreviewView: View {
         }
     }
 
-    private func projectedEndTranslation(current: CGSize, predicted: CGSize) -> CGSize {
-        CGSize(
-            width: abs(predicted.width) > abs(current.width) ? predicted.width : current.width,
-            height: abs(predicted.height) > abs(current.height) ? predicted.height : current.height
-        )
-    }
-
     private func completedSlideTranslation(for direction: SlideDirection, in containerSize: CGSize) -> CGSize {
         switch direction {
         case .left:
@@ -1375,15 +1440,6 @@ private struct HiddenImagePreviewView: View {
         max(abs(translation.width), abs(translation.height))
     }
 
-    private func switchAnimationDuration(for direction: SlideDirection) -> CGFloat {
-        isVertical(direction) ? 0.16 : 0.17
-    }
-
-    private func resetAnimationDuration(for direction: SlideDirection?) -> CGFloat {
-        guard let direction else { return 0.14 }
-        return isVertical(direction) ? 0.13 : 0.14
-    }
-
     private func isVertical(_ direction: SlideDirection) -> Bool {
         switch direction {
         case .up, .down:
@@ -1391,10 +1447,6 @@ private struct HiddenImagePreviewView: View {
         case .left, .right:
             return false
         }
-    }
-
-    private func cappedTranslation(_ value: CGFloat, limit: CGFloat) -> CGFloat {
-        min(max(value, -limit), limit)
     }
 
     private func toggleSlideshow() {
@@ -1436,7 +1488,7 @@ private struct HiddenImagePreviewView: View {
     }
 
     private func advanceSlideshowIfNeeded() -> Bool {
-        guard !isSwitchingImage else { return true }
+        guard !isSwitchingImage, !isDraggingSlide else { return true }
         guard scale <= minScale else {
             resetZoom()
             return true
@@ -1451,7 +1503,12 @@ private struct HiddenImagePreviewView: View {
         return true
     }
 
-    private func beginSlideTransition(to targetIndex: Int, direction: SlideDirection, in containerSize: CGSize) {
+    private func beginSlideTransition(
+        to targetIndex: Int,
+        direction: SlideDirection,
+        in containerSize: CGSize,
+        initialVelocity: CGFloat = 0
+    ) {
         let transitionSize = if containerSize.width > 0 && containerSize.height > 0 {
             containerSize
         } else {
@@ -1460,14 +1517,18 @@ private struct HiddenImagePreviewView: View {
 
         isSwitchingImage = true
         activeSlideDirection = direction
+        ESHaptics.tap()
 
-        withAnimation(switchAnimation(for: direction)) {
-            slideTranslation = completedSlideTranslation(for: direction, in: transitionSize)
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + switchAnimationDuration(for: direction)) {
+        // 落位动画继承释放速度,并在真正到位后才提交索引。
+        // 期间手指再次按下会直接接管当前位置,提交也随之取消。
+        slideAnimator.settle(
+            to: completedSlideTranslation(for: direction, in: transitionSize),
+            vertical: isVertical(direction),
+            velocity: initialVelocity,
+            spring: .snap
+        ) {
             currentIndex = targetIndex
-            slideTranslation = .zero
+            slideAnimator.reset()
             activeSlideDirection = nil
             isSwitchingImage = false
         }
