@@ -288,10 +288,11 @@ private struct HiddenInAppVideoPlayerView: View {
     }
 
     private var centerControls: some View {
-        HStack(spacing: 26) {
+        HStack(spacing: 36) {
             largeCircleButton(systemImage: "gobackward.15") {
                 seek(by: -15)
             }
+            .accessibilityLabel("后退 15 秒")
 
             Button {
                 togglePlayback()
@@ -304,11 +305,15 @@ private struct HiddenInAppVideoPlayerView: View {
                     .shadow(color: Color.black.opacity(0.35), radius: 18, y: 10)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(isPlaying ? "暂停" : "播放")
 
             largeCircleButton(systemImage: "goforward.15") {
                 seek(by: 15)
             }
+            .accessibilityLabel("前进 15 秒")
         }
+        .padding(.vertical, 20)
+        .contentShape(Rectangle())
     }
 
     private var bottomOverlay: some View {
@@ -432,12 +437,15 @@ private struct HiddenInAppVideoPlayerView: View {
     private func largeCircleButton(systemImage: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemImage)
-                .font(.system(size: 22, weight: .semibold))
+                .font(.system(size: 26, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 58, height: 58)
+                .frame(width: 72, height: 72)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .circle)
+        .padding(8)
+        .contentShape(Circle())
     }
 
     private var shouldShowPlaybackRateHUD: Bool {

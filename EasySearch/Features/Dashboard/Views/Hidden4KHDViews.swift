@@ -678,6 +678,8 @@ struct HiddenAlbumDetailView: View {
     @State private var errorMessage: String?
     @State private var imageAspectRatios: [String: CGFloat] = [:]
     @State private var lastPreviewedIndex: Int?
+    /// 打开大图时的起始索引。退出时若仍停在这张，列表本来就在原位，无需回滚。
+    @State private var openedPreviewIndex: Int?
     @State private var pendingScrollIndex: Int?
     @State private var visibleImageFrames: [Int: CGRect] = [:]
     @State private var scrollViewportFrame: CGRect = .zero
@@ -685,7 +687,8 @@ struct HiddenAlbumDetailView: View {
     private let columnCount = 2
     private let columnSpacing: CGFloat = ESUI.Space.sm
     private let itemSpacing: CGFloat = ESUI.Space.xs
-    private let returnScrollViewportPadding: CGFloat = 72
+    /// 目标缩略图至少有这么多高度落在视口内，才视为“已可见、无需滚动”。
+    private let visibleOverlapThreshold: CGFloat = 48
 
     var body: some View {
         ScrollViewReader { scrollProxy in
@@ -743,11 +746,13 @@ struct HiddenAlbumDetailView: View {
         .onAppear {
             if let previewImage {
                 lastPreviewedIndex = previewImage.index
+                if openedPreviewIndex == nil {
+                    openedPreviewIndex = previewImage.index
+                }
             }
         }
         .fullScreenCover(item: previewImageBinding, onDismiss: {
-            guard let lastPreviewedIndex else { return }
-            pendingScrollIndex = lastPreviewedIndex
+            handlePreviewDismiss()
         }) { preview in
             HiddenImagePreviewView(
                 imageURLs: preview.urls,
@@ -791,8 +796,7 @@ struct HiddenAlbumDetailView: View {
                                 estimatedAspectRatio: estimatedAspectRatio(for: item.url),
                                 isFavorite: viewModel.isFavoriteImage(item.url),
                                 onPreview: {
-                                    lastPreviewedIndex = item.index
-                                    previewImage = PreviewImage(index: item.index, urls: imageURLs)
+                                    openPreview(at: item.index)
                                 },
                                 onToggleFavorite: {
                                     viewModel.toggleFavoriteImage(item.url)
@@ -819,39 +823,54 @@ struct HiddenAlbumDetailView: View {
         }
     }
 
+    private func openPreview(at index: Int, autoPlaySlideshow: Bool = false) {
+        guard imageURLs.indices.contains(index) else { return }
+        lastPreviewedIndex = index
+        openedPreviewIndex = index
+        previewImage = PreviewImage(index: index, urls: imageURLs, autoPlaySlideshow: autoPlaySlideshow)
+    }
+
+    /// 退出大图后：只有切到另一张时才回滚列表；已可见则不动，避免“打开第一张返回却被滑下去”。
+    private func handlePreviewDismiss() {
+        let exitIndex = lastPreviewedIndex
+        let entryIndex = openedPreviewIndex
+        openedPreviewIndex = nil
+
+        guard let exitIndex else { return }
+
+        // 没换图：列表位置本就对应入口缩略图，强制 scrollTo 反而会因帧信息暂缺而跳到错误锚点。
+        if exitIndex == entryIndex {
+            return
+        }
+
+        pendingScrollIndex = exitIndex
+    }
+
     private func scrollToImage(_ index: Int, using scrollProxy: ScrollViewProxy) {
-        DispatchQueue.main.async {
-            let comfortableViewport = scrollViewportFrame.insetBy(dx: 0, dy: returnScrollViewportPadding)
-            if let targetFrame = visibleImageFrames[index],
-               comfortableViewport.intersects(targetFrame) {
-                pendingScrollIndex = nil
+        // fullScreenCover 刚关掉时 LazyVStack 的 global frame 还不稳定，稍等再判断/滚动。
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            defer { pendingScrollIndex = nil }
+
+            if isImageComfortablyVisible(index) {
                 return
             }
 
-            let anchor = preferredReturnAnchor(for: index)
-            withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.9, blendDuration: 0.12)) {
-                scrollProxy.scrollTo(index, anchor: anchor)
+            // 固定 center + 无回弹 easeOut（旧逻辑 spring + 0.16/0.84 锚点容易过冲再弹回）。
+            withAnimation(.easeOut(duration: 0.2)) {
+                scrollProxy.scrollTo(index, anchor: .center)
             }
-            pendingScrollIndex = nil
         }
     }
 
-    private func preferredReturnAnchor(for index: Int) -> UnitPoint {
-        let visibleIndexes = visibleImageFrames.keys.sorted()
-
-        if let firstVisibleIndex = visibleIndexes.first, index < firstVisibleIndex {
-            return UnitPoint(x: 0.5, y: 0.16)
+    private func isImageComfortablyVisible(_ index: Int) -> Bool {
+        guard scrollViewportFrame.width > 1, scrollViewportFrame.height > 1,
+              let targetFrame = visibleImageFrames[index],
+              targetFrame.width > 1, targetFrame.height > 1 else {
+            return false
         }
 
-        if let lastVisibleIndex = visibleIndexes.last, index > lastVisibleIndex {
-            return UnitPoint(x: 0.5, y: 0.84)
-        }
-
-        if let targetFrame = visibleImageFrames[index], targetFrame.midY < scrollViewportFrame.midY {
-            return UnitPoint(x: 0.5, y: 0.16)
-        }
-
-        return UnitPoint(x: 0.5, y: 0.84)
+        let overlap = targetFrame.intersection(scrollViewportFrame)
+        return overlap.height >= min(visibleOverlapThreshold, targetFrame.height * 0.45)
     }
 
     private func loadImages(force: Bool) async {
@@ -914,8 +933,7 @@ struct HiddenAlbumDetailView: View {
     private func openSlideshow() {
         guard !imageURLs.isEmpty else { return }
         let startingIndex = min(max(lastPreviewedIndex ?? 0, 0), max(imageURLs.count - 1, 0))
-        lastPreviewedIndex = startingIndex
-        previewImage = PreviewImage(index: startingIndex, urls: imageURLs, autoPlaySlideshow: true)
+        openPreview(at: startingIndex, autoPlaySlideshow: true)
     }
 
     private var previewImage: PreviewImage? {

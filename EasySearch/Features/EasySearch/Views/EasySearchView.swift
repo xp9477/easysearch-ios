@@ -39,10 +39,6 @@ struct EasySearchView: View {
                         historySection
                     }
 
-                    if !viewModel.frequentEngines.isEmpty {
-                        frequentEnginesRow
-                    }
-
                     CategoryTabBar(
                         categories: SearchCategory.allCases,
                         selectedCategory: $viewModel.selectedCategory
@@ -177,32 +173,6 @@ struct EasySearchView: View {
         }
     }
 
-    // MARK: - Frequent Engines
-
-    private var frequentEnginesRow: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
-            Text("常用")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: ESUI.Space.sm) {
-                    ForEach(viewModel.frequentEngines) { engine in
-                        Button {
-                            viewModel.performSearch(engine: engine)
-                        } label: {
-                            FrequentEngineTile(engine: engine)
-                                .opacity(viewModel.hasValidQuery ? 1 : 0.5)
-                        }
-                        .buttonStyle(ESCardButtonStyle())
-                        .disabled(!viewModel.hasValidQuery)
-                        .accessibilityLabel(engine.name)
-                    }
-                }
-            }
-        }
-    }
-
     // MARK: - Focus
 
     private func autoFocusOnColdLaunch() {
@@ -215,46 +185,6 @@ struct EasySearchView: View {
     private func focusSearchField() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             isSearchFieldFocused = true
-        }
-    }
-}
-
-private struct FrequentEngineTile: View {
-    let engine: SearchEngine
-    @State private var iconImage: UIImage?
-
-    var body: some View {
-        VStack(spacing: 6) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(ESUI.fill)
-                    .frame(width: 54, height: 54)
-
-                if let iconImage {
-                    Image(uiImage: iconImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 54, height: 54)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                } else {
-                    Image(systemName: "globe")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Text(engine.name)
-                .font(.caption2)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .frame(maxWidth: 58)
-        }
-        .task(id: engine.faviconURL) {
-            guard let url = engine.faviconURL else { return }
-            if let data = try? await SearchEngineIconCache.shared.data(for: url),
-               let image = UIImage(data: data) {
-                iconImage = image
-            }
         }
     }
 }
