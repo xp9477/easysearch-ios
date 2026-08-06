@@ -74,6 +74,15 @@ struct ESSpringValue {
         velocity += acceleration * clampedStep
         value += velocity * clampedStep
 
+        // 临界阻尼（bounce = 0）理论上不应过冲；数值积分仍可能越过目标再抽回。
+        if spring.bounce <= 0 {
+            let crossed = (displacement > 0 && value < target) || (displacement < 0 && value > target)
+            if crossed {
+                value = target
+                velocity = 0
+            }
+        }
+
         if isSettled {
             value = target
             velocity = 0

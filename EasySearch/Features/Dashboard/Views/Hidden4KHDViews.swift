@@ -988,10 +988,15 @@ private struct HiddenImagePreviewView: View {
 
     private let minScale: CGFloat = 1
     private let maxScale: CGFloat = 5
-    private let swipeThreshold: CGFloat = 70
+    /// 翻页位移阈值（约一屏 10% 量级）；过高会导致短滑反复弹回，体感像“抽动”。
+    private let swipeThreshold: CGFloat = 32
+    /// 轻扫速度阈值（pt/s）；低于此且位移不足则回弹。
+    private let flickVelocityThreshold: CGFloat = 180
     private let edgeTranslationCap: CGFloat = 90
     private let verticalGestureScale: CGFloat = 0.97
     private let slideshowIntervalNanoseconds: UInt64 = 5_000_000_000
+    private let pageTurnSpring = ESSpring(response: 0.26, bounce: 0)
+    private let cancelSpring = ESSpring(response: 0.2, bounce: 0)
 
     init(
         imageURLs: [URL],
@@ -1185,7 +1190,7 @@ private struct HiddenImagePreviewView: View {
                     height: gestureBaseTranslation.height + value.translation.height
                 )
 
-                guard slideDistance(for: combined) >= 6 else {
+                guard slideDistance(for: combined) >= 4 else {
                     activeSlideDirection = nil
                     slideAnimator.track(.zero)
                     return
@@ -1371,12 +1376,12 @@ private struct HiddenImagePreviewView: View {
             return
         }
 
-        // 是否翻页由"位移 + 速度投射的落点"共同决定,
-        // 所以快速轻扫即使位移很小也算数,慢速长拖则按位移判定。
+        // 位移 + 速度投射共同判定：轻扫位移小但速度够也算翻页，不必拖很长。
         let currentDistance = slideDistance(for: slideAnimator.translation)
         let projected = CGFloat(ESGestureProjection.projectedOffset(velocity: Double(dragVelocity)))
         let projectedDistance = currentDistance + abs(projected)
-        let isFlick = abs(dragVelocity) > 320 && isVelocityAligned(dragVelocity, with: direction)
+        let isFlick = abs(dragVelocity) > flickVelocityThreshold
+            && isVelocityAligned(dragVelocity, with: direction)
 
         guard projectedDistance >= swipeThreshold || isFlick else {
             cancelSlide()
@@ -1391,13 +1396,15 @@ private struct HiddenImagePreviewView: View {
         )
     }
 
-    /// 未达翻页条件:带着当前速度弹回原位,而不是硬切回 0。
+    /// 未达翻页条件：快速弹回。小位移不继承噪声速度，避免反复短滑时的抽动感。
     private func cancelSlide() {
+        let distance = slideDistance(for: slideAnimator.translation)
+        let cancelVelocity: CGFloat = distance < 16 ? 0 : dragVelocity * 0.25
         slideAnimator.settle(
             to: .zero,
             vertical: isVertical(activeSlideDirection ?? .left),
-            velocity: dragVelocity,
-            spring: .snap
+            velocity: cancelVelocity,
+            spring: cancelSpring
         ) {
             activeSlideDirection = nil
         }
@@ -1428,12 +1435,18 @@ private struct HiddenImagePreviewView: View {
     private func resolvedSlideDirection(for translation: CGSize) -> SlideDirection? {
         let absWidth = abs(translation.width)
         let absHeight = abs(translation.height)
-        guard max(absWidth, absHeight) >= 6 else { return nil }
+        guard max(absWidth, absHeight) >= 4 else { return nil }
 
-        if absWidth >= absHeight {
+        // 主轴略占优即可锁定，避免对角线手势方向来回跳。
+        if absWidth >= absHeight * 0.85 {
             return translation.width < 0 ? .left : .right
         }
-        return translation.height < 0 ? .up : .down
+        if absHeight > absWidth * 0.85 {
+            return translation.height < 0 ? .up : .down
+        }
+        return absWidth >= absHeight
+            ? (translation.width < 0 ? .left : .right)
+            : (translation.height < 0 ? .up : .down)
     }
 
     private func projectedSlideTranslation(from translation: CGSize, direction: SlideDirection) -> CGSize {
@@ -1539,17 +1552,24 @@ private struct HiddenImagePreviewView: View {
 
         isSwitchingImage = true
         activeSlideDirection = direction
-        ESHaptics.tap()
 
-        // 落位动画继承释放速度,并在真正到位后才提交索引。
-        // 期间手指再次按下会直接接管当前位置,提交也随之取消。
+        let target = completedSlideTranslation(for: direction, in: transitionSize)
+        // 限制继承速度，避免高速落位过冲再回弹（体感像抽一下）。
+        let settleVelocity = clampedSettleVelocity(
+            current: isVertical(direction) ? slideAnimator.translation.height : slideAnimator.translation.width,
+            target: isVertical(direction) ? target.height : target.width,
+            velocity: initialVelocity
+        )
+
+        // 落位动画继承释放速度，到位后再提交索引。
+        // 期间手指再次按下会直接接管当前位置，提交也随之取消。
         slideAnimator.settle(
-            to: completedSlideTranslation(for: direction, in: transitionSize),
+            to: target,
             vertical: isVertical(direction),
-            velocity: initialVelocity,
-            spring: .snap
+            velocity: settleVelocity,
+            spring: pageTurnSpring
         ) {
-            // 索引提交与偏移归零必须在同一个非动画事务里发生,
+            // 索引提交与偏移归零必须在同一个非动画事务里发生，
             // 否则两者错开一帧就会看到旧图跳回原位再被替换。
             var transaction = Transaction()
             transaction.disablesAnimations = true
@@ -1560,6 +1580,21 @@ private struct HiddenImagePreviewView: View {
                 isSwitchingImage = false
             }
         }
+    }
+
+    /// 把落位初速钳在「剩余路程」合理范围内，防止过冲回抽。
+    private func clampedSettleVelocity(current: CGFloat, target: CGFloat, velocity: CGFloat) -> CGFloat {
+        let remaining = target - current
+        guard remaining != 0 else { return 0 }
+
+        // 方向与目标相反的速度直接丢掉，避免先往回弹再冲向目标。
+        if remaining * velocity < 0 {
+            return 0
+        }
+
+        // 约 0.1s 内跑完剩余距离的上限；再快就容易欧拉积分过冲。
+        let maxSpeed = abs(remaining) / 0.1
+        return min(max(velocity, -maxSpeed), maxSpeed)
     }
 
     private func reportExitIfNeeded() {
