@@ -184,7 +184,7 @@ actor DeepSeekClient {
         do {
             (data, response) = try await urlSession.data(for: request)
         } catch {
-            throw DeepSeekClientError.networkError(error.localizedDescription)
+            throw DeepSeekClientError.networkError(Self.friendlyNetworkMessage(from: error))
         }
 
         try validate(response: response, data: data)
@@ -226,7 +226,7 @@ actor DeepSeekClient {
         do {
             (bytes, response) = try await urlSession.bytes(for: request)
         } catch {
-            throw DeepSeekClientError.networkError(error.localizedDescription)
+            throw DeepSeekClientError.networkError(Self.friendlyNetworkMessage(from: error))
         }
 
         guard let httpResponse = response as? HTTPURLResponse else {
@@ -420,5 +420,23 @@ actor DeepSeekClient {
             .replacingOccurrences(of: "\n", with: " ")
 
         return String(singleLine.prefix(180))
+    }
+
+    private static func friendlyNetworkMessage(from error: Error) -> String {
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain {
+            switch nsError.code {
+            case NSURLErrorTimedOut:
+                return "AI 请求超时，请检查网络后重试。"
+            case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost:
+                return "网络不可用，请检查连接后重试。"
+            case NSURLErrorCannotFindHost, NSURLErrorCannotConnectToHost, NSURLErrorDNSLookupFailed:
+                return "无法连接 AI 服务，请检查 Base URL 或网络。"
+            default:
+                break
+            }
+        }
+        let message = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        return message.isEmpty ? "网络请求失败，请稍后重试。" : message
     }
 }

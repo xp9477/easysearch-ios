@@ -32,9 +32,9 @@ enum ImageTranslateError: LocalizedError {
         case .cameraUnavailable:
             return "当前设备暂时不能使用相机。"
         case .invalidResponse:
-            return "AI 服务返回了无法识别的结果。"
+            return "翻译结果解析失败，请再试一次。"
         case .emptyModelResponse:
-            return "AI 服务没有返回有效内容，请重试。"
+            return "没有拿到有效译文，请再试一次。"
         case let .ocrFailure(message):
             return "文字识别失败：\(message)"
         case let .serverError(message):
@@ -131,6 +131,49 @@ private struct ImageTranslateCollocationPayload: Decodable {
     let note: String?
 }
 
+/// Pure helpers for translation request shaping / response parsing (unit-testable).
+enum ImageTranslateResponseParser {
+    static func isLikelyLexicalQuery(_ sourceText: String) -> Bool {
+        let trimmed = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        guard trimmed.count <= 48 else { return false }
+        guard !trimmed.contains("\n") else { return false }
+
+        let sentencePunctuation = CharacterSet(charactersIn: ".!?。！？;；：:")
+        if trimmed.rangeOfCharacter(from: sentencePunctuation) != nil {
+            return false
+        }
+
+        let tokens = trimmed.split { $0.isWhitespace }
+        if tokens.count <= 4 {
+            return true
+        }
+
+        let compact = trimmed.replacingOccurrences(of: " ", with: "")
+        return compact.count <= 12
+    }
+
+    static func sanitizeJSONContent(_ content: String) -> String {
+        var text = content
+            .replacingOccurrences(of: "```json", with: "", options: .caseInsensitive)
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let start = text.firstIndex(of: "{"),
+           let end = text.lastIndex(of: "}"),
+           start < end {
+            text = String(text[start...end])
+        }
+
+        return text
+    }
+
+    static func maxTokens(isLexical: Bool, isMinimal: Bool) -> Int {
+        if isMinimal { return 320 }
+        return isLexical ? 700 : 1200
+    }
+}
+
 actor ImageTranslateService {
     static let shared = ImageTranslateService()
 
@@ -196,13 +239,15 @@ actor ImageTranslateService {
             throw ImageTranslateError.missingAPIKey
         }
 
+        let isLexical = ImageTranslateResponseParser.isLikelyLexicalQuery(trimmedSourceText)
         let messages = [
-            DeepSeekChatMessage(role: "system", content: translationSystemPrompt),
+            DeepSeekChatMessage(role: "system", content: translationSystemPrompt(isLexical: isLexical)),
             DeepSeekChatMessage(
                 role: "user",
                 content: initialUserPrompt(
                     sourceText: trimmedSourceText,
-                    targetLanguage: targetLanguage
+                    targetLanguage: targetLanguage,
+                    isLexical: isLexical
                 )
             )
         ]
@@ -210,6 +255,9 @@ actor ImageTranslateService {
         return try await sendChatRequest(
             configuration: configuration,
             messages: messages,
+            sourceText: trimmedSourceText,
+            targetLanguage: targetLanguage,
+            isLexical: isLexical,
             fallbackTranslation: nil
         )
     }
@@ -237,6 +285,7 @@ actor ImageTranslateService {
             throw ImageTranslateError.missingAPIKey
         }
 
+        let isLexical = ImageTranslateResponseParser.isLikelyLexicalQuery(trimmedSourceText)
         let transcript = history
             .map { message in
                 let role = message.role == .user ? "user" : "assistant"
@@ -245,7 +294,7 @@ actor ImageTranslateService {
             .joined(separator: "\n")
 
         let messages = [
-            DeepSeekChatMessage(role: "system", content: translationSystemPrompt),
+            DeepSeekChatMessage(role: "system", content: translationSystemPrompt(isLexical: isLexical)),
             DeepSeekChatMessage(
                 role: "user",
                 content: followUpUserPrompt(
@@ -253,7 +302,8 @@ actor ImageTranslateService {
                     currentTranslation: trimmedCurrentTranslation,
                     transcript: transcript,
                     latestUserPrompt: trimmedUserPrompt,
-                    targetLanguage: targetLanguage
+                    targetLanguage: targetLanguage,
+                    isLexical: isLexical
                 )
             )
         ]
@@ -261,6 +311,9 @@ actor ImageTranslateService {
         return try await sendChatRequest(
             configuration: configuration,
             messages: messages,
+            sourceText: trimmedSourceText,
+            targetLanguage: targetLanguage,
+            isLexical: isLexical,
             fallbackTranslation: trimmedCurrentTranslation
         )
     }
@@ -268,6 +321,43 @@ actor ImageTranslateService {
     private func sendChatRequest(
         configuration: ImageTranslateConfiguration,
         messages: [DeepSeekChatMessage],
+        sourceText: String,
+        targetLanguage: ImageTranslateTargetLanguage,
+        isLexical: Bool,
+        fallbackTranslation: String?
+    ) async throws -> ImageTranslateResult {
+        do {
+            return try await performChatRequest(
+                configuration: configuration,
+                messages: messages,
+                isLexical: isLexical,
+                isMinimal: false,
+                fallbackTranslation: fallbackTranslation
+            )
+        } catch let error as ImageTranslateError where shouldRetryWithMinimalPrompt(error) {
+            // First response arrived but was unusable — fall back to a tiny translate-only request.
+            let minimalMessages = [
+                DeepSeekChatMessage(role: "system", content: minimalSystemPrompt),
+                DeepSeekChatMessage(
+                    role: "user",
+                    content: minimalUserPrompt(sourceText: sourceText, targetLanguage: targetLanguage)
+                )
+            ]
+            return try await performChatRequest(
+                configuration: configuration,
+                messages: minimalMessages,
+                isLexical: isLexical,
+                isMinimal: true,
+                fallbackTranslation: fallbackTranslation
+            )
+        }
+    }
+
+    private func performChatRequest(
+        configuration: ImageTranslateConfiguration,
+        messages: [DeepSeekChatMessage],
+        isLexical: Bool,
+        isMinimal: Bool,
         fallbackTranslation: String?
     ) async throws -> ImageTranslateResult {
         do {
@@ -275,7 +365,8 @@ actor ImageTranslateService {
                 configuration: configuration.deepSeekConfiguration,
                 messages: messages,
                 responseFormat: .jsonObject,
-                maxTokens: 2400
+                temperature: 0.2,
+                maxTokens: ImageTranslateResponseParser.maxTokens(isLexical: isLexical, isMinimal: isMinimal)
             )
             return try parseModelPayload(content, fallbackTranslation: fallbackTranslation)
         } catch let error as DeepSeekClientError {
@@ -287,16 +378,31 @@ actor ImageTranslateService {
         }
     }
 
+    private func shouldRetryWithMinimalPrompt(_ error: ImageTranslateError) -> Bool {
+        switch error {
+        case .invalidResponse, .emptyModelResponse:
+            return true
+        default:
+            return false
+        }
+    }
+
     private func parseModelPayload(
         _ content: String,
         fallbackTranslation: String?
     ) throws -> ImageTranslateResult {
-        let cleanedContent = sanitizeJSONContent(content)
+        let cleanedContent = ImageTranslateResponseParser.sanitizeJSONContent(content)
         guard let data = cleanedContent.data(using: .utf8) else {
             throw ImageTranslateError.invalidResponse
         }
 
-        let payload = try decoder.decode(ImageTranslateModelPayload.self, from: data)
+        let payload: ImageTranslateModelPayload
+        do {
+            payload = try decoder.decode(ImageTranslateModelPayload.self, from: data)
+        } catch {
+            throw ImageTranslateError.invalidResponse
+        }
+
         let translation = payload.translation?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let reply = payload.reply?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let notes = payload.notes?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -327,7 +433,7 @@ actor ImageTranslateService {
             return ImageTranslateMeaning(partOfSpeech: partOfSpeech, meaning: meaning)
         }
 
-        return Array(normalized.prefix(5))
+        return Array(normalized.prefix(3))
     }
 
     private func normalizeExamples(_ examples: [ImageTranslateExamplePayload]?) -> [ImageTranslateExample] {
@@ -338,7 +444,7 @@ actor ImageTranslateService {
             return ImageTranslateExample(source: source, translation: translation)
         }
 
-        return Array(normalized.prefix(3))
+        return Array(normalized.prefix(2))
     }
 
     private func normalizeCollocations(_ collocations: [ImageTranslateCollocationPayload]?) -> [ImageTranslateCollocation] {
@@ -350,7 +456,7 @@ actor ImageTranslateService {
             return ImageTranslateCollocation(phrase: phrase, translation: translation, note: note)
         }
 
-        return Array(normalized.prefix(5))
+        return Array(normalized.prefix(3))
     }
 
     private func normalizeSuggestedReplies(_ suggestions: [String]?) -> [String] {
@@ -366,85 +472,76 @@ actor ImageTranslateService {
         return Array((normalized + fallback).prefix(3))
     }
 
-    private func sanitizeJSONContent(_ content: String) -> String {
-        content
-            .replacingOccurrences(of: "```json", with: "")
-            .replacingOccurrences(of: "```", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private var translationSystemPrompt: String {
-        """
-        You are an OCR translation assistant. Always return valid json only.
-        The required json schema is:
-        {
-          "translation": "string",
-          "reply": "string",
-          "notes": "string",
-          "detected_source_language": "string",
-          "meanings": [
+    private func translationSystemPrompt(isLexical: Bool) -> String {
+        if isLexical {
+            return """
+            You are a fast dictionary-style translator. Return valid JSON only, no markdown.
+            Schema:
             {
-              "part_of_speech": "string",
-              "meaning": "string"
-            }
-          ],
-          "examples": [
-            {
-              "source": "string",
-              "translation": "string"
-            }
-          ],
-          "collocations": [
-            {
-              "phrase": "string",
               "translation": "string",
-              "note": "string"
+              "notes": "string",
+              "detected_source_language": "string",
+              "meanings": [{"part_of_speech":"string","meaning":"string"}],
+              "examples": [{"source":"string","translation":"string"}],
+              "collocations": [{"phrase":"string","translation":"string","note":"string"}]
             }
-          ],
-          "suggested_replies": ["string", "string", "string"]
+            Rules:
+            - Keep output compact. Prefer fewer high-value items over long lists.
+            - meanings: up to 3 short senses (Chinese explanations unless target is English).
+            - examples: up to 2 short practical sentences.
+            - collocations: up to 3 common phrases; note may be empty.
+            - notes: empty string unless there is real ambiguity.
+            - detected_source_language: short label like English / Japanese.
+            - Do not invent fields. Do not wrap JSON in code fences.
+            """
         }
 
+        return """
+        You are a fast translation assistant. Return valid JSON only, no markdown.
+        Schema:
+        {
+          "translation": "string",
+          "notes": "string",
+          "detected_source_language": "string",
+          "meanings": [],
+          "examples": [],
+          "collocations": []
+        }
         Rules:
-        - translation must be the latest complete translation result after applying the user's newest request.
-        - reply must be concise Chinese for the user, usually one or two sentences.
-        - notes should mention OCR uncertainty, terminology choices, or be an empty string.
-        - detected_source_language should be a short language label such as English or Japanese.
-        - meanings/examples/collocations are for dictionary-like detail. For word or short phrase lookups, fill them with concise, high-value content. For full sentences or paragraphs, return empty arrays unless the user explicitly asks for lexical detail.
-        - meanings should focus on distinct senses, in concise Chinese, and part_of_speech can be empty when not needed.
-        - examples should be natural and practical. translation should explain the sentence in Chinese.
-        - collocations should favor common combinations or fixed expressions. note is optional and can be empty.
-        - suggested_replies must contain exactly 3 short Chinese follow-up suggestions.
-        - Preserve proper nouns, numbers, code snippets, and list structure when useful.
-        - If the user asks to rewrite, simplify, formalize, or explain, update translation accordingly.
-        - If OCR text is obviously incomplete or noisy, mention that in notes.
+        - translation is the complete polished result.
+        - Keep meanings/examples/collocations as empty arrays for sentences/paragraphs.
+        - notes: empty string unless OCR noise or terminology needs a short note.
+        - detected_source_language: short label like English / Japanese.
+        - Preserve proper nouns, numbers, code, and list structure when useful.
+        - Do not wrap JSON in code fences.
+        """
+    }
+
+    private var minimalSystemPrompt: String {
+        """
+        Translate text. Return valid JSON only:
+        {"translation":"string","notes":"","detected_source_language":"string","meanings":[],"examples":[],"collocations":[]}
         """
     }
 
     private func initialUserPrompt(
         sourceText: String,
-        targetLanguage: ImageTranslateTargetLanguage
+        targetLanguage: ImageTranslateTargetLanguage,
+        isLexical: Bool
     ) -> String {
-        let lookupGuidance = lexicalPromptGuidance(for: sourceText, targetLanguage: targetLanguage)
+        if isLexical {
+            return """
+            Translate this word/phrase into \(targetLanguage.promptLabel). Return JSON only.
+            Source: \(sourceText)
+            Include compact meanings/examples/collocations as specified in the system rules.
+            """
+        }
+
         return """
-        Return json only.
-        Task: translate the OCR text into \(targetLanguage.promptLabel).
-
-        Source text:
-        <source>
+        Translate into \(targetLanguage.promptLabel). Return JSON only.
+        Source:
         \(sourceText)
-        </source>
-
-        Output guidance:
-        - translation: the final polished translation in \(targetLanguage.promptLabel)
-        - reply: short Chinese guidance telling the user the first draft is ready
-        - notes: OCR uncertainty or terminology notes, otherwise empty string
-        - detected_source_language: the most likely source language
-        - meanings: detailed senses for word or phrase lookups; otherwise []
-        - examples: practical example sentences for word or phrase lookups; otherwise []
-        - collocations: common collocations or fixed expressions for word or phrase lookups; otherwise []
-        - suggested_replies: 3 short Chinese suggestions for multi-turn optimization
-
-        \(lookupGuidance)
+        Keep meanings/examples/collocations empty arrays.
         """
     }
 
@@ -453,90 +550,36 @@ actor ImageTranslateService {
         currentTranslation: String,
         transcript: String,
         latestUserPrompt: String,
-        targetLanguage: ImageTranslateTargetLanguage
+        targetLanguage: ImageTranslateTargetLanguage,
+        isLexical: Bool
     ) -> String {
         let transcriptBlock = transcript.isEmpty ? "(none)" : transcript
-        let lookupGuidance = lexicalPromptGuidance(for: sourceText, targetLanguage: targetLanguage)
+        let lexicalHint = isLexical
+            ? "If still a word/phrase lookup, keep compact meanings/examples/collocations."
+            : "Keep meanings/examples/collocations empty unless the user asks for dictionary detail."
+
         return """
-        Return json only.
-        Continue the translation conversation in \(targetLanguage.promptLabel).
-
-        Source text:
-        <source>
+        Continue translation work in \(targetLanguage.promptLabel). Return JSON only.
+        Source:
         \(sourceText)
-        </source>
-
         Current translation:
-        <translation>
         \(currentTranslation)
-        </translation>
-
-        Conversation so far:
-        <transcript>
+        Transcript:
         \(transcriptBlock)
-        </transcript>
-
-        Latest user request:
-        <request>
+        Latest request:
         \(latestUserPrompt)
-        </request>
-
-        Output guidance:
-        - translation: the updated translation after applying the latest request; if the request is only explanatory, keep the best current translation
-        - reply: short Chinese answer for the user
-        - notes: OCR uncertainty or terminology notes, otherwise empty string
-        - detected_source_language: the most likely source language
-        - meanings: updated detailed senses for word or phrase lookups; otherwise []
-        - examples: updated practical examples for word or phrase lookups; otherwise []
-        - collocations: updated common collocations for word or phrase lookups; otherwise []
-        - suggested_replies: 3 short Chinese suggestions for the next follow-up
-
-        \(lookupGuidance)
+        \(lexicalHint)
         """
     }
 
-    private func lexicalPromptGuidance(
-        for sourceText: String,
+    private func minimalUserPrompt(
+        sourceText: String,
         targetLanguage: ImageTranslateTargetLanguage
     ) -> String {
-        guard isLikelyLexicalQuery(sourceText) else {
-            return """
-            This input is likely a sentence or passage.
-            Keep meanings/examples/collocations empty unless the user explicitly asks for dictionary-style explanation.
-            """
-        }
-
-        if targetLanguage == .english {
-            return """
-            This input is likely a word or short phrase lookup, especially suitable for English vocabulary learning.
-            Besides the final translation, provide 2 to 5 concise meanings, 2 to 3 natural example sentences, and 3 to 5 common collocations in English with Chinese explanation.
-            """
-        }
-
-        return """
-        This input is likely a word or short phrase lookup.
-        Besides the final translation, provide 2 to 5 concise meanings, 2 to 3 natural example sentences, and 3 to 5 common collocations when they help the user understand real usage.
         """
-    }
-
-    private func isLikelyLexicalQuery(_ sourceText: String) -> Bool {
-        let trimmed = sourceText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return false }
-        guard trimmed.count <= 48 else { return false }
-        guard !trimmed.contains("\n") else { return false }
-
-        let sentencePunctuation = CharacterSet(charactersIn: ".!?。！？;；：:")
-        if trimmed.rangeOfCharacter(from: sentencePunctuation) != nil {
-            return false
-        }
-
-        let tokens = trimmed.split { $0.isWhitespace }
-        if tokens.count <= 4 {
-            return true
-        }
-
-        let compact = trimmed.replacingOccurrences(of: " ", with: "")
-        return compact.count <= 12
+        Translate into \(targetLanguage.promptLabel). JSON only with key translation.
+        Source: \(sourceText)
+        """
     }
 
     private func mapDeepSeekError(_ error: DeepSeekClientError) -> ImageTranslateError {

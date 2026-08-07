@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		40F5B7118F97C978B9488E45 /* ImageTranslateResponseParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37547D8A0816D8A33D7DD4D4 /* ImageTranslateResponseParserTests.swift */; };
 		EAB98EB26926E8A98CF274C5 /* AppGroupRollbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97DE174DF032B26557966A53 /* AppGroupRollbackTests.swift */; };
 		A26DF3D5B85340C77E3F4D8F /* ESGestureMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84EBDFADB034D60847F5EBC5 /* ESGestureMotion.swift */; };
 		D6EE2B6924FDC2E8D749EAFA /* AppGroupStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D162DF46FC74A1346E743D8B /* AppGroupStorage.swift */; };
@@ -175,6 +176,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		37547D8A0816D8A33D7DD4D4 /* ImageTranslateResponseParserTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateResponseParserTests.swift; path = EasySearchTests/ImageTranslateResponseParserTests.swift; sourceTree = SOURCE_ROOT; };
 		AC1000000000000000000102 /* Supabase.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text; name = Supabase.xcconfig.example; path = EasySearch/Config/Supabase.xcconfig.example; sourceTree = SOURCE_ROOT; };
 		AC1000000000000000000101 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = App.xcconfig; path = EasySearch/Config/App.xcconfig; sourceTree = SOURCE_ROOT; };
 		97DE174DF032B26557966A53 /* AppGroupRollbackTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppGroupRollbackTests.swift; path = EasySearchTests/AppGroupRollbackTests.swift; sourceTree = SOURCE_ROOT; };
@@ -550,6 +552,7 @@
 				AED5424721AE4AFD4354443F /* ImageTranslateHistoryReducerTests.swift */,
 				3195DD59E264422624CF152A /* ImageTranslateFileStoreTests.swift */,
 				E200000000000000000000101 /* ImageTranslateViewModelTests.swift */,
+				37547D8A0816D8A33D7DD4D4 /* ImageTranslateResponseParserTests.swift */,
 				E200000000000000000000102 /* SearchViewModelTests.swift */,
 				E200000000000000000000103 /* DashboardParserTests.swift */,
 				F200000000000000000000101 /* UTTrackerMonthSummaryTests.swift */,
@@ -1134,6 +1137,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				40F5B7118F97C978B9488E45 /* ImageTranslateResponseParserTests.swift in Sources */,
 				EAB98EB26926E8A98CF274C5 /* AppGroupRollbackTests.swift in Sources */,
 				D00D9A381C53C800921C6BAC /* ExpenseAssistantMarkOverdueTests.swift in Sources */,
 				4B340B0FC56B67FCC38D8CB1 /* TrainingLogRepeatWorkoutTests.swift in Sources */,

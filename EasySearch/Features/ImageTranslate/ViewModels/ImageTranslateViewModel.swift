@@ -239,7 +239,7 @@ final class ImageTranslateViewModel: ObservableObject {
         }
 
         isTranslating = true
-        setNotice(tone: .neutral, message: "正在调用 AI 模型生成翻译。")
+        setNotice(tone: .neutral, message: "正在翻译…")
 
         do {
             let result = try await service.translate(
@@ -248,8 +248,8 @@ final class ImageTranslateViewModel: ObservableObject {
             )
             applyTranslationResult(result)
             lastTranslatedSourceText = sourceText
-            let message = result.detectedSourceLanguage.map { "已完成 \($0) -> \(targetLanguage.title) 翻译。" }
-                ?? "已完成 AI 翻译。"
+            let message = result.detectedSourceLanguage.map { "已完成 \($0) → \(targetLanguage.title)" }
+                ?? "翻译完成"
             setNotice(tone: .success, message: message)
         } catch {
             setNotice(tone: .caution, message: error.localizedDescription)
@@ -425,7 +425,7 @@ final class ImageTranslateViewModel: ObservableObject {
         meanings = result.meanings
         examples = result.examples
         collocations = result.collocations
-        suggestedReplies = []
+        suggestedReplies = result.suggestedReplies
 
         if let detectedSourceLanguage = result.detectedSourceLanguage,
            !detectedSourceLanguage.isEmpty {
@@ -433,6 +433,7 @@ final class ImageTranslateViewModel: ObservableObject {
         }
         conversation = []
         composerText = ""
+        upsertHistorySnapshot()
     }
 
     private func applySessionReset(newSessionID: Bool) {
