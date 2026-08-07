@@ -170,17 +170,10 @@ private struct AppShellView: View {
         }
     }
 
-    /// 点击搜索 Tab(含重复点击)时触发搜索框聚焦。
     private var tabSelectionBinding: Binding<AppTab> {
         Binding(
             get: { navigationState.selectedTab },
-            set: { newTab in
-                let wasSearch = navigationState.selectedTab == .search
-                navigationState.selectedTab = newTab
-                if newTab == .search && !wasSearch {
-                    navigationState.searchActivationToken += 1
-                }
-            }
+            set: { navigationState.selectedTab = $0 }
         )
     }
 }

@@ -6,7 +6,6 @@ struct EasySearchView: View {
     @EnvironmentObject private var navigationState: AppNavigationState
     @FocusState private var isSearchFieldFocused: Bool
     @State private var clipboardHasText = false
-    @State private var didAutoFocus = false
 
     var body: some View {
         NavigationStack {
@@ -75,9 +74,9 @@ struct EasySearchView: View {
         }
         .onAppear {
             refreshClipboardState()
-            autoFocusOnColdLaunch()
         }
         .onChange(of: navigationState.searchActivationToken) { _ in
+            // 仅深链 / 主动激活搜索时聚焦，冷启动与普通打开不弹键盘。
             focusSearchField()
         }
         .onChange(of: navigationState.pendingSearchQuery) { query in
@@ -174,13 +173,6 @@ struct EasySearchView: View {
     }
 
     // MARK: - Focus
-
-    private func autoFocusOnColdLaunch() {
-        guard !didAutoFocus else { return }
-        didAutoFocus = true
-        guard navigationState.selectedTab == .search else { return }
-        focusSearchField()
-    }
 
     private func focusSearchField() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
