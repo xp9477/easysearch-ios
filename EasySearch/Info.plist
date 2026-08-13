@@ -72,10 +72,6 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>用于连接你在局域网中的 WebDAV 服务器。</string>
-	<key>NSCameraUsageDescription</key>
-	<string>用于直接拍照识别并翻译图片中的文字。</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>用于选择截图或照片后识别并翻译其中的文字。</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>xhsdiscover</string>

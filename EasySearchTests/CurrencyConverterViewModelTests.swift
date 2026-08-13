@@ -96,6 +96,11 @@ final class CurrencyConverterViewModelTests: XCTestCase {
 
     func testSupportedCurrenciesIncludeRequestedCodes() {
         let codes = Set(ConverterCurrency.allCases.map(\.rawValue))
-        XCTAssertEqual(codes, Set(["CNY", "TWD", "USD", "JPY", "KRW", "TRY", "INR"]))
+        XCTAssertEqual(codes, Set([
+            "CNY", "TWD", "HKD", "MOP", "USD", "EUR", "GBP", "JPY",
+            "KRW", "AUD", "NZD", "CAD", "CHF", "SGD", "MYR", "THB",
+            "VND", "IDR", "PHP", "TRY", "INR", "AED", "SAR", "ILS",
+            "SEK", "NOK", "DKK", "PLN", "RUB", "BRL", "MXN", "ZAR"
+        ]))
     }
 }

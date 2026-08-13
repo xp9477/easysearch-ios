@@ -7,28 +7,21 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		40F5B7118F97C978B9488E45 /* ImageTranslateResponseParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37547D8A0816D8A33D7DD4D4 /* ImageTranslateResponseParserTests.swift */; };
 		EAB98EB26926E8A98CF274C5 /* AppGroupRollbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97DE174DF032B26557966A53 /* AppGroupRollbackTests.swift */; };
 		A26DF3D5B85340C77E3F4D8F /* ESGestureMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84EBDFADB034D60847F5EBC5 /* ESGestureMotion.swift */; };
 		D6EE2B6924FDC2E8D749EAFA /* AppGroupStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D162DF46FC74A1346E743D8B /* AppGroupStorage.swift */; };
 		D00D9A381C53C800921C6BAC /* ExpenseAssistantMarkOverdueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4646F906A597F1920A4801F6 /* ExpenseAssistantMarkOverdueTests.swift */; };
 		4B340B0FC56B67FCC38D8CB1 /* TrainingLogRepeatWorkoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 409E3F66D770693C4E471DC9 /* TrainingLogRepeatWorkoutTests.swift */; };
 		06DCDABF4557789B9FBF046F /* CurrencyFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBEB7492C5DED403E3AAAB4 /* CurrencyFeature.swift */; };
-		80AFE97CC743592B5C4F0EF9 /* AIAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C659529B18ADF13CD86CA80F /* AIAssistantView.swift */; };
-		27972158FBC629B24B91CF78 /* AIAssistantFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184257EDD42B0873CBFBEFF8 /* AIAssistantFeature.swift */; };
 		331AB74744F432C47AD1BFB6 /* SearchEngineUsageStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5FBB6B3F3C019DD9B453577 /* SearchEngineUsageStoreTests.swift */; };
-		7266B44E95760BE7B3328C3C /* SearchHistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A79591701176A19AE5D8AAA /* SearchHistoryStoreTests.swift */; };
 		BA2CB1D6A65F89117084ADF7 /* AppShortcutRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A450D1ECB108220409C6CCD8 /* AppShortcutRouter.swift */; };
 		21DEA2D2748C6A24AA8A6FD1 /* SearchEngineUsageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C029CE55AD0421092BCC4806 /* SearchEngineUsageStore.swift */; };
-		0FF6BE28FA79922C54450A2D /* SearchHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DB6D4D6CC08A6B337179D52 /* SearchHistoryStore.swift */; };
 		A10000000000000000000001 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000101 /* KeychainStore.swift */; };
-		A10000000000000000000002 /* AIConfigurationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000102 /* AIConfigurationStore.swift */; };
 		A10000000000000000000003 /* CloudSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000103 /* CloudSyncService.swift */; };
 		A10000000000000000000004 /* CloudSyncViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000104 /* CloudSyncViewModel.swift */; };
 		A10000000000000000000005 /* ShareAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000105 /* ShareAction.swift */; };
 		A10000000000000000000006 /* HiddenSpaceFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000106 /* HiddenSpaceFeature.swift */; };
 		A10000000000000000000007 /* CloudSyncSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000107 /* CloudSyncSettingsDetailView.swift */; };
-		A10000000000000000000008 /* AISettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000108 /* AISettingsDetailView.swift */; };
 		A10000000000000000000009 /* SettingsValueRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000109 /* SettingsValueRow.swift */; };
 		A1000000000000000000000A /* UTTrackerSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000010A /* UTTrackerSettingsDetailView.swift */; };
 		A1000000000000000000000B /* ExpenseAssistantSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000000000000000000010B /* ExpenseAssistantSettingsDetailView.swift */; };
@@ -63,7 +56,6 @@
 		D2A000000000000000000013 /* Hidden4KHDViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000113 /* Hidden4KHDViewModel.swift */; };
 		D2A000000000000000000011 /* HiddenImagePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000111 /* HiddenImagePipeline.swift */; };
 		D2A000000000000000000012 /* HiddenPlaybackThumbnailPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2A000000000000000000112 /* HiddenPlaybackThumbnailPipeline.swift */; };
-		E200000000000000000000001 /* ImageTranslateViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E200000000000000000000101 /* ImageTranslateViewModelTests.swift */; };
 		E200000000000000000000002 /* SearchViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E200000000000000000000102 /* SearchViewModelTests.swift */; };
 		E200000000000000000000003 /* DashboardParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E200000000000000000000103 /* DashboardParserTests.swift */; };
 		F200000000000000000000001 /* UTTrackerMonthSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F200000000000000000000101 /* UTTrackerMonthSummaryTests.swift */; };
@@ -78,22 +70,17 @@
 		C800000000000000000000004 /* CurrencyConverterViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000000000000104 /* CurrencyConverterViewModelTests.swift */; };
 		C800000000000000000000005 /* ExchangeRateServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C800000000000000000000105 /* ExchangeRateServiceTests.swift */; };
 		08F64AB6A4B3B085A9FDDA21 /* AppFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7776F48C8127AD4F470DB7EF /* AppFeature.swift */; };
-		36B9C9E9DE2EAFB91FE29C76 /* ImageTranslateHistoryReducerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AED5424721AE4AFD4354443F /* ImageTranslateHistoryReducerTests.swift */; };
-		385A49DB482D3D46438A8BBE /* ImageTranslateFileStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3195DD59E264422624CF152A /* ImageTranslateFileStoreTests.swift */; };
 		45B8F0995303899D66B4CFFF /* EasySearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D66418FE785F8E727F9BAE4 /* EasySearchView.swift */; };
-		F10000000000000000000001 /* ImageOCRServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F10000000000000000000002 /* ImageOCRServiceTests.swift */; };
 		51CC8897363EE934F77838D5 /* SearchBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2376609760E7B3F32B6F9FD /* SearchBar.swift */; };
 		683A685A33F3D4FF8465BC10 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F142A2111DC88139890E4CC /* DashboardView.swift */; };
 		689CF6B202785041EFC90676 /* EasySearchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5166978A4A4BE388668D0139 /* EasySearchApp.swift */; };
 		72DB17919586AA7269F7BCB2 /* SearchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53A9599509BBCA5DB03ABC4 /* SearchViewModel.swift */; };
 		8201BB664FA9082DDB04AF65 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D736F78B02EC6C18E86147F2 /* XCTest.framework */; };
-		864F62200F337B5F7234088D /* ImageOCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015EF0031C7687BCB7F6A2EE /* ImageOCRService.swift */; };
 		8AFD20AC531C4A867E1490CE /* FeatureRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3533C5449EDD66685F0582EE /* FeatureRegistry.swift */; };
 		A041D1E79D1248AD59FEB7A8 /* SearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E97BF05A1233442C2B30768 /* SearchEngine.swift */; };
 		A1000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000009 /* Assets.xcassets */; };
 		A1000010 /* search-engines.json in Resources */ = {isa = PBXBuildFile; fileRef = A2000010 /* search-engines.json */; };
 		A35591F7C8AD2C96DD95006F /* EngineGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A0697B7D17CAD38D2E763F4 /* EngineGridView.swift */; };
-		B7EF418F52080658CAC257DD /* TextAlignment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77B71B90FD37F678F1BE7721 /* TextAlignment.swift */; };
 		BA0E54A01A17C1BBEDEF6FCF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD2DDB34B07E1AF3F585243D /* SettingsView.swift */; };
 		E300000000000000000000001 /* AppUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E300000000000000000000101 /* AppUpdateService.swift */; };
 		CC969EB33B7401F02D4A2B62 /* EasySearchFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA114C3137BB97879C05067 /* EasySearchFeature.swift */; };
@@ -115,17 +102,6 @@
 		D400000000000000000000007 /* QingLongOverviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000107 /* QingLongOverviewCard.swift */; };
 		D400000000000000000000009 /* QingLongSharedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000109 /* QingLongSharedViews.swift */; };
 		D400000000000000000000010 /* QingLongWorkspaceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D400000000000000000000110 /* QingLongWorkspaceViews.swift */; };
-		D500000000000000000000001 /* ImageTranslateFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D500000000000000000000101 /* ImageTranslateFeature.swift */; };
-		D500000000000000000000002 /* ImageTranslateCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D500000000000000000000102 /* ImageTranslateCoordinator.swift */; };
-		D500000000000000000000003 /* ImageTranslateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D500000000000000000000103 /* ImageTranslateModels.swift */; };
-		D500000000000000000000004 /* ImageTranslateViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D500000000000000000000104 /* ImageTranslateViewModel.swift */; };
-		D500000000000000000000005 /* ImageTranslateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D500000000000000000000105 /* ImageTranslateView.swift */; };
-		D600000000000000000000001 /* EmailAssistantFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000101 /* EmailAssistantFeature.swift */; };
-		D600000000000000000000002 /* EmailAssistantCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000102 /* EmailAssistantCoordinator.swift */; };
-		D600000000000000000000003 /* EmailAssistantModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000103 /* EmailAssistantModels.swift */; };
-		D600000000000000000000004 /* EmailAssistantViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000104 /* EmailAssistantViewModel.swift */; };
-		D600000000000000000000005 /* EmailAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D600000000000000000000105 /* EmailAssistantView.swift */; };
-		D700000000000000000000001 /* DeepSeekClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = D700000000000000000000101 /* DeepSeekClient.swift */; };
 		E100000000000000000000001 /* ExpenseAssistantFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E100000000000000000000101 /* ExpenseAssistantFeature.swift */; };
 		E100000000000000000000002 /* ExpenseAssistantModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E100000000000000000000102 /* ExpenseAssistantModels.swift */; };
 		E100000000000000000000003 /* ExpenseAssistantStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E100000000000000000000103 /* ExpenseAssistantStore.swift */; };
@@ -133,9 +109,7 @@
 		E100000000000000000000005 /* ExpenseAssistantViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E100000000000000000000105 /* ExpenseAssistantViewModel.swift */; };
 		E100000000000000000000006 /* ExpenseAssistantView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E100000000000000000000106 /* ExpenseAssistantView.swift */; };
 		E100000000000000000000007 /* ExpenseAssistantTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E100000000000000000000107 /* ExpenseAssistantTests.swift */; };
-		DC00DBD3D1788263EDDB8459 /* ImageTranslateTextAlignmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84A9CB8EA30ED3CE55AC2A70 /* ImageTranslateTextAlignmentTests.swift */; };
 		E362E51FD8833EE073E17BDE /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DE58CC4FBE5DDA9B8E6C8416 /* Foundation.framework */; };
-		E3CE5ADE8C75D1F8EE33B52A /* ImageTranslateSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEE5D4584B694CD5678242E5 /* ImageTranslateSessionStore.swift */; };
 		FE398CDB8405CA4107E65C61 /* CategoryTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 795E17200E5B98842C811DAF /* CategoryTabBar.swift */; };
 		F50000000000000000000001 /* TrainingLogFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000101 /* TrainingLogFeature.swift */; };
 		F50000000000000000000002 /* TrainingLogModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F50000000000000000000102 /* TrainingLogModels.swift */; };
@@ -176,7 +150,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		37547D8A0816D8A33D7DD4D4 /* ImageTranslateResponseParserTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateResponseParserTests.swift; path = EasySearchTests/ImageTranslateResponseParserTests.swift; sourceTree = SOURCE_ROOT; };
 		AC1000000000000000000102 /* Supabase.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text; name = Supabase.xcconfig.example; path = EasySearch/Config/Supabase.xcconfig.example; sourceTree = SOURCE_ROOT; };
 		AC1000000000000000000101 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = App.xcconfig; path = EasySearch/Config/App.xcconfig; sourceTree = SOURCE_ROOT; };
 		97DE174DF032B26557966A53 /* AppGroupRollbackTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppGroupRollbackTests.swift; path = EasySearchTests/AppGroupRollbackTests.swift; sourceTree = SOURCE_ROOT; };
@@ -185,21 +158,15 @@
 		4646F906A597F1920A4801F6 /* ExpenseAssistantMarkOverdueTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantMarkOverdueTests.swift; path = EasySearchTests/ExpenseAssistantMarkOverdueTests.swift; sourceTree = SOURCE_ROOT; };
 		409E3F66D770693C4E471DC9 /* TrainingLogRepeatWorkoutTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrainingLogRepeatWorkoutTests.swift; path = EasySearchTests/TrainingLogRepeatWorkoutTests.swift; sourceTree = SOURCE_ROOT; };
 		3CBEB7492C5DED403E3AAAB4 /* CurrencyFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CurrencyFeature.swift; path = EasySearch/Features/Utilities/CurrencyFeature.swift; sourceTree = SOURCE_ROOT; };
-		C659529B18ADF13CD86CA80F /* AIAssistantView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AIAssistantView.swift; path = EasySearch/Features/AIAssistant/AIAssistantView.swift; sourceTree = SOURCE_ROOT; };
-		184257EDD42B0873CBFBEFF8 /* AIAssistantFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AIAssistantFeature.swift; path = EasySearch/Features/AIAssistant/AIAssistantFeature.swift; sourceTree = SOURCE_ROOT; };
 		F5FBB6B3F3C019DD9B453577 /* SearchEngineUsageStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchEngineUsageStoreTests.swift; path = EasySearchTests/SearchEngineUsageStoreTests.swift; sourceTree = SOURCE_ROOT; };
-		9A79591701176A19AE5D8AAA /* SearchHistoryStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchHistoryStoreTests.swift; path = EasySearchTests/SearchHistoryStoreTests.swift; sourceTree = SOURCE_ROOT; };
 		A450D1ECB108220409C6CCD8 /* AppShortcutRouter.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppShortcutRouter.swift; path = EasySearch/App/AppShortcutRouter.swift; sourceTree = SOURCE_ROOT; };
 		C029CE55AD0421092BCC4806 /* SearchEngineUsageStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchEngineUsageStore.swift; path = EasySearch/Features/EasySearch/Models/SearchEngineUsageStore.swift; sourceTree = SOURCE_ROOT; };
-		1DB6D4D6CC08A6B337179D52 /* SearchHistoryStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchHistoryStore.swift; path = EasySearch/Features/EasySearch/Models/SearchHistoryStore.swift; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000101 /* KeychainStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = KeychainStore.swift; path = EasySearch/Core/Security/KeychainStore.swift; sourceTree = SOURCE_ROOT; };
-		A10000000000000000000102 /* AIConfigurationStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AIConfigurationStore.swift; path = EasySearch/Core/AI/AIConfigurationStore.swift; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000103 /* CloudSyncService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncService.swift; path = EasySearch/Core/CloudSync/CloudSyncService.swift; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000104 /* CloudSyncViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncViewModel.swift; path = EasySearch/Core/CloudSync/CloudSyncViewModel.swift; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000105 /* ShareAction.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ShareAction.swift; path = EasySearch/Core/Sharing/ShareAction.swift; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000106 /* HiddenSpaceFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSpaceFeature.swift; path = EasySearch/Features/Dashboard/HiddenSpaceFeature.swift; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000107 /* CloudSyncSettingsDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncSettingsDetailView.swift; path = EasySearch/Features/Settings/Views/CloudSyncSettingsDetailView.swift; sourceTree = SOURCE_ROOT; };
-		A10000000000000000000108 /* AISettingsDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AISettingsDetailView.swift; path = EasySearch/Features/Settings/Views/AISettingsDetailView.swift; sourceTree = SOURCE_ROOT; };
 		A10000000000000000000109 /* SettingsValueRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SettingsValueRow.swift; path = EasySearch/Features/Settings/Views/SettingsValueRow.swift; sourceTree = SOURCE_ROOT; };
 		A1000000000000000000010A /* UTTrackerSettingsDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTTrackerSettingsDetailView.swift; path = EasySearch/Features/UTTracker/Views/UTTrackerSettingsDetailView.swift; sourceTree = SOURCE_ROOT; };
 		A1000000000000000000010B /* ExpenseAssistantSettingsDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantSettingsDetailView.swift; path = EasySearch/Features/ExpenseAssistant/Views/ExpenseAssistantSettingsDetailView.swift; sourceTree = SOURCE_ROOT; };
@@ -233,7 +200,6 @@
 		E800000000000000000000101 /* EasySearchUIComponents.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EasySearchUIComponents.swift; path = EasySearch/Core/UIComponents/EasySearchUIComponents.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000111 /* HiddenImagePipeline.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenImagePipeline.swift; path = EasySearch/Features/Dashboard/Views/HiddenImagePipeline.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000112 /* HiddenPlaybackThumbnailPipeline.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenPlaybackThumbnailPipeline.swift; path = EasySearch/Features/Dashboard/Views/HiddenPlaybackThumbnailPipeline.swift; sourceTree = SOURCE_ROOT; };
-		E200000000000000000000101 /* ImageTranslateViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageTranslateViewModelTests.swift; sourceTree = "<group>"; };
 		E200000000000000000000102 /* SearchViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SearchViewModelTests.swift; sourceTree = "<group>"; };
 		E200000000000000000000103 /* DashboardParserTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DashboardParserTests.swift; sourceTree = "<group>"; };
 		F200000000000000000000101 /* UTTrackerMonthSummaryTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UTTrackerMonthSummaryTests.swift; sourceTree = "<group>"; };
@@ -246,29 +212,23 @@
 		D2A000000000000000000115 /* HiddenJavDBSettings.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenJavDBSettings.swift; path = EasySearch/Features/Dashboard/Views/HiddenJavDBSettings.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000116 /* HiddenJavDBViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenJavDBViewModel.swift; path = EasySearch/Features/Dashboard/Views/HiddenJavDBViewModel.swift; sourceTree = SOURCE_ROOT; };
 		D2A000000000000000000110 /* HiddenJavDBAPI.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenJavDBAPI.swift; path = EasySearch/Features/Dashboard/Views/HiddenJavDBAPI.swift; sourceTree = SOURCE_ROOT; };
-		015EF0031C7687BCB7F6A2EE /* ImageOCRService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageOCRService.swift; sourceTree = "<group>"; };
 		0F142A2111DC88139890E4CC /* DashboardView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DashboardView.swift; path = EasySearch/Features/Dashboard/Views/DashboardView.swift; sourceTree = SOURCE_ROOT; };
 		C800000000000000000000101 /* ExchangeRateService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExchangeRateService.swift; path = EasySearch/Features/Utilities/CurrencyConverter/ExchangeRateService.swift; sourceTree = SOURCE_ROOT; };
 		C800000000000000000000102 /* CurrencyConverterViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CurrencyConverterViewModel.swift; path = EasySearch/Features/Utilities/CurrencyConverter/CurrencyConverterViewModel.swift; sourceTree = SOURCE_ROOT; };
 		C800000000000000000000103 /* CurrencyConverterView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CurrencyConverterView.swift; path = EasySearch/Features/Utilities/CurrencyConverter/CurrencyConverterView.swift; sourceTree = SOURCE_ROOT; };
 		C800000000000000000000104 /* CurrencyConverterViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CurrencyConverterViewModelTests.swift; sourceTree = "<group>"; };
 		C800000000000000000000105 /* ExchangeRateServiceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExchangeRateServiceTests.swift; sourceTree = "<group>"; };
-		3195DD59E264422624CF152A /* ImageTranslateFileStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageTranslateFileStoreTests.swift; sourceTree = "<group>"; };
 		3533C5449EDD66685F0582EE /* FeatureRegistry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FeatureRegistry.swift; path = EasySearch/Core/Architecture/FeatureRegistry.swift; sourceTree = SOURCE_ROOT; };
 		3FA114C3137BB97879C05067 /* EasySearchFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EasySearchFeature.swift; path = EasySearch/Features/EasySearch/EasySearchFeature.swift; sourceTree = SOURCE_ROOT; };
 		5166978A4A4BE388668D0139 /* EasySearchApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EasySearchApp.swift; path = EasySearch/App/EasySearchApp.swift; sourceTree = SOURCE_ROOT; };
 		7776F48C8127AD4F470DB7EF /* AppFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppFeature.swift; path = EasySearch/Core/Architecture/AppFeature.swift; sourceTree = SOURCE_ROOT; };
-		77B71B90FD37F678F1BE7721 /* TextAlignment.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TextAlignment.swift; sourceTree = "<group>"; };
 		795E17200E5B98842C811DAF /* CategoryTabBar.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CategoryTabBar.swift; path = EasySearch/Features/EasySearch/Views/CategoryTabBar.swift; sourceTree = SOURCE_ROOT; };
 		7E97BF05A1233442C2B30768 /* SearchEngine.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchEngine.swift; path = EasySearch/Features/EasySearch/Models/SearchEngine.swift; sourceTree = SOURCE_ROOT; };
-		84A9CB8EA30ED3CE55AC2A70 /* ImageTranslateTextAlignmentTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageTranslateTextAlignmentTests.swift; sourceTree = "<group>"; };
 		8A0697B7D17CAD38D2E763F4 /* EngineGridView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EngineGridView.swift; path = EasySearch/Features/EasySearch/Views/EngineGridView.swift; sourceTree = SOURCE_ROOT; };
 		9D66418FE785F8E727F9BAE4 /* EasySearchView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EasySearchView.swift; path = EasySearch/Features/EasySearch/Views/EasySearchView.swift; sourceTree = SOURCE_ROOT; };
-		F10000000000000000000002 /* ImageOCRServiceTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageOCRServiceTests.swift; sourceTree = "<group>"; };
 		A2000009 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A2000010 /* search-engines.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "search-engines.json"; sourceTree = "<group>"; };
 		A3000000 /* EasySearch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = EasySearch.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		AED5424721AE4AFD4354443F /* ImageTranslateHistoryReducerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageTranslateHistoryReducerTests.swift; sourceTree = "<group>"; };
 		C2376609760E7B3F32B6F9FD /* SearchBar.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchBar.swift; path = EasySearch/Features/EasySearch/Views/SearchBar.swift; sourceTree = SOURCE_ROOT; };
 		CC601343648B48283FAC97DF /* EasySearchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EasySearchTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D1A000000000000000000101 /* UTEntry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UTEntry.swift; path = EasySearch/Features/UTTracker/Models/UTEntry.swift; sourceTree = SOURCE_ROOT; };
@@ -289,17 +249,6 @@
 		D400000000000000000000107 /* QingLongOverviewCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongOverviewCard.swift; path = EasySearch/Features/QingLong/Views/QingLongOverviewCard.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000109 /* QingLongSharedViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongSharedViews.swift; path = EasySearch/Features/QingLong/Views/QingLongSharedViews.swift; sourceTree = SOURCE_ROOT; };
 		D400000000000000000000110 /* QingLongWorkspaceViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongWorkspaceViews.swift; path = EasySearch/Features/QingLong/Views/QingLongWorkspaceViews.swift; sourceTree = SOURCE_ROOT; };
-		D500000000000000000000101 /* ImageTranslateFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateFeature.swift; path = EasySearch/Features/ImageTranslate/ImageTranslateFeature.swift; sourceTree = SOURCE_ROOT; };
-		D500000000000000000000102 /* ImageTranslateCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateCoordinator.swift; path = EasySearch/Features/ImageTranslate/ImageTranslateCoordinator.swift; sourceTree = SOURCE_ROOT; };
-		D500000000000000000000103 /* ImageTranslateModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateModels.swift; path = EasySearch/Features/ImageTranslate/Models/ImageTranslateModels.swift; sourceTree = SOURCE_ROOT; };
-		D500000000000000000000104 /* ImageTranslateViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateViewModel.swift; path = EasySearch/Features/ImageTranslate/ViewModels/ImageTranslateViewModel.swift; sourceTree = SOURCE_ROOT; };
-		D500000000000000000000105 /* ImageTranslateView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateView.swift; path = EasySearch/Features/ImageTranslate/Views/ImageTranslateView.swift; sourceTree = SOURCE_ROOT; };
-		D600000000000000000000101 /* EmailAssistantFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantFeature.swift; path = EasySearch/Features/EmailAssistant/EmailAssistantFeature.swift; sourceTree = SOURCE_ROOT; };
-		D600000000000000000000102 /* EmailAssistantCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantCoordinator.swift; path = EasySearch/Features/EmailAssistant/EmailAssistantCoordinator.swift; sourceTree = SOURCE_ROOT; };
-		D600000000000000000000103 /* EmailAssistantModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantModels.swift; path = EasySearch/Features/EmailAssistant/Models/EmailAssistantModels.swift; sourceTree = SOURCE_ROOT; };
-		D600000000000000000000104 /* EmailAssistantViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantViewModel.swift; path = EasySearch/Features/EmailAssistant/ViewModels/EmailAssistantViewModel.swift; sourceTree = SOURCE_ROOT; };
-		D600000000000000000000105 /* EmailAssistantView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EmailAssistantView.swift; path = EasySearch/Features/EmailAssistant/Views/EmailAssistantView.swift; sourceTree = SOURCE_ROOT; };
-		D700000000000000000000101 /* DeepSeekClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DeepSeekClient.swift; path = EasySearch/Core/AI/DeepSeekClient.swift; sourceTree = SOURCE_ROOT; };
 		E100000000000000000000101 /* ExpenseAssistantFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantFeature.swift; path = EasySearch/Features/ExpenseAssistant/ExpenseAssistantFeature.swift; sourceTree = SOURCE_ROOT; };
 		E100000000000000000000102 /* ExpenseAssistantModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantModels.swift; path = EasySearch/Features/ExpenseAssistant/Models/ExpenseAssistantModels.swift; sourceTree = SOURCE_ROOT; };
 		E100000000000000000000103 /* ExpenseAssistantStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpenseAssistantStore.swift; path = EasySearch/Features/ExpenseAssistant/Models/ExpenseAssistantStore.swift; sourceTree = SOURCE_ROOT; };
@@ -311,7 +260,6 @@
 		DD2DDB34B07E1AF3F585243D /* SettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = EasySearch/Features/Settings/Views/SettingsView.swift; sourceTree = SOURCE_ROOT; };
 		E300000000000000000000101 /* AppUpdateService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppUpdateService.swift; path = EasySearch/Features/Settings/Services/AppUpdateService.swift; sourceTree = SOURCE_ROOT; };
 		DE58CC4FBE5DDA9B8E6C8416 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
-		DEE5D4584B694CD5678242E5 /* ImageTranslateSessionStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageTranslateSessionStore.swift; path = EasySearch/Features/ImageTranslate/Models/ImageTranslateSessionStore.swift; sourceTree = SOURCE_ROOT; };
 		E53A9599509BBCA5DB03ABC4 /* SearchViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchViewModel.swift; path = EasySearch/Features/EasySearch/ViewModels/SearchViewModel.swift; sourceTree = SOURCE_ROOT; };
 		F50000000000000000000101 /* TrainingLogFeature.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrainingLogFeature.swift; path = EasySearch/Features/TrainingLog/TrainingLogFeature.swift; sourceTree = SOURCE_ROOT; };
 		F50000000000000000000102 /* TrainingLogModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = TrainingLogModels.swift; path = EasySearch/Features/TrainingLog/Models/TrainingLogModels.swift; sourceTree = SOURCE_ROOT; };
@@ -371,7 +319,6 @@
 			isa = PBXGroup;
 			children = (
 				F40000000000000000000205 /* Sharing */,
-				D700000000000000000000201 /* AI */,
 				8C99C0002060773331CA9541 /* Extensions */,
 				E59C8AA3A5C7B7392A388AF9 /* UIComponents */,
 				0FB4DB06D5AE9B9FED0B57B4 /* Architecture */,
@@ -414,7 +361,6 @@
 			isa = PBXGroup;
 			children = (
 				C029CE55AD0421092BCC4806 /* SearchEngineUsageStore.swift */,
-				1DB6D4D6CC08A6B337179D52 /* SearchHistoryStore.swift */,
 				7E97BF05A1233442C2B30768 /* SearchEngine.swift */,
 				F30000000000000000000101 /* SearchEngineIconCache.swift */,
 			);
@@ -541,18 +487,11 @@
 				4646F906A597F1920A4801F6 /* ExpenseAssistantMarkOverdueTests.swift */,
 				409E3F66D770693C4E471DC9 /* TrainingLogRepeatWorkoutTests.swift */,
 				F5FBB6B3F3C019DD9B453577 /* SearchEngineUsageStoreTests.swift */,
-				9A79591701176A19AE5D8AAA /* SearchHistoryStoreTests.swift */,
 				F40000000000000000000114 /* WebDAVClientTests.swift */,
 				F30000000000000000000102 /* SearchEngineIconCacheTests.swift */,
 				E100000000000000000000107 /* ExpenseAssistantTests.swift */,
 				C800000000000000000000104 /* CurrencyConverterViewModelTests.swift */,
 				C800000000000000000000105 /* ExchangeRateServiceTests.swift */,
-				F10000000000000000000002 /* ImageOCRServiceTests.swift */,
-				84A9CB8EA30ED3CE55AC2A70 /* ImageTranslateTextAlignmentTests.swift */,
-				AED5424721AE4AFD4354443F /* ImageTranslateHistoryReducerTests.swift */,
-				3195DD59E264422624CF152A /* ImageTranslateFileStoreTests.swift */,
-				E200000000000000000000101 /* ImageTranslateViewModelTests.swift */,
-				37547D8A0816D8A33D7DD4D4 /* ImageTranslateResponseParserTests.swift */,
 				E200000000000000000000102 /* SearchViewModelTests.swift */,
 				E200000000000000000000103 /* DashboardParserTests.swift */,
 				F200000000000000000000101 /* UTTrackerMonthSummaryTests.swift */,
@@ -593,8 +532,6 @@
 		CABB44AE871E03479E9CEB1F /* Features */ = {
 			isa = PBXGroup;
 			children = (
-				C659529B18ADF13CD86CA80F /* AIAssistantView.swift */,
-				184257EDD42B0873CBFBEFF8 /* AIAssistantFeature.swift */,
 				CD7CFE82B7B0EDACEF2A77A2 /* Dashboard */,
 				214A4883BB1976CD8E3A4676 /* EasySearch */,
 				E100000000000000000000201 /* ExpenseAssistant */,
@@ -602,8 +539,6 @@
 				D1A000000000000000000201 /* UTTracker */,
 				F50000000000000000000201 /* TrainingLog */,
 				D400000000000000000000201 /* QingLong */,
-				D500000000000000000000201 /* ImageTranslate */,
-				D600000000000000000000201 /* EmailAssistant */,
 				F40000000000000000000201 /* WebDAV */,
 				9184EB6BD9CBA9B4D5FB8E9F /* Utilities */,
 			);
@@ -714,90 +649,6 @@
 				D400000000000000000000110 /* QingLongWorkspaceViews.swift */,
 			);
 			path = Views;
-			sourceTree = "<group>";
-		};
-		D500000000000000000000201 /* ImageTranslate */ = {
-			isa = PBXGroup;
-			children = (
-				D500000000000000000000202 /* Models */,
-				D500000000000000000000203 /* ViewModels */,
-				D500000000000000000000204 /* Views */,
-				D500000000000000000000101 /* ImageTranslateFeature.swift */,
-				D500000000000000000000102 /* ImageTranslateCoordinator.swift */,
-			);
-			path = ImageTranslate;
-			sourceTree = "<group>";
-		};
-		D500000000000000000000202 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				D500000000000000000000103 /* ImageTranslateModels.swift */,
-				DEE5D4584B694CD5678242E5 /* ImageTranslateSessionStore.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		D500000000000000000000203 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				D500000000000000000000104 /* ImageTranslateViewModel.swift */,
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
-		D500000000000000000000204 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				D500000000000000000000105 /* ImageTranslateView.swift */,
-			);
-			path = Views;
-			sourceTree = "<group>";
-		};
-		D600000000000000000000201 /* EmailAssistant */ = {
-			isa = PBXGroup;
-			children = (
-				D600000000000000000000202 /* Models */,
-				D600000000000000000000203 /* ViewModels */,
-				D600000000000000000000204 /* Views */,
-				D600000000000000000000101 /* EmailAssistantFeature.swift */,
-				D600000000000000000000102 /* EmailAssistantCoordinator.swift */,
-			);
-			path = EmailAssistant;
-			sourceTree = "<group>";
-		};
-		D600000000000000000000202 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				D600000000000000000000103 /* EmailAssistantModels.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		D600000000000000000000203 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				D600000000000000000000104 /* EmailAssistantViewModel.swift */,
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
-		D600000000000000000000204 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				D600000000000000000000105 /* EmailAssistantView.swift */,
-			);
-			path = Views;
-			sourceTree = "<group>";
-		};
-		D700000000000000000000201 /* AI */ = {
-			isa = PBXGroup;
-			children = (
-				D700000000000000000000101 /* DeepSeekClient.swift */,
-				A10000000000000000000102 /* AIConfigurationStore.swift */,
-				015EF0031C7687BCB7F6A2EE /* ImageOCRService.swift */,
-				77B71B90FD37F678F1BE7721 /* TextAlignment.swift */,
-			);
-			path = AI;
 			sourceTree = "<group>";
 		};
 		E100000000000000000000201 /* ExpenseAssistant */ = {
@@ -1137,22 +988,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				40F5B7118F97C978B9488E45 /* ImageTranslateResponseParserTests.swift in Sources */,
 				EAB98EB26926E8A98CF274C5 /* AppGroupRollbackTests.swift in Sources */,
 				D00D9A381C53C800921C6BAC /* ExpenseAssistantMarkOverdueTests.swift in Sources */,
 				4B340B0FC56B67FCC38D8CB1 /* TrainingLogRepeatWorkoutTests.swift in Sources */,
 				331AB74744F432C47AD1BFB6 /* SearchEngineUsageStoreTests.swift in Sources */,
-				7266B44E95760BE7B3328C3C /* SearchHistoryStoreTests.swift in Sources */,
 				F40000000000000000000011 /* WebDAVClientTests.swift in Sources */,
 				F30000000000000000000002 /* SearchEngineIconCacheTests.swift in Sources */,
 				E100000000000000000000007 /* ExpenseAssistantTests.swift in Sources */,
 				C800000000000000000000004 /* CurrencyConverterViewModelTests.swift in Sources */,
 				C800000000000000000000005 /* ExchangeRateServiceTests.swift in Sources */,
-				F10000000000000000000001 /* ImageOCRServiceTests.swift in Sources */,
-				DC00DBD3D1788263EDDB8459 /* ImageTranslateTextAlignmentTests.swift in Sources */,
-				36B9C9E9DE2EAFB91FE29C76 /* ImageTranslateHistoryReducerTests.swift in Sources */,
-				385A49DB482D3D46438A8BBE /* ImageTranslateFileStoreTests.swift in Sources */,
-				E200000000000000000000001 /* ImageTranslateViewModelTests.swift in Sources */,
 				E200000000000000000000002 /* SearchViewModelTests.swift in Sources */,
 				E200000000000000000000003 /* DashboardParserTests.swift in Sources */,
 				F200000000000000000000001 /* UTTrackerMonthSummaryTests.swift in Sources */,
@@ -1166,19 +1010,14 @@
 				A26DF3D5B85340C77E3F4D8F /* ESGestureMotion.swift in Sources */,
 				D6EE2B6924FDC2E8D749EAFA /* AppGroupStorage.swift in Sources */,
 				06DCDABF4557789B9FBF046F /* CurrencyFeature.swift in Sources */,
-				80AFE97CC743592B5C4F0EF9 /* AIAssistantView.swift in Sources */,
-				27972158FBC629B24B91CF78 /* AIAssistantFeature.swift in Sources */,
 				BA2CB1D6A65F89117084ADF7 /* AppShortcutRouter.swift in Sources */,
 				21DEA2D2748C6A24AA8A6FD1 /* SearchEngineUsageStore.swift in Sources */,
-				0FF6BE28FA79922C54450A2D /* SearchHistoryStore.swift in Sources */,
 				A10000000000000000000001 /* KeychainStore.swift in Sources */,
-				A10000000000000000000002 /* AIConfigurationStore.swift in Sources */,
 				A10000000000000000000003 /* CloudSyncService.swift in Sources */,
 				A10000000000000000000004 /* CloudSyncViewModel.swift in Sources */,
 				A10000000000000000000005 /* ShareAction.swift in Sources */,
 				A10000000000000000000006 /* HiddenSpaceFeature.swift in Sources */,
 				A10000000000000000000007 /* CloudSyncSettingsDetailView.swift in Sources */,
-				A10000000000000000000008 /* AISettingsDetailView.swift in Sources */,
 				A10000000000000000000009 /* SettingsValueRow.swift in Sources */,
 				A1000000000000000000000A /* UTTrackerSettingsDetailView.swift in Sources */,
 				A1000000000000000000000B /* ExpenseAssistantSettingsDetailView.swift in Sources */,
@@ -1257,23 +1096,9 @@
 				D400000000000000000000009 /* QingLongSharedViews.swift in Sources */,
 				D400000000000000000000006 /* QingLongView.swift in Sources */,
 				D400000000000000000000010 /* QingLongWorkspaceViews.swift in Sources */,
-				D500000000000000000000003 /* ImageTranslateModels.swift in Sources */,
-				D500000000000000000000004 /* ImageTranslateViewModel.swift in Sources */,
-				D500000000000000000000001 /* ImageTranslateFeature.swift in Sources */,
-				D500000000000000000000002 /* ImageTranslateCoordinator.swift in Sources */,
-				D500000000000000000000005 /* ImageTranslateView.swift in Sources */,
-				D600000000000000000000003 /* EmailAssistantModels.swift in Sources */,
-				D600000000000000000000004 /* EmailAssistantViewModel.swift in Sources */,
-				D600000000000000000000001 /* EmailAssistantFeature.swift in Sources */,
-				D600000000000000000000002 /* EmailAssistantCoordinator.swift in Sources */,
-				D600000000000000000000005 /* EmailAssistantView.swift in Sources */,
-				D700000000000000000000001 /* DeepSeekClient.swift in Sources */,
 				C800000000000000000000001 /* ExchangeRateService.swift in Sources */,
 				C800000000000000000000002 /* CurrencyConverterViewModel.swift in Sources */,
 				C800000000000000000000003 /* CurrencyConverterView.swift in Sources */,
-				864F62200F337B5F7234088D /* ImageOCRService.swift in Sources */,
-				B7EF418F52080658CAC257DD /* TextAlignment.swift in Sources */,
-				E3CE5ADE8C75D1F8EE33B52A /* ImageTranslateSessionStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

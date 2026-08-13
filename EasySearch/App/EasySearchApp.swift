@@ -10,8 +10,6 @@ enum SettingsRoute: Hashable {
     case cloudSync
     case utTracker
     case expenseAssistant
-    case imageTranslate
-    case emailAssistant
     case qingLong
     case webDAV
     case hiddenSpace
@@ -80,6 +78,7 @@ struct EasySearchApp: App {
 
     init() {
         AppGroupStorage.rollbackToStandardIfNeeded()
+        RemovedFeatureData.cleanup()
     }
 
     var body: some Scene {
@@ -113,6 +112,32 @@ struct EasySearchApp: App {
                     }
                 }
         }
+    }
+}
+
+private enum RemovedFeatureData {
+    static func cleanup(
+        userDefaults: UserDefaults = .standard,
+        fileManager: FileManager = .default
+    ) {
+        [
+            "search.history.v1",
+            "email-assistant.persisted-state.v1",
+            "email-assistant.persisted-state.v2",
+            "email-assistant.persisted-state.v3",
+            "imageTranslate.targetLanguage",
+            "imageTranslate.ai.baseURL",
+            "imageTranslate.deepseek.model"
+        ].forEach { userDefaults.removeObject(forKey: $0) }
+
+        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? fileManager.temporaryDirectory
+        let imageTranslateDirectory = appSupport
+            .appendingPathComponent("EasySearch/ImageTranslate", isDirectory: true)
+        try? fileManager.removeItem(at: imageTranslateDirectory)
+
+        KeychainStore(service: "com.easysearch.image-translate")
+            .delete(account: "ai.api-key.v1")
     }
 }
 

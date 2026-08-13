@@ -39,7 +39,7 @@ struct HiddenSpaceView: View {
                         title: "4khd",
                         summary: "随机封面、专辑与喜欢",
                         systemImage: "photo.stack",
-                        featureID: "image-translate",
+                        featureID: "hidden-space",
                         badges: [
                             "\(fourKHDFavoritesCount) 喜欢"
                         ]

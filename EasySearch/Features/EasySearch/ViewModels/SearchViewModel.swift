@@ -56,7 +56,6 @@ class SearchViewModel: ObservableObject {
     @Published var searchEngines: [SearchEngine] = []
     @Published var searchQuery: String = ""
     @Published var selectedCategory: SearchCategory = .search
-    @Published var history: [SearchHistoryEntry] = []
 
     // MARK: - Constants
 
@@ -66,7 +65,6 @@ class SearchViewModel: ObservableObject {
     private let bundle: Bundle
     private let remoteConfigURL: URL?
     private let remoteConfigClient: any SearchEngineRemoteConfigClient
-    private let historyStore: SearchHistoryStore
     private let usageStore: SearchEngineUsageStore
     private var didCheckRemoteConfig = false
 
@@ -107,17 +105,14 @@ class SearchViewModel: ObservableObject {
         bundle: Bundle = .main,
         remoteConfigURL: URL? = URL(string: "https://raw.githubusercontent.com/xp9477/easy-search/main/data/search-engines.json"),
         remoteConfigClient: any SearchEngineRemoteConfigClient = URLSessionSearchEngineRemoteConfigClient(),
-        historyStore: SearchHistoryStore = SearchHistoryStore(),
         usageStore: SearchEngineUsageStore = SearchEngineUsageStore()
     ) {
         self.userDefaults = userDefaults
         self.bundle = bundle
         self.remoteConfigURL = remoteConfigURL
         self.remoteConfigClient = remoteConfigClient
-        self.historyStore = historyStore
         self.usageStore = usageStore
         loadConfig()
-        history = historyStore.load()
     }
 
     // MARK: - Config Loading
@@ -164,8 +159,6 @@ class SearchViewModel: ObservableObject {
 
         let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         usageStore.recordUse(engineName: engine.name)
-        historyStore.record(query: query, engineName: engine.name)
-        history = historyStore.load()
         guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
 
         // iOS 上优先尝试 url_scheme（深度链接打开原生 App）
@@ -192,28 +185,6 @@ class SearchViewModel: ObservableObject {
 
         performSearch(engine: engine)
         return true
-    }
-
-    // MARK: - History
-
-    /// 点历史 chip:回填并用上次的引擎直接搜。
-    func searchFromHistory(_ entry: SearchHistoryEntry) {
-        searchQuery = entry.query
-        if let engine = searchEngines.first(where: { $0.name == entry.engineName }) {
-            performSearch(engine: engine)
-        } else {
-            _ = performDefaultSearch()
-        }
-    }
-
-    func removeHistory(_ entry: SearchHistoryEntry) {
-        historyStore.remove(query: entry.query)
-        history = historyStore.load()
-    }
-
-    func clearHistory() {
-        historyStore.clear()
-        history = []
     }
 
     // MARK: - Private Helpers

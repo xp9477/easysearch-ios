@@ -34,10 +34,6 @@ struct EasySearchView: View {
                         }
                     }
 
-                    if !viewModel.history.isEmpty && !viewModel.hasValidQuery {
-                        historySection
-                    }
-
                     CategoryTabBar(
                         categories: SearchCategory.allCases,
                         selectedCategory: $viewModel.selectedCategory
@@ -119,56 +115,6 @@ struct EasySearchView: View {
         let hasStrings = UIPasteboard.general.hasStrings
         withAnimation(ESMotion.quick) {
             clipboardHasText = hasStrings
-        }
-    }
-
-    // MARK: - History
-
-    private var historySection: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
-            HStack {
-                Text("最近搜索")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button("清空") {
-                    ESHaptics.tap()
-                    withAnimation(ESMotion.content) {
-                        viewModel.clearHistory()
-                    }
-                }
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            }
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: ESUI.Space.xs) {
-                    ForEach(viewModel.history.prefix(8)) { entry in
-                        Button {
-                            ESHaptics.tap()
-                            viewModel.searchFromHistory(entry)
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "clock.arrow.circlepath")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                Text(entry.query)
-                                    .font(.subheadline)
-                                    .lineLimit(1)
-                            }
-                            .padding(.horizontal, ESUI.Space.sm)
-                            .padding(.vertical, ESUI.Space.xs)
-                            .background(Capsule().fill(ESUI.fill))
-                        }
-                        .buttonStyle(.plain)
-                        .contextMenu {
-                            Button("删除", role: .destructive) {
-                                viewModel.removeHistory(entry)
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 

@@ -26,19 +26,16 @@ final class ExchangeRateServiceTests: XCTestCase {
     func testFetchRateParsesAllSupportedCurrenciesFromNetworkResponse() async throws {
         MockURLProtocol.requestHandler = { request in
             XCTAssertEqual(request.url?.absoluteString, "https://open.er-api.com/v6/latest/CNY")
-            let body = """
-            {
-              "result": "success",
-              "rates": {
-                "TWD": 4.321,
-                "USD": 0.14,
-                "JPY": 21.5,
-                "KRW": 190.2,
-                "TRY": 4.8,
-                "INR": 11.6
-              }
-            }
-            """.data(using: .utf8)!
+            var rates = Self.completeRatesPayload()
+            rates["TWD"] = 4.321
+            rates["USD"] = 0.14
+            rates["JPY"] = 21.5
+            rates["KRW"] = 190.2
+            rates["TRY"] = 4.8
+            rates["INR"] = 11.6
+            let body = try JSONSerialization.data(
+                withJSONObject: ["result": "success", "rates": rates]
+            )
             let response = HTTPURLResponse(
                 url: request.url!,
                 statusCode: 200,
@@ -61,6 +58,9 @@ final class ExchangeRateServiceTests: XCTestCase {
         XCTAssertEqual(result.rate(of: .krw), 190.2, accuracy: 0.0001)
         XCTAssertEqual(result.rate(of: .tryLira), 4.8, accuracy: 0.0001)
         XCTAssertEqual(result.rate(of: .inr), 11.6, accuracy: 0.0001)
+        XCTAssertNotNil(result.rate(of: .eur))
+        XCTAssertNotNil(result.rate(of: .hkd))
+        XCTAssertNotNil(result.rate(of: .aud))
         XCTAssertEqual(result.rate(of: .cny), 1, accuracy: 0.0001)
         XCTAssertEqual(result.source, .network)
         XCTAssertEqual(userDefaults.double(forKey: "currencyConverter.cachedRate"), 4.321, accuracy: 0.0001)
@@ -82,15 +82,8 @@ final class ExchangeRateServiceTests: XCTestCase {
     }
 
     func testNetworkFailureFallsBackToCache() async throws {
-        let payload: [String: Double] = [
-            "CNY": 1,
-            "TWD": 4.2,
-            "USD": 0.14,
-            "JPY": 21,
-            "KRW": 190,
-            "TRY": 4.8,
-            "INR": 11.5
-        ]
+        var payload = Self.completeRatesPayload()
+        payload["TWD"] = 4.2
         userDefaults.set(try! JSONEncoder().encode(payload), forKey: "currencyConverter.cachedRates.v2")
         userDefaults.set(Date().timeIntervalSince1970 - 3600, forKey: "currencyConverter.cachedDate.v2")
 
@@ -111,15 +104,8 @@ final class ExchangeRateServiceTests: XCTestCase {
 
     func testFreshCacheSkipsNetworkWhenNotForced() async throws {
         let now = Date()
-        let payload: [String: Double] = [
-            "CNY": 1,
-            "TWD": 4.11,
-            "USD": 0.14,
-            "JPY": 21,
-            "KRW": 190,
-            "TRY": 4.8,
-            "INR": 11.5
-        ]
+        var payload = Self.completeRatesPayload()
+        payload["TWD"] = 4.11
         userDefaults.set(try! JSONEncoder().encode(payload), forKey: "currencyConverter.cachedRates.v2")
         userDefaults.set(now.timeIntervalSince1970, forKey: "currencyConverter.cachedDate.v2")
 
@@ -150,10 +136,60 @@ final class ExchangeRateServiceTests: XCTestCase {
         XCTAssertEqual(networkCallCount, 0)
     }
 
+    func testFreshLegacyCurrencySetRefreshesToLoadNewCurrencies() async throws {
+        let oldPayload: [String: Double] = [
+            "CNY": 1,
+            "TWD": 4.11,
+            "USD": 0.14,
+            "JPY": 21,
+            "KRW": 190,
+            "TRY": 4.8,
+            "INR": 11.5
+        ]
+        userDefaults.set(try JSONEncoder().encode(oldPayload), forKey: "currencyConverter.cachedRates.v2")
+        userDefaults.set(Date().timeIntervalSince1970, forKey: "currencyConverter.cachedDate.v2")
+
+        var networkCallCount = 0
+        MockURLProtocol.requestHandler = { request in
+            networkCallCount += 1
+            var rates = Self.completeRatesPayload()
+            rates["TWD"] = 4.25
+            let body = try JSONSerialization.data(
+                withJSONObject: ["result": "success", "rates": rates]
+            )
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, body)
+        }
+
+        let service = ExchangeRateService(
+            urlSession: makeMockSession(),
+            userDefaults: userDefaults
+        )
+
+        let result = try await service.fetchRate()
+
+        XCTAssertEqual(result.rate(of: .twd), 4.25, accuracy: 0.0001)
+        XCTAssertNotNil(result.rate(of: .eur))
+        XCTAssertEqual(networkCallCount, 1)
+    }
+
     private func makeMockSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [MockURLProtocol.self]
         return URLSession(configuration: configuration)
+    }
+
+    private static func completeRatesPayload() -> [String: Double] {
+        Dictionary(
+            uniqueKeysWithValues: ConverterCurrency.allCases.enumerated().map { index, currency in
+                (currency.rawValue, currency == .cny ? 1 : Double(index + 1))
+            }
+        )
     }
 }
 

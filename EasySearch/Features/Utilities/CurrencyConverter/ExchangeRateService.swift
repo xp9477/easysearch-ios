@@ -5,11 +5,36 @@ import Foundation
 enum ConverterCurrency: String, CaseIterable, Identifiable, Codable, Hashable {
     case cny = "CNY"
     case twd = "TWD"
+    case hkd = "HKD"
+    case mop = "MOP"
     case usd = "USD"
+    case eur = "EUR"
+    case gbp = "GBP"
     case jpy = "JPY"
     case krw = "KRW"
+    case aud = "AUD"
+    case nzd = "NZD"
+    case cad = "CAD"
+    case chf = "CHF"
+    case sgd = "SGD"
+    case myr = "MYR"
+    case thb = "THB"
+    case vnd = "VND"
+    case idr = "IDR"
+    case php = "PHP"
     case tryLira = "TRY"
     case inr = "INR"
+    case aed = "AED"
+    case sar = "SAR"
+    case ils = "ILS"
+    case sek = "SEK"
+    case nok = "NOK"
+    case dkk = "DKK"
+    case pln = "PLN"
+    case rub = "RUB"
+    case brl = "BRL"
+    case mxn = "MXN"
+    case zar = "ZAR"
 
     var id: String { rawValue }
 
@@ -19,11 +44,36 @@ enum ConverterCurrency: String, CaseIterable, Identifiable, Codable, Hashable {
         switch self {
         case .cny: return "人民币"
         case .twd: return "新台币"
+        case .hkd: return "港币"
+        case .mop: return "澳门元"
         case .usd: return "美元"
+        case .eur: return "欧元"
+        case .gbp: return "英镑"
         case .jpy: return "日元"
         case .krw: return "韩元"
+        case .aud: return "澳大利亚元"
+        case .nzd: return "新西兰元"
+        case .cad: return "加拿大元"
+        case .chf: return "瑞士法郎"
+        case .sgd: return "新加坡元"
+        case .myr: return "马来西亚林吉特"
+        case .thb: return "泰铢"
+        case .vnd: return "越南盾"
+        case .idr: return "印度尼西亚盾"
+        case .php: return "菲律宾比索"
         case .tryLira: return "土耳其里拉"
         case .inr: return "印度卢比"
+        case .aed: return "阿联酋迪拉姆"
+        case .sar: return "沙特里亚尔"
+        case .ils: return "以色列新谢克尔"
+        case .sek: return "瑞典克朗"
+        case .nok: return "挪威克朗"
+        case .dkk: return "丹麦克朗"
+        case .pln: return "波兰兹罗提"
+        case .rub: return "俄罗斯卢布"
+        case .brl: return "巴西雷亚尔"
+        case .mxn: return "墨西哥比索"
+        case .zar: return "南非兰特"
         }
     }
 
@@ -96,7 +146,7 @@ actor ExchangeRateService {
             return cached
         }
 
-        if !force, let diskResult = loadCachedRates(),
+        if !force, let diskResult = loadCachedRates(requireAllSupportedCurrencies: true),
            Date().timeIntervalSince(diskResult.updatedAt) < Self.cacheValiditySeconds {
             lastFetchedResult = diskResult
             return diskResult
@@ -168,7 +218,7 @@ actor ExchangeRateService {
         }
     }
 
-    private func loadCachedRates() -> ExchangeRateResult? {
+    private func loadCachedRates(requireAllSupportedCurrencies: Bool = false) -> ExchangeRateResult? {
         if let data = userDefaults.data(forKey: Self.cacheRatesKey),
            let payload = try? JSONDecoder().decode([String: Double].self, from: data) {
             var rates: [ConverterCurrency: Double] = [:]
@@ -179,7 +229,9 @@ actor ExchangeRateService {
             }
             rates[.cny] = 1
             let timestamp = userDefaults.double(forKey: Self.cacheDateKey)
-            if rates.count == ConverterCurrency.allCases.count, timestamp > 0 {
+            let hasRequiredRates = !requireAllSupportedCurrencies
+                || rates.count == ConverterCurrency.allCases.count
+            if hasRequiredRates, timestamp > 0 {
                 return ExchangeRateResult(
                     ratesAgainstCNY: rates,
                     updatedAt: Date(timeIntervalSince1970: timestamp),

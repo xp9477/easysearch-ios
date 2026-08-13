@@ -33,7 +33,6 @@ public class FeatureRegistry: ObservableObject {
         features.append(TrainingLogFeature())
         features.append(ExpenseAssistantFeature())
         features.append(QingLongFeature())
-        features.append(AIAssistantFeature())
         features.append(CurrencyFeature())
         features.append(WebDAVFeature())
         features.append(HiddenSpaceFeature())
@@ -116,7 +115,6 @@ public final class FeatureStatusCenter: ObservableObject {
 
     @Published public private(set) var summaries: [String: FeatureStatusSummary] = [:]
     @Published public private(set) var cloudSummary = FeatureStatusSummary(kind: .needsConfiguration, text: "仅本地")
-    @Published public private(set) var deepSeekSummary = FeatureStatusSummary(kind: .needsConfiguration, text: "未配置")
     @Published public private(set) var qingLongSummary = FeatureStatusSummary(kind: .needsConfiguration, text: "未连接")
 
     /// Optional registry used so status refresh queries each feature instead of hardcoding stores here.
@@ -147,11 +145,6 @@ public final class FeatureStatusCenter: ObservableObject {
         } else {
             cloudSummary = FeatureStatusSummary(kind: .needsConfiguration, text: "未登录")
         }
-
-        let ai = AIConfigurationStore.shared.loadConfiguration()
-        deepSeekSummary = ai.hasAPIKey
-            ? FeatureStatusSummary(kind: .ready, text: "已配置")
-            : FeatureStatusSummary(kind: .needsConfiguration, text: "未配置")
 
         let qingLong = QingLongPanelLocalStore().loadProfile()
         qingLongSummary = qingLong == nil

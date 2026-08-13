@@ -35,14 +35,6 @@ struct SettingsView: View {
                             ESFeatureIcon(systemName: "icloud", color: .blue, size: 30)
                         }
                     }
-
-                    NavigationLink(value: SettingsRoute.imageTranslate) {
-                        Label {
-                            Text("AI 服务")
-                        } icon: {
-                            ESFeatureIcon(systemName: "sparkles", color: .cyan, size: 30)
-                        }
-                    }
                 }
 
                 Section("关于") {
@@ -177,10 +169,6 @@ struct SettingsView: View {
             UTTrackerSettingsDetailView()
         case .expenseAssistant:
             ExpenseAssistantSettingsDetailView()
-        case .imageTranslate:
-            AISettingsDetailView(entry: .imageTranslate)
-        case .emailAssistant:
-            AISettingsDetailView(entry: .emailAssistant)
         case .qingLong:
             QingLongSettingsDetailView()
         case .webDAV:

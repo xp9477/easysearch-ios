@@ -14,7 +14,6 @@ enum AppGroupStorage {
         UTTrackerStorage.entriesKey,
         TrainingLogStorage.snapshotKey,
         ExpenseAssistantStorage.snapshotKey,
-        SearchHistoryStore.storageKey,
         SearchEngineUsageStore.countsKey,
         SearchEngineUsageStore.lastUsedKey
     ]

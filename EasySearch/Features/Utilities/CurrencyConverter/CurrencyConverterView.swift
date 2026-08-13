@@ -14,7 +14,7 @@ struct CurrencyConverterView: View {
             VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
                 ESModuleHero(
                     title: "汇率换算",
-                    subtitle: "CNY · TWD · USD · JPY · KRW · TRY · INR",
+                    subtitle: "支持 32 种常用币种互换",
                     featureID: "currency",
                     systemImage: "yensign.circle"
                 )
@@ -202,7 +202,7 @@ struct CurrencyConverterView: View {
     }
 
     private var dataSourceFooter: some View {
-        Text("数据来源：ExchangeRate-API · 点击币种可切换 · 支持 CNY / TWD / USD / JPY / KRW / TRY / INR")
+        Text("数据来源：ExchangeRate-API · 点击币种可切换 · 支持 32 种常用币种")
             .font(.caption)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
