@@ -134,7 +134,10 @@ final class SearchEngineIconCacheTests: XCTestCase {
 
     private func makeURLCache(at directoryURL: URL) -> URLCache {
         return URLCache(
-            memoryCapacity: 0,
+            // Keep the assertion deterministic: URLCache writes disk entries
+            // asynchronously, while this test verifies reuse between loader
+            // instances sharing the same cache object.
+            memoryCapacity: 1024 * 1024,
             diskCapacity: 1024 * 1024,
             directory: directoryURL
         )
