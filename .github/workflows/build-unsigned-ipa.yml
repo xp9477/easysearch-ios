@@ -48,17 +48,20 @@ jobs:
         run: |
           set -euo pipefail
           SIMULATOR_ID="$(xcrun simctl list devices available --json | python3 -c '
-          import json, sys
+          import json, re, sys
           payload = json.load(sys.stdin)
-          devices = [
-              device
-              for runtime_devices in payload.get("devices", {}).values()
-              for device in runtime_devices
-              if device.get("isAvailable") and device.get("name", "").startswith("iPhone")
-          ]
-          if not devices:
+          candidates = []
+          for runtime, runtime_devices in payload.get("devices", {}).items():
+              match = re.search(r"\.iOS-(\d+)-(\d+)(?:-(\d+))?$", runtime)
+              if not match:
+                  continue
+              version = tuple(int(part or 0) for part in match.groups())
+              for device in runtime_devices:
+                  if device.get("isAvailable") and device.get("name", "").startswith("iPhone"):
+                      candidates.append((version, device["udid"]))
+          if not candidates:
               raise SystemExit("No available iPhone simulator")
-          print(devices[0]["udid"])
+          print(max(candidates)[1])
           ')"
           echo "Testing on simulator $SIMULATOR_ID"
           xcodebuild test \
@@ -120,6 +123,7 @@ jobs:
           # Supabase credentials must be injected from secrets, not left as $(VAR).
           for key in SUPABASE_URL SUPABASE_PUBLISHABLE_KEY; do
             value="$(/usr/libexec/PlistBuddy -c "Print :$key" "$APP_PATH/Info.plist")"
+            # shellcheck disable=SC2016 -- Match the literal Xcode marker '$('.
             if [[ -z "$value" || "$value" == *'$('* ]]; then
               echo "Info.plist $key was not substituted (got: '$value')." >&2
               exit 1
