@@ -125,8 +125,9 @@ final class TrainingLogViewModel: ObservableObject {
             unit: exercise.unit
         )
         day.lines.append(line)
+        day.updatedAt = .now
         snapshot.days[key] = day
-        persist()
+        persist(changedDayID: key)
     }
 
     func addAnotherSet(from line: WorkoutLine) {
@@ -147,8 +148,9 @@ final class TrainingLogViewModel: ObservableObject {
                     unit: line.unit
                 )
             )
+            day.updatedAt = .now
             snapshot.days[key] = day
-            persist()
+            persist(changedDayID: key)
             return
         }
         addLine(exercise: exercise, amount: line.amount)
@@ -158,17 +160,19 @@ final class TrainingLogViewModel: ObservableObject {
         let key = selectedDayKey
         guard var day = snapshot.days[key] else { return }
         day.lines.removeAll { $0.id == id }
-        if day.lines.isEmpty {
-            snapshot.days.removeValue(forKey: key)
-        } else {
-            snapshot.days[key] = day
-        }
-        persist()
+        day.updatedAt = .now
+        snapshot.days[key] = day
+        persist(changedDayID: key)
     }
 
     func clearSelectedDay() {
-        snapshot.days.removeValue(forKey: selectedDayKey)
-        persist()
+        let key = selectedDayKey
+        guard var day = snapshot.days[key], !day.isTombstone else { return }
+        day.lines.removeAll()
+        day.note = nil
+        day.updatedAt = .now
+        snapshot.days[key] = day
+        persist(changedDayID: key)
     }
 
     /// 找到选中日之前最近的一个训练日,把整组动作复制到选中日。
@@ -192,8 +196,9 @@ final class TrainingLogViewModel: ObservableObject {
                 )
             )
         }
+        day.updatedAt = .now
         snapshot.days[key] = day
-        persist()
+        persist(changedDayID: key)
         return true
     }
 
@@ -207,22 +212,12 @@ final class TrainingLogViewModel: ObservableObject {
 
     // MARK: - Private
 
-    private func persist() {
-        let previousKeys = Set(store.loadSnapshot().days.keys)
+    private func persist(changedDayID: String) {
         store.saveSnapshot(snapshot)
-        let currentKeys = Set(snapshot.days.keys)
-        let deletedKeys = previousKeys.subtracting(currentKeys)
-        let upsertKeys = currentKeys
+        guard let changedDay = snapshot.days[changedDayID] else { return }
 
         Task {
-            for key in deletedKeys {
-                await CloudSyncViewModel.shared.syncTrainingDayDeletionIfPossible(dayID: key)
-            }
-            for key in upsertKeys {
-                if let day = snapshot.days[key] {
-                    await CloudSyncViewModel.shared.syncTrainingDayUpsertIfPossible(day)
-                }
-            }
+            await CloudSyncViewModel.shared.syncTrainingDayUpsertIfPossible(changedDay)
         }
     }
 

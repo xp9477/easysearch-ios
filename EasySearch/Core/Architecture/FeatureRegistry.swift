@@ -136,6 +136,8 @@ public final class FeatureStatusCenter: ObservableObject {
 
         if !cloud.isCloudConfigured {
             cloudSummary = FeatureStatusSummary(kind: .empty, text: "仅本地")
+        } else if cloud.isCloudIdentityMismatch {
+            cloudSummary = FeatureStatusSummary(kind: .attentionNeeded, text: "账号待确认")
         } else if cloud.isCloudAuthenticated {
             let email = cloud.cloudUserEmail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             cloudSummary = FeatureStatusSummary(

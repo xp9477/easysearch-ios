@@ -6,28 +6,80 @@ on:
     branches:
       - master
       - main
-      - 'codex/**'
+      - "codex/**"
+
+permissions:
+  contents: read
+
+# Production branches share one lock so an older run cannot publish after a
+# newer one. Non-production branches only cancel superseded runs of themselves.
+concurrency:
+  group: ${{ github.workflow }}-${{ (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && 'production' || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: macos-15
     timeout-minutes: 30
+    env:
+      # GitHub run IDs are monotonic and survive branch/history rewrites.
+      EASYSEARCH_BUILD_NUMBER: ${{ github.run_id }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
       - name: Select Xcode
-        uses: maxim-lobanov/setup-xcode@v1
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
-          xcode-version: latest-stable
+          xcode-version: "26.3"
 
       - name: Show build environment
         run: |
           xcodebuild -version
           xcodebuild -project EasySearch.xcodeproj -scheme EasySearch -showdestinations
+
+      - name: Run unit tests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          SIMULATOR_ID="$(xcrun simctl list devices available --json | python3 -c '
+          import json, sys
+          payload = json.load(sys.stdin)
+          devices = [
+              device
+              for runtime_devices in payload.get("devices", {}).values()
+              for device in runtime_devices
+              if device.get("isAvailable") and device.get("name", "").startswith("iPhone")
+          ]
+          if not devices:
+              raise SystemExit("No available iPhone simulator")
+          print(devices[0]["udid"])
+          ')"
+          echo "Testing on simulator $SIMULATOR_ID"
+          xcodebuild test \
+            -project EasySearch.xcodeproj \
+            -scheme EasySearch \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -derivedDataPath "$RUNNER_TEMP/TestDerivedData" \
+            -resultBundlePath "$RUNNER_TEMP/EasySearchTests.xcresult" \
+            CODE_SIGNING_ALLOWED=NO \
+            SUPABASE_URL="$SUPABASE_URL" \
+            SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
+
+      - name: Upload failed test results
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: EasySearchTests-${{ github.run_number }}
+          path: ${{ runner.temp }}/EasySearchTests.xcresult
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Build unsigned app
         env:
@@ -94,7 +146,7 @@ jobs:
           fi
 
       - name: Upload unsigned IPA artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: EasySearch-unsigned-${{ github.run_number }}
           path: EasySearch-unsigned.ipa
@@ -102,6 +154,7 @@ jobs:
           retention-days: 30
 
       - name: Publish IPA to object storage
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
         env:
           S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
           S3_BUCKET: ${{ secrets.S3_BUCKET }}

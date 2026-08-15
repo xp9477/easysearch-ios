@@ -129,46 +129,23 @@ enum HiddenCloudMerge {
 
         for day in primary + secondary {
             if let existing = byID[day.id] {
-                byID[day.id] = mergeWorkoutDay(existing, day)
-            } else {
-                byID[day.id] = day
-            }
-        }
-
-        return byID.values
-            .filter { $0.hasTraining || !($0.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            .sorted { $0.dayStart > $1.dayStart }
-    }
-
-    private static func mergeWorkoutDay(_ lhs: WorkoutDay, _ rhs: WorkoutDay) -> WorkoutDay {
-        var linesByID: [UUID: WorkoutLine] = [:]
-        for line in lhs.lines + rhs.lines {
-            if let existing = linesByID[line.id] {
-                if line.createdAt >= existing.createdAt {
-                    linesByID[line.id] = line
+                if existing.updatedAt > day.updatedAt {
+                    continue
                 }
-            } else {
-                linesByID[line.id] = line
+
+                if existing.updatedAt == day.updatedAt {
+                    // Equal clocks are possible after JSON round-trips. Deletion must
+                    // win ties; otherwise an empty-day tombstone can be resurrected.
+                    if existing.isTombstone || !day.isTombstone {
+                        continue
+                    }
+                }
             }
+
+            byID[day.id] = day
         }
 
-        let note: String?
-        let lhsNote = lhs.note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let rhsNote = rhs.note?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !lhsNote.isEmpty {
-            note = lhs.note
-        } else if !rhsNote.isEmpty {
-            note = rhs.note
-        } else {
-            note = nil
-        }
-
-        return WorkoutDay(
-            id: lhs.id,
-            dayStart: lhs.dayStart,
-            lines: linesByID.values.sorted { $0.createdAt < $1.createdAt },
-            note: note
-        )
+        return byID.values.sorted { $0.dayStart > $1.dayStart }
     }
 
     static func monthlyExpenseClaims(
@@ -750,11 +727,15 @@ private struct HiddenSupabaseTrainingDayRow: Decodable {
             return nil
         }
         let noteValue = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        let decodedLines = lines.compactMap { $0.asLine() }
         return WorkoutDay(
             id: day_id,
             dayStart: dayStart,
-            lines: lines.compactMap { $0.asLine() },
-            note: noteValue.isEmpty ? nil : note
+            lines: decodedLines,
+            note: noteValue.isEmpty ? nil : note,
+            updatedAt: HiddenSupabaseDateFormatter.date(from: updated_at)
+                ?? decodedLines.map(\.createdAt).max()
+                ?? dayStart
         )
     }
 }
@@ -771,8 +752,7 @@ private struct HiddenSupabaseTrainingDayPayload: Encodable {
         day_start = HiddenSupabaseDateFormatter.string(from: day.dayStart)
         note = day.note ?? ""
         lines = day.lines.map(HiddenSupabaseTrainingLineDTO.init(line:))
-        let maxLineDate = day.lines.map(\.createdAt).max() ?? day.dayStart
-        updated_at = HiddenSupabaseDateFormatter.string(from: maxLineDate)
+        updated_at = HiddenSupabaseDateFormatter.string(from: day.updatedAt)
     }
 }
 
@@ -1248,17 +1228,6 @@ actor HiddenSupabaseService {
         try await upsertTrainingDaysPayload([HiddenSupabaseTrainingDayPayload(day: day)])
     }
 
-    func deleteTrainingDay(dayID: String) async throws {
-        let request = try await authorizedRESTRequest(
-            path: "/rest/v1/training_log_days",
-            method: "DELETE",
-            queryItems: [
-                URLQueryItem(name: "day_id", value: "eq.\(dayID)")
-            ]
-        )
-        _ = try await performDataRequest(request)
-    }
-
     func fetchExpenseMonthlyClaims() async throws -> [MonthlyExpenseClaim] {
         let request = try await authorizedRESTRequest(
             path: "/rest/v1/expense_monthly_claims",
@@ -1647,4 +1616,3 @@ extension Error {
         return nsError.code == 401 || nsError.code == 403
     }
 }
-

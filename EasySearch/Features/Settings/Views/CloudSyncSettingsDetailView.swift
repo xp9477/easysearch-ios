@@ -35,6 +35,15 @@ struct CloudSyncSettingsDetailView: View {
                                 .multilineTextAlignment(.trailing)
                         }
 
+                        if cloudViewModel.isCloudIdentityMismatch {
+                            Label(
+                                "此设备的本地数据属于另一个云账号。为防止账号间数据泄漏，当前账号的同步已暂停；请退出并登录原账号。",
+                                systemImage: "exclamationmark.shield.fill"
+                            )
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                        }
+
                         Button {
                             Task {
                                 await cloudViewModel.syncNow()
@@ -48,7 +57,10 @@ struct CloudSyncSettingsDetailView: View {
                                 }
                             }
                         }
-                        .disabled(cloudViewModel.isCloudBusy)
+                        .disabled(
+                            cloudViewModel.isCloudBusy ||
+                            cloudViewModel.isCloudIdentityMismatch
+                        )
 
                         Button(role: .destructive) {
                             Task {
@@ -125,6 +137,9 @@ struct CloudSyncSettingsDetailView: View {
     private var statusText: String {
         if !cloudViewModel.isCloudConfigured {
             return "仅本地"
+        }
+        if cloudViewModel.isCloudIdentityMismatch {
+            return "账号待确认"
         }
         return cloudViewModel.isCloudAuthenticated ? "已登录" : "未登录"
     }

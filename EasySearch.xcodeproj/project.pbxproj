@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		239C4A07BDD01F38027F4822 /* CloudSyncIdentityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCF1056DE1D9C410B1BA4193 /* CloudSyncIdentityStore.swift */; };
 		EAB98EB26926E8A98CF274C5 /* AppGroupRollbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97DE174DF032B26557966A53 /* AppGroupRollbackTests.swift */; };
 		A26DF3D5B85340C77E3F4D8F /* ESGestureMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84EBDFADB034D60847F5EBC5 /* ESGestureMotion.swift */; };
 		D6EE2B6924FDC2E8D749EAFA /* AppGroupStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = D162DF46FC74A1346E743D8B /* AppGroupStorage.swift */; };
@@ -150,6 +151,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		CCF1056DE1D9C410B1BA4193 /* CloudSyncIdentityStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncIdentityStore.swift; path = EasySearch/Core/CloudSync/CloudSyncIdentityStore.swift; sourceTree = SOURCE_ROOT; };
 		AC1000000000000000000102 /* Supabase.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text; name = Supabase.xcconfig.example; path = EasySearch/Config/Supabase.xcconfig.example; sourceTree = SOURCE_ROOT; };
 		AC1000000000000000000101 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = App.xcconfig; path = EasySearch/Config/App.xcconfig; sourceTree = SOURCE_ROOT; };
 		97DE174DF032B26557966A53 /* AppGroupRollbackTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppGroupRollbackTests.swift; path = EasySearchTests/AppGroupRollbackTests.swift; sourceTree = SOURCE_ROOT; };
@@ -595,6 +597,7 @@
 		D2A000000000000000000201 /* CloudSync */ = {
 			isa = PBXGroup;
 			children = (
+				CCF1056DE1D9C410B1BA4193 /* CloudSyncIdentityStore.swift */,
 				D2A000000000000000000101 /* CloudSyncCoordinator.swift */,
 				A10000000000000000000103 /* CloudSyncService.swift */,
 				A10000000000000000000104 /* CloudSyncViewModel.swift */,
@@ -1007,6 +1010,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				239C4A07BDD01F38027F4822 /* CloudSyncIdentityStore.swift in Sources */,
 				A26DF3D5B85340C77E3F4D8F /* ESGestureMotion.swift in Sources */,
 				D6EE2B6924FDC2E8D749EAFA /* AppGroupStorage.swift in Sources */,
 				06DCDABF4557789B9FBF046F /* CurrencyFeature.swift in Sources */,

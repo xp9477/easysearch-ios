@@ -91,19 +91,4 @@ struct KeychainStore {
         try saveData(Data(value.utf8), account: account)
     }
 
-    /// Replace semantics used by some callers: delete then add.
-    func replaceData(_ data: Data, account: String) throws {
-        delete(account: account)
-        let insert: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-            kSecValueData as String: data
-        ]
-        let status = SecItemAdd(insert as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw StoreError.status(status)
-        }
-    }
 }

@@ -64,4 +64,18 @@ final class AppGroupRollbackTests: XCTestCase {
 
         XCTAssertTrue(standard.bool(forKey: AppGroupStorage.rollbackMarkerKey))
     }
+
+    func testCloudIdentityStoreBindsFirstAccountAndRejectsDifferentAccount() {
+        let key = "test.cloud.identity"
+        let store = CloudSyncIdentityStore(userDefaults: standard, key: key)
+        let firstUserID = UUID()
+        let secondUserID = UUID()
+
+        XCTAssertEqual(store.match(for: firstUserID), .unbound)
+
+        store.bind(to: firstUserID)
+
+        XCTAssertEqual(store.match(for: firstUserID), .matches)
+        XCTAssertEqual(store.match(for: secondUserID), .mismatches)
+    }
 }

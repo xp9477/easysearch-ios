@@ -87,4 +87,171 @@ final class TrainingLogRepeatWorkoutTests: XCTestCase {
         XCTAssertFalse(viewModel.repeatLastWorkout())
         XCTAssertTrue(viewModel.selectedLines.isEmpty)
     }
+
+    func testCloudMergeKeepsNewestWholeDaySoDeletedLinesDoNotReturn() {
+        let dayStart = TrainingLogCalendar.startOfDay(Date())
+        let older = Date(timeIntervalSince1970: 100)
+        let newer = Date(timeIntervalSince1970: 200)
+        let keptLine = WorkoutLine(
+            id: UUID(),
+            exerciseID: "pushup",
+            exerciseName: "俯卧撑",
+            amount: 20,
+            unit: .reps,
+            createdAt: older
+        )
+        let deletedLine = WorkoutLine(
+            id: UUID(),
+            exerciseID: "plank",
+            exerciseName: "平板支撑",
+            amount: 60,
+            unit: .seconds,
+            createdAt: older
+        )
+        let remote = WorkoutDay(
+            id: "2026-08-15",
+            dayStart: dayStart,
+            lines: [keptLine, deletedLine],
+            note: nil,
+            updatedAt: older
+        )
+        let local = WorkoutDay(
+            id: remote.id,
+            dayStart: dayStart,
+            lines: [keptLine],
+            note: nil,
+            updatedAt: newer
+        )
+
+        let merged = HiddenCloudMerge.workoutDays(primary: [remote], secondary: [local])
+
+        XCTAssertEqual(merged, [local])
+    }
+
+    func testWorkoutDayDecodesLegacyValueWithoutUpdatedAt() throws {
+        struct LegacyWorkoutDay: Encodable {
+            let id: String
+            let dayStart: Date
+            let lines: [WorkoutLine]
+            let note: String?
+        }
+
+        let createdAt = Date(timeIntervalSince1970: 123)
+        let legacy = LegacyWorkoutDay(
+            id: "2026-08-15",
+            dayStart: Date(timeIntervalSince1970: 100),
+            lines: [
+                WorkoutLine(
+                    exerciseID: "squat",
+                    exerciseName: "深蹲",
+                    amount: 20,
+                    unit: .reps,
+                    createdAt: createdAt
+                )
+            ],
+            note: nil
+        )
+
+        let decoded = try JSONDecoder().decode(
+            WorkoutDay.self,
+            from: JSONEncoder().encode(legacy)
+        )
+
+        XCTAssertEqual(decoded.updatedAt, createdAt)
+    }
+
+    func testCloudMergeKeepsNewerTombstoneOverOlderRemoteDay() {
+        let dayStart = Date(timeIntervalSince1970: 100)
+        let remote = WorkoutDay(
+            id: "2026-08-15",
+            dayStart: dayStart,
+            lines: [
+                WorkoutLine(
+                    exerciseID: "squat",
+                    exerciseName: "深蹲",
+                    amount: 20,
+                    unit: .reps,
+                    createdAt: Date(timeIntervalSince1970: 150)
+                )
+            ],
+            note: nil,
+            updatedAt: Date(timeIntervalSince1970: 150)
+        )
+        let tombstone = WorkoutDay(
+            id: remote.id,
+            dayStart: dayStart,
+            lines: [],
+            note: nil,
+            updatedAt: Date(timeIntervalSince1970: 200)
+        )
+
+        let merged = HiddenCloudMerge.workoutDays(primary: [remote], secondary: [tombstone])
+
+        XCTAssertEqual(merged, [tombstone])
+        XCTAssertTrue(merged[0].isTombstone)
+    }
+
+    func testCloudMergePrefersTombstoneWhenClocksAreEqual() {
+        let dayStart = Date(timeIntervalSince1970: 100)
+        let updatedAt = Date(timeIntervalSince1970: 200)
+        let liveDay = WorkoutDay(
+            id: "2026-08-15",
+            dayStart: dayStart,
+            lines: [
+                WorkoutLine(
+                    exerciseID: "squat",
+                    exerciseName: "深蹲",
+                    amount: 20,
+                    unit: .reps,
+                    createdAt: updatedAt
+                )
+            ],
+            note: nil,
+            updatedAt: updatedAt
+        )
+        let tombstone = WorkoutDay(
+            id: liveDay.id,
+            dayStart: dayStart,
+            lines: [],
+            note: nil,
+            updatedAt: updatedAt
+        )
+
+        XCTAssertEqual(
+            HiddenCloudMerge.workoutDays(primary: [tombstone], secondary: [liveDay]),
+            [tombstone]
+        )
+        XCTAssertEqual(
+            HiddenCloudMerge.workoutDays(primary: [liveDay], secondary: [tombstone]),
+            [tombstone]
+        )
+    }
+
+    func testDeletingLastLinePersistsNewerTombstone() throws {
+        let store = InMemoryTrainingLogStore()
+        let today = TrainingLogCalendar.startOfDay(Date())
+        let key = TrainingLogCalendar.dayKey(for: today)
+        let line = WorkoutLine(
+            exerciseID: "pushup",
+            exerciseName: "俯卧撑",
+            amount: 10,
+            unit: .reps
+        )
+        store.snapshot = TrainingLogSnapshot(days: [
+            key: WorkoutDay(
+                id: key,
+                dayStart: today,
+                lines: [line],
+                note: nil,
+                updatedAt: Date(timeIntervalSince1970: 100)
+            )
+        ])
+        let viewModel = TrainingLogViewModel(store: store)
+
+        viewModel.deleteLine(id: line.id)
+
+        let tombstone = try XCTUnwrap(store.snapshot.days[key])
+        XCTAssertTrue(tombstone.isTombstone)
+        XCTAssertGreaterThan(tombstone.updatedAt, Date(timeIntervalSince1970: 100))
+    }
 }

@@ -208,7 +208,7 @@ private struct QingLongKeychainStore {
     func saveCredentials(_ credentials: QingLongCredentials) throws {
         do {
             let data = try JSONEncoder().encode(credentials)
-            try store.replaceData(data, account: account)
+            try store.saveData(data, account: account)
         } catch let error as KeychainStore.StoreError {
             if case let .status(status) = error {
                 throw QingLongError.keychainFailure(status)

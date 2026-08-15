@@ -74,8 +74,49 @@ struct WorkoutDay: Identifiable, Codable, Hashable {
     var dayStart: Date
     var lines: [WorkoutLine]
     var note: String?
+    /// Conflict-resolution clock for cloud sync. It must change for deletions too,
+    /// so deriving it only from the newest remaining line is not sufficient.
+    var updatedAt: Date
+
+    init(
+        id: String,
+        dayStart: Date,
+        lines: [WorkoutLine],
+        note: String?,
+        updatedAt: Date = .now
+    ) {
+        self.id = id
+        self.dayStart = dayStart
+        self.lines = lines
+        self.note = note
+        self.updatedAt = updatedAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case dayStart
+        case lines
+        case note
+        case updatedAt
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        dayStart = try container.decode(Date.self, forKey: .dayStart)
+        lines = try container.decode([WorkoutLine].self, forKey: .lines)
+        note = try container.decodeIfPresent(String.self, forKey: .note)
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
+            ?? lines.map(\.createdAt).max()
+            ?? dayStart
+    }
 
     var hasTraining: Bool { !lines.isEmpty }
+
+    /// Empty rows are retained as LWW tombstones so deletions propagate across devices.
+    var isTombstone: Bool {
+        !hasTraining && (note ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     var totalLines: Int { lines.count }
 

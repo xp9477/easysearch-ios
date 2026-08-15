@@ -12,21 +12,34 @@ final class CloudSyncViewModel: ObservableObject {
     @Published var cloudStatusMessage: String?
     @Published var isPreparingCloud = false
     @Published var isCloudBusy = false
+    @Published private(set) var isCloudIdentityMismatch = false
 
     private let cloudService = HiddenSupabaseService.shared
+    private let identityStore = CloudSyncIdentityStore()
     private var didPrepareCloud = false
+    private var preparationWaiters: [CheckedContinuation<Void, Never>] = []
+    private var isSyncingCollections = false
+    private var cloudUserID: UUID?
 
     func prepareIfNeeded() async {
-        guard !didPrepareCloud, !isPreparingCloud else { return }
+        if isPreparingCloud {
+            await withCheckedContinuation { continuation in
+                preparationWaiters.append(continuation)
+            }
+            return
+        }
+        guard !didPrepareCloud else { return }
         didPrepareCloud = true
 
         isPreparingCloud = true
-        defer { isPreparingCloud = false }
+        defer { finishPreparation() }
 
         guard let configuration = await cloudService.configuration() else {
             isCloudConfigured = false
             isCloudAuthenticated = false
             cloudUserEmail = nil
+            cloudUserID = nil
+            isCloudIdentityMismatch = false
             cloudStatusMessage = "未配置云端同步，当前仅保存在本地。"
             return
         }
@@ -41,11 +54,15 @@ final class CloudSyncViewModel: ObservableObject {
             } else {
                 isCloudAuthenticated = false
                 cloudUserEmail = nil
+                cloudUserID = nil
+                isCloudIdentityMismatch = false
                 cloudStatusMessage = "云端已配置，但尚未登录。"
             }
         } catch {
             isCloudAuthenticated = false
             cloudUserEmail = nil
+            cloudUserID = nil
+            isCloudIdentityMismatch = false
             cloudStatusMessage = "云端会话恢复失败：\(error.localizedDescription)"
             didPrepareCloud = false
         }
@@ -59,13 +76,16 @@ final class CloudSyncViewModel: ObservableObject {
             return
         }
 
-        guard isCloudConfigured, isCloudAuthenticated else { return }
+        guard isCloudConfigured, canSyncCurrentAccount else { return }
         await syncNow(reason: "同步成功")
     }
 
     /// Call when a feature-level mutation gets 401/403 so UI state stays consistent.
     func markAuthenticationLost(message: String? = nil) {
         isCloudAuthenticated = false
+        cloudUserEmail = nil
+        cloudUserID = nil
+        isCloudIdentityMismatch = false
         didPrepareCloud = false
         if let message {
             cloudStatusMessage = message
@@ -108,6 +128,8 @@ final class CloudSyncViewModel: ObservableObject {
             case let .confirmationRequired(message):
                 isCloudAuthenticated = false
                 cloudUserEmail = nil
+                cloudUserID = nil
+                isCloudIdentityMismatch = false
                 cloudStatusMessage = message
             }
         } catch {
@@ -119,6 +141,8 @@ final class CloudSyncViewModel: ObservableObject {
         await cloudService.signOut()
         isCloudAuthenticated = false
         cloudUserEmail = nil
+        cloudUserID = nil
+        isCloudIdentityMismatch = false
         cloudStatusMessage = "已退出云端登录，当前仅保存在本地。"
     }
 
@@ -180,16 +204,6 @@ final class CloudSyncViewModel: ObservableObject {
         }
     }
 
-    func syncTrainingDayDeletionIfPossible(dayID: String) async {
-        guard await prepareForMutationIfNeeded() else { return }
-        do {
-            try await cloudService.deleteTrainingDay(dayID: dayID)
-            cloudStatusMessage = "已从云端移除训练日"
-        } catch {
-            handleCloudMutationError(error, fallbackMessage: "训练记录云端删除失败")
-        }
-    }
-
     func syncExpenseMonthlyClaimIfPossible(_ claim: MonthlyExpenseClaim) async {
         guard await prepareForMutationIfNeeded() else { return }
         do {
@@ -211,10 +225,18 @@ final class CloudSyncViewModel: ObservableObject {
     }
 
     private func syncNow(reason: String) async {
-        guard isCloudAuthenticated else { return }
+        guard isCloudAuthenticated, !isSyncingCollections else { return }
+        guard canSyncCurrentAccount else {
+            cloudStatusMessage = "当前账号与此设备的本地数据绑定不一致，已暂停同步。"
+            return
+        }
 
+        isSyncingCollections = true
         isCloudBusy = true
-        defer { isCloudBusy = false }
+        defer {
+            isSyncingCollections = false
+            isCloudBusy = false
+        }
 
         do {
             _ = try await CloudSyncCoordinator.sync(makeCollections())
@@ -222,6 +244,9 @@ final class CloudSyncViewModel: ObservableObject {
         } catch {
             if error.isHiddenSupabaseAuthFailure {
                 isCloudAuthenticated = false
+                cloudUserEmail = nil
+                cloudUserID = nil
+                isCloudIdentityMismatch = false
                 didPrepareCloud = false
             }
             cloudStatusMessage = "云端同步失败：\(error.localizedDescription)"
@@ -307,11 +332,14 @@ final class CloudSyncViewModel: ObservableObject {
                 },
                 fetchRemote: { try await self.cloudService.fetchTrainingDays() },
                 saveLocal: { days in
+                    let store = TrainingLogLocalStore()
                     var map: [String: WorkoutDay] = [:]
                     for day in days {
                         map[day.id] = day
                     }
-                    TrainingLogLocalStore().saveSnapshot(TrainingLogSnapshot(days: map))
+                    var snapshot = store.loadSnapshot()
+                    snapshot.days = map
+                    store.saveSnapshot(snapshot)
                 },
                 upsertRemote: { try await self.cloudService.upsertTrainingDays($0) },
                 merge: HiddenCloudMerge.workoutDays
@@ -349,24 +377,59 @@ final class CloudSyncViewModel: ObservableObject {
 
     private func applySession(_ session: HiddenSupabaseSession) {
         isCloudAuthenticated = true
+        cloudUserID = session.userID
         cloudUserEmail = session.email
-        cloudStatusMessage = session.email?.cloudNonEmpty.map { "已登录 \($0)" } ?? "已登录云端同步"
+        guard let userID = session.userID else {
+            isCloudIdentityMismatch = true
+            cloudStatusMessage = "无法确认云端账号身份，已暂停同步。"
+            return
+        }
+
+        switch identityStore.match(for: userID) {
+        case .unbound:
+            identityStore.bind(to: userID)
+            isCloudIdentityMismatch = false
+        case .matches:
+            isCloudIdentityMismatch = false
+        case .mismatches:
+            isCloudIdentityMismatch = true
+        }
+
+        if isCloudIdentityMismatch {
+            cloudStatusMessage = "检测到不同云端账号。为避免数据互相覆盖，已暂停同步。"
+        } else {
+            cloudStatusMessage = session.email?.cloudNonEmpty.map { "已登录 \($0)" } ?? "已登录云端同步"
+        }
     }
 
     private func prepareForMutationIfNeeded() async -> Bool {
-        if !didPrepareCloud {
+        if isPreparingCloud || !didPrepareCloud {
             await prepareIfNeeded()
         }
 
-        return isCloudConfigured && isCloudAuthenticated
+        return isCloudConfigured && canSyncCurrentAccount
     }
 
     private func handleCloudMutationError(_ error: Error, fallbackMessage: String) {
         if error.isHiddenSupabaseAuthFailure {
             isCloudAuthenticated = false
+            cloudUserEmail = nil
+            cloudUserID = nil
+            isCloudIdentityMismatch = false
             didPrepareCloud = false
         }
 
         cloudStatusMessage = "\(fallbackMessage)：\(error.localizedDescription)"
+    }
+
+    private func finishPreparation() {
+        isPreparingCloud = false
+        let waiters = preparationWaiters
+        preparationWaiters.removeAll()
+        waiters.forEach { $0.resume() }
+    }
+
+    private var canSyncCurrentAccount: Bool {
+        isCloudAuthenticated && cloudUserID != nil && !isCloudIdentityMismatch
     }
 }
