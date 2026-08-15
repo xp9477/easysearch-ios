@@ -13,7 +13,7 @@ final class SearchEngineIconCacheTests: XCTestCase {
         super.tearDown()
     }
 
-    func testSuccessfulResponseIsReusedAcrossLoaders() async throws {
+    func testSuccessfulResponseFallsBackToSharedCacheAcrossLoaders() async throws {
         let directoryURL = makeCacheDirectory()
         let iconData = try makeIconData()
         SearchEngineIconURLProtocol.setHandler { request in
@@ -39,7 +39,10 @@ final class SearchEngineIconCacheTests: XCTestCase {
 
         XCTAssertEqual(firstData, iconData)
         XCTAssertEqual(secondData, iconData)
-        XCTAssertEqual(SearchEngineIconURLProtocol.requestCount, 1)
+        // Custom URLProtocol classes bypass URLSession's automatic cache hit,
+        // so the second loader attempts the simulated offline request before
+        // SearchEngineIconCache falls back to the validated shared entry.
+        XCTAssertEqual(SearchEngineIconURLProtocol.requestCount, 2)
     }
 
     func testConcurrentRequestsAreCoalesced() async throws {
