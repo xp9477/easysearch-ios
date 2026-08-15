@@ -52,16 +52,16 @@ final class ExchangeRateServiceTests: XCTestCase {
 
         let result = try await service.fetchRate(force: true)
 
-        XCTAssertEqual(result.rate(of: .twd), 4.321, accuracy: 0.0001)
-        XCTAssertEqual(result.rate(of: .usd), 0.14, accuracy: 0.0001)
-        XCTAssertEqual(result.rate(of: .jpy), 21.5, accuracy: 0.0001)
-        XCTAssertEqual(result.rate(of: .krw), 190.2, accuracy: 0.0001)
-        XCTAssertEqual(result.rate(of: .tryLira), 4.8, accuracy: 0.0001)
-        XCTAssertEqual(result.rate(of: .inr), 11.6, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(result.rate(of: .twd)), 4.321, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(result.rate(of: .usd)), 0.14, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(result.rate(of: .jpy)), 21.5, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(result.rate(of: .krw)), 190.2, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(result.rate(of: .tryLira)), 4.8, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(result.rate(of: .inr)), 11.6, accuracy: 0.0001)
         XCTAssertNotNil(result.rate(of: .eur))
         XCTAssertNotNil(result.rate(of: .hkd))
         XCTAssertNotNil(result.rate(of: .aud))
-        XCTAssertEqual(result.rate(of: .cny), 1, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(result.rate(of: .cny)), 1, accuracy: 0.0001)
         XCTAssertEqual(result.source, .network)
         XCTAssertEqual(userDefaults.double(forKey: "currencyConverter.cachedRate"), 4.321, accuracy: 0.0001)
     }
@@ -98,7 +98,7 @@ final class ExchangeRateServiceTests: XCTestCase {
 
         let result = try await service.fetchRate(force: true)
 
-        XCTAssertEqual(result.rate(of: .twd), 4.2, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(result.rate(of: .twd)), 4.2, accuracy: 0.0001)
         XCTAssertEqual(result.source, .cache)
     }
 
@@ -131,7 +131,7 @@ final class ExchangeRateServiceTests: XCTestCase {
 
         let result = try await service.fetchRate(force: false)
 
-        XCTAssertEqual(result.rate(of: .twd), 4.11, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(result.rate(of: .twd)), 4.11, accuracy: 0.0001)
         XCTAssertEqual(result.source, .cache)
         XCTAssertEqual(networkCallCount, 0)
     }
@@ -173,7 +173,7 @@ final class ExchangeRateServiceTests: XCTestCase {
 
         let result = try await service.fetchRate()
 
-        XCTAssertEqual(result.rate(of: .twd), 4.25, accuracy: 0.0001)
+        XCTAssertEqual(try XCTUnwrap(result.rate(of: .twd)), 4.25, accuracy: 0.0001)
         XCTAssertNotNil(result.rate(of: .eur))
         XCTAssertEqual(networkCallCount, 1)
     }
