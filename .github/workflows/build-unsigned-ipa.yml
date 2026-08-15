@@ -42,9 +42,6 @@ jobs:
           xcodebuild -project EasySearch.xcodeproj -scheme EasySearch -showdestinations
 
       - name: Run unit tests
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
           set -euo pipefail
           SIMULATOR_ID="$(xcrun simctl list devices available --json | python3 -c '
@@ -71,9 +68,7 @@ jobs:
             -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
             -derivedDataPath "$RUNNER_TEMP/TestDerivedData" \
             -resultBundlePath "$RUNNER_TEMP/EasySearchTests.xcresult" \
-            CODE_SIGNING_ALLOWED=NO \
-            SUPABASE_URL="$SUPABASE_URL" \
-            SUPABASE_PUBLISHABLE_KEY="$SUPABASE_PUBLISHABLE_KEY"
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Upload failed test results
         if: failure()
