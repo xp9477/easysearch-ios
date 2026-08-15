@@ -29,6 +29,8 @@ struct SearchBar: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.tertiary)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .transition(ESMotion.pop)
@@ -38,7 +40,7 @@ struct SearchBar: View {
                     Image(systemName: "doc.on.clipboard")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(Color.accentColor)
-                        .frame(width: 28, height: 28)
+                        .frame(minWidth: 44, minHeight: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)

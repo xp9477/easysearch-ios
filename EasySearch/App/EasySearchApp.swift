@@ -102,7 +102,7 @@ struct EasySearchApp: App {
                     await CloudSyncViewModel.shared.prepareIfNeeded()
                     await statusCenter.refresh()
                 }
-                .onChange(of: scenePhase) { phase in
+                .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
                     Task {
                         await UTNotificationManager.shared.refreshStateAndSchedules()
@@ -149,24 +149,18 @@ private struct AppShellView: View {
     @ObservedObject private var shortcutRouter = AppShortcutRouter.shared
 
     var body: some View {
-        TabView(selection: tabSelectionBinding) {
-            EasySearchView(viewModel: searchViewModel)
-                .tag(AppTab.search)
-                .tabItem {
-                    Label("搜索", systemImage: "magnifyingglass")
-                }
+        TabView(selection: $navigationState.selectedTab) {
+            Tab("搜索", systemImage: "magnifyingglass", value: AppTab.search) {
+                EasySearchView(viewModel: searchViewModel)
+            }
 
-            DashboardView(isTabActive: navigationState.selectedTab == .workbench)
-                .tag(AppTab.workbench)
-                .tabItem {
-                    Label("工作台", systemImage: "square.grid.2x2")
-                }
+            Tab("工作台", systemImage: "square.grid.2x2", value: AppTab.workbench) {
+                DashboardView(isTabActive: navigationState.selectedTab == .workbench)
+            }
 
-            SettingsView()
-                .tag(AppTab.settings)
-                .tabItem {
-                    Label("设置", systemImage: "gearshape")
-                }
+            Tab("设置", systemImage: "gearshape", value: AppTab.settings) {
+                SettingsView()
+            }
         }
         .appTabBarBehavior()
         .environmentObject(navigationState)
@@ -175,7 +169,7 @@ private struct AppShellView: View {
             shortcutRouter.consume(into: navigationState)
             await searchViewModel.refreshConfigIfNeededOnLaunch()
         }
-        .onChange(of: shortcutRouter.pendingShortcutType) { newValue in
+        .onChange(of: shortcutRouter.pendingShortcutType) { _, newValue in
             guard newValue != nil else { return }
             shortcutRouter.consume(into: navigationState)
         }
@@ -183,7 +177,7 @@ private struct AppShellView: View {
             if navigationState.handleDeepLink(url) { return }
             shareInboxCoordinator.handleIncomingURL(url)
         }
-        .onChange(of: scenePhase) { phase in
+        .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 shareInboxCoordinator.refreshIfNeeded()
             }
@@ -193,12 +187,5 @@ private struct AppShellView: View {
                 shareInboxCoordinator.consume(batch)
             }
         }
-    }
-
-    private var tabSelectionBinding: Binding<AppTab> {
-        Binding(
-            get: { navigationState.selectedTab },
-            set: { navigationState.selectedTab = $0 }
-        )
     }
 }

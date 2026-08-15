@@ -5,6 +5,7 @@ struct CategoryTabBar: View {
     let categories: [SearchCategory]
     @Binding var selectedCategory: SearchCategory
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var indicatorNamespace
 
     var body: some View {
@@ -15,7 +16,7 @@ struct CategoryTabBar: View {
                 Button {
                     guard !isSelected else { return }
                     ESHaptics.selection()
-                    withAnimation(ESMotion.quick) {
+                    withAnimation(reduceMotion ? nil : ESMotion.quick) {
                         selectedCategory = category
                     }
                 } label: {
@@ -23,8 +24,7 @@ struct CategoryTabBar: View {
                         .font(.subheadline.weight(isSelected ? .semibold : .regular))
                         .foregroundStyle(isSelected ? Color.primary : Color.secondary)
                         .lineLimit(1)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 32)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                         .background {
                             if isSelected {
                                 Capsule(style: .continuous)

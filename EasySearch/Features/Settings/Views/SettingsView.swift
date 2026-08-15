@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SettingsView: View {
     @EnvironmentObject private var navigationState: AppNavigationState
@@ -43,6 +44,7 @@ struct SettingsView: View {
                     Button {
                         Task {
                             await appUpdateService.checkForUpdates()
+                            announceUpdateStatus()
                         }
                     } label: {
                         HStack {
@@ -59,7 +61,8 @@ struct SettingsView: View {
                         updateResultSection(lastResult)
                     }
 
-                    if let message = appUpdateService.statusMessage?
+                    if !updateResultIsUnavailable,
+                       let message = appUpdateService.statusMessage?
                         .trimmingCharacters(in: .whitespacesAndNewlines),
                        !message.isEmpty {
                         Text(message)
@@ -81,10 +84,10 @@ struct SettingsView: View {
                 await statusCenter.refresh()
                 handlePendingRouteIfNeeded()
             }
-            .onChange(of: navigationState.pendingSettingsRoute) { _ in
+            .onChange(of: navigationState.pendingSettingsRoute) {
                 handlePendingRouteIfNeeded()
             }
-            .onChange(of: navigationState.selectedTab) { tab in
+            .onChange(of: navigationState.selectedTab) { _, tab in
                 if tab == .settings {
                     Task { await statusCenter.refresh() }
                     handlePendingRouteIfNeeded()
@@ -107,6 +110,8 @@ struct SettingsView: View {
                     Task {
                         if let fileURL = await appUpdateService.downloadLatestIPA() {
                             appUpdateService.presentShareSheet(for: fileURL)
+                        } else {
+                            announceUpdateStatus()
                         }
                     }
                 } label: {
@@ -138,8 +143,14 @@ struct SettingsView: View {
                 }
             }
 
-        case .unavailable:
-            EmptyView()
+        case let .unavailable(message):
+            Label {
+                Text("检查失败：\(message)")
+                    .font(.footnote)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill")
+            }
+            .foregroundStyle(.orange)
         }
     }
 
@@ -182,6 +193,19 @@ struct SettingsView: View {
         guard let route = navigationState.pendingSettingsRoute else { return }
         path.append(route)
         navigationState.pendingSettingsRoute = nil
+    }
+
+    private var updateResultIsUnavailable: Bool {
+        guard let result = appUpdateService.lastResult,
+              case .unavailable = result else { return false }
+        return true
+    }
+
+    private func announceUpdateStatus() {
+        guard let message = appUpdateService.statusMessage?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !message.isEmpty else { return }
+        UIAccessibility.post(notification: .announcement, argument: message)
     }
 
 }

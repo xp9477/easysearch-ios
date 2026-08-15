@@ -26,7 +26,8 @@ struct EasySearchView: View {
                             } label: {
                                 Image(systemName: "arrow.right")
                                     .font(.body.weight(.semibold))
-                                    .frame(width: 32, height: 32)
+                                    .frame(minWidth: 44, minHeight: 44)
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.glassProminent)
                             .disabled(!viewModel.hasValidQuery)
@@ -62,8 +63,6 @@ struct EasySearchView: View {
                 .padding(.bottom, ESUI.Space.lg)
             }
             .esScreenBackground()
-            .animation(ESMotion.content, value: viewModel.selectedCategory)
-            .animation(ESMotion.content, value: viewModel.hasValidQuery)
             .navigationTitle("搜索")
             .navigationBarTitleDisplayMode(.large)
             .scrollDismissesKeyboard(.interactively)
@@ -71,11 +70,11 @@ struct EasySearchView: View {
         .onAppear {
             refreshClipboardState()
         }
-        .onChange(of: navigationState.searchActivationToken) { _ in
+        .onChange(of: navigationState.searchActivationToken) {
             // 仅深链 / 主动激活搜索时聚焦，冷启动与普通打开不弹键盘。
             focusSearchField()
         }
-        .onChange(of: navigationState.pendingSearchQuery) { query in
+        .onChange(of: navigationState.pendingSearchQuery) { _, query in
             guard let query else { return }
             viewModel.searchQuery = query
             navigationState.pendingSearchQuery = nil

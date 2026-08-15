@@ -57,17 +57,17 @@ public struct DashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    // Near-invisible hit target around the nav center title.
-                    Text("工作台")
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                        .frame(minWidth: 160, minHeight: 44)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            unlockHiddenModulesIfNeeded()
-                        }
-                        .accessibilityLabel("工作台")
-                        .accessibilityHint("连点可解锁私密入口")
+                    // Keep the discreet unlock gesture while exposing a real control to assistive technologies.
+                    Button(action: unlockHiddenModulesIfNeeded) {
+                        Text("工作台")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .frame(minWidth: 160, minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("工作台")
+                    .accessibilityHint("连续激活五次可解锁私密入口")
                 }
             }
             .navigationDestination(for: String.self) { featureId in
@@ -86,7 +86,7 @@ public struct DashboardView: View {
                 hiddenSpaceDestination(for: route)
             }
             .id(navigationStackIdentity)
-            .onChange(of: path.count) { count in
+            .onChange(of: path.count) { _, count in
                 // Only collapse/lock when the whole stack returns to the dashboard root.
                 // Nested pushes used to fire onDisappear on the feature root and wipe unlock state.
                 if count == 0 {
@@ -99,11 +99,11 @@ public struct DashboardView: View {
                 Color.black.opacity(0.92).ignoresSafeArea()
             }
         }
-        .onChange(of: scenePhase) { phase in
+        .onChange(of: scenePhase) { _, phase in
             guard phase != .active else { return }
             lockHiddenModulesForPrivacyIfNeeded()
         }
-        .onChange(of: isTabActive) { active in
+        .onChange(of: isTabActive) { _, active in
             if active {
                 saveHiddenSpaceSnapshotIfNeeded()
             } else {
@@ -115,7 +115,7 @@ public struct DashboardView: View {
             consumePendingWorkbenchRoute()
             await statusCenter.refresh()
         }
-        .onChange(of: navigationState.pendingWorkbenchFeatureID) { _ in
+        .onChange(of: navigationState.pendingWorkbenchFeatureID) {
             guard isTabActive else { return }
             consumePendingWorkbenchRoute()
         }
@@ -425,7 +425,7 @@ private struct TrainingModuleStatusIcon: View {
         .onReceive(NotificationCenter.default.publisher(for: .trainingLogDidChange)) { _ in
             refresh()
         }
-        .onChange(of: scenePhase) { phase in
+        .onChange(of: scenePhase) { _, phase in
             if phase == .active { refresh() }
         }
         .accessibilityElement(children: .ignore)
@@ -497,7 +497,7 @@ private struct UTModuleProgressIcon: View {
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
             refreshSummary()
         }
-        .onChange(of: scenePhase) { phase in
+        .onChange(of: scenePhase) { _, phase in
             if phase == .active { refreshSummary() }
         }
         .accessibilityElement(children: .ignore)

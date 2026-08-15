@@ -136,14 +136,16 @@ enum ESMotion {
 // MARK: - Button Style
 
 struct ESCardButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var haptics: Bool = true
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .opacity(configuration.isPressed ? 0.9 : 1)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(ESMotion.press, value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) { isPressed in
+            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.97 : 1))
+            .animation(reduceMotion ? nil : ESMotion.press, value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { _, isPressed in
                 guard haptics, isPressed else { return }
                 ESHaptics.tap()
             }
@@ -291,8 +293,8 @@ struct ESPrimaryCTA: View {
                 Text(title)
                     .font(.body.weight(.semibold))
             }
-            .frame(maxWidth: .infinity)
             .padding(.vertical, ESUI.Space.xs)
+            .frame(maxWidth: .infinity, minHeight: 44)
         }
         .buttonStyle(.glassProminent)
         .disabled(!enabled)
@@ -461,12 +463,14 @@ struct ESEmptyState: View {
             }
         } actions: {
             if let actionTitle, let action {
-                Button(actionTitle, action: action)
-                    .buttonStyle(.glassProminent)
+                Button(action: action) {
+                    Text(actionTitle)
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+                .buttonStyle(.glassProminent)
             }
         }
         .frame(maxWidth: .infinity, minHeight: minHeight)
-        .accessibilityElement(children: .combine)
     }
 }
 
