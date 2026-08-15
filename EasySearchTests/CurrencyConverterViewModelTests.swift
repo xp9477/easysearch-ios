@@ -73,12 +73,13 @@ final class CurrencyConverterViewModelTests: XCTestCase {
         viewModel.updateCNYAmount("100")
         XCTAssertEqual(viewModel.bottomAmount, "450.00")
 
-        // Swap: treat 100 as TWD -> 22.22 CNY
+        // Swap keeps each displayed amount attached to its currency:
+        // 100 CNY / 450 TWD becomes 450 TWD / 100 CNY.
         viewModel.swapFields()
         XCTAssertEqual(viewModel.topCurrency, .twd)
         XCTAssertEqual(viewModel.bottomCurrency, .cny)
         XCTAssertEqual(viewModel.bottomAmount, "100")
-        XCTAssertEqual(viewModel.topAmount, "22.22")
+        XCTAssertEqual(viewModel.topAmount, "450.00")
 
         // Swap back: treat 100 as CNY -> 450 TWD
         viewModel.swapFields()

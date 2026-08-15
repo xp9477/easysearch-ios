@@ -13,7 +13,7 @@ final class SearchEngineIconCacheTests: XCTestCase {
         super.tearDown()
     }
 
-    func testSuccessfulResponseIsReusedFromURLCache() async throws {
+    func testSuccessfulResponseIsReusedAcrossLoaders() async throws {
         let directoryURL = makeCacheDirectory()
         let iconData = try makeIconData()
         SearchEngineIconURLProtocol.setHandler { request in
@@ -21,18 +21,20 @@ final class SearchEngineIconCacheTests: XCTestCase {
         }
 
         let url = URL(string: "https://icons.example/github.png")!
-        var firstURLCache: URLCache? = makeURLCache(at: directoryURL)
-        var firstLoader: SearchEngineIconCache? = makeLoader(urlCache: firstURLCache!)
+        let urlCache = makeURLCache(at: directoryURL)
+        var firstLoader: SearchEngineIconCache? = makeLoader(urlCache: urlCache)
         let firstData = try await firstLoader!.data(for: url)
         await firstLoader?.invalidate()
         firstLoader = nil
-        firstURLCache = nil
+
+        var request = URLRequest(url: url)
+        request.setValue("image/*", forHTTPHeaderField: "Accept")
+        XCTAssertNotNil(urlCache.cachedResponse(for: request))
 
         SearchEngineIconURLProtocol.setHandler { _ in
             throw URLError(.notConnectedToInternet)
         }
-        let secondURLCache = makeURLCache(at: directoryURL)
-        let secondLoader = makeLoader(urlCache: secondURLCache)
+        let secondLoader = makeLoader(urlCache: urlCache)
         let secondData = try await secondLoader.data(for: url)
 
         XCTAssertEqual(firstData, iconData)

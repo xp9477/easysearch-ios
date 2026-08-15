@@ -252,7 +252,8 @@ final class WebDAVClientTests: XCTestCase {
         let request = try XCTUnwrap(WebDAVURLProtocolStub.requests.first)
         XCTAssertEqual(request.httpMethod, "PROPFIND")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Depth"), "1")
-        XCTAssertEqual(request.url?.path, "/dav/folder/")
+        XCTAssertEqual(request.url?.absoluteString, "https://dav.example.com/dav/folder/")
+        XCTAssertEqual(request.url?.hasDirectoryPath, true)
     }
 
     func testUploadKeepsBothWhenRemoteFileAlreadyExists() async throws {
@@ -281,10 +282,10 @@ final class WebDAVClientTests: XCTestCase {
 
     func testDetailsRecursivelyCountsFilesFoldersAndKnownSize() async throws {
         WebDAVURLProtocolStub.setHandler { request in
-            let path = try XCTUnwrap(request.url?.path)
+            let url = try XCTUnwrap(request.url)
             let body: String
-            switch path {
-            case "/dav/folder/":
+            switch url.absoluteString {
+            case "https://dav.example.com/dav/folder/":
                 body = """
                 <d:multistatus xmlns:d="DAV:">
                   <d:response><d:href>/dav/folder/</d:href><d:propstat><d:prop><d:resourcetype><d:collection /></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
@@ -292,7 +293,7 @@ final class WebDAVClientTests: XCTestCase {
                   <d:response><d:href>/dav/folder/nested/</d:href><d:propstat><d:prop><d:resourcetype><d:collection /></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
                 </d:multistatus>
                 """
-            case "/dav/folder/nested/":
+            case "https://dav.example.com/dav/folder/nested/":
                 body = """
                 <d:multistatus xmlns:d="DAV:">
                   <d:response><d:href>/dav/folder/nested/</d:href><d:propstat><d:prop><d:resourcetype><d:collection /></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
@@ -300,7 +301,7 @@ final class WebDAVClientTests: XCTestCase {
                 </d:multistatus>
                 """
             default:
-                XCTFail("Unexpected path: \(path)")
+                XCTFail("Unexpected URL: \(url.absoluteString)")
                 body = "<d:multistatus xmlns:d=\"DAV:\" />"
             }
             let response = try XCTUnwrap(HTTPURLResponse(
@@ -347,7 +348,8 @@ final class WebDAVClientTests: XCTestCase {
 
         let request = try XCTUnwrap(WebDAVURLProtocolStub.requests.first)
         XCTAssertEqual(request.httpMethod, "DELETE")
-        XCTAssertEqual(request.url?.path, "/dav/folder/")
+        XCTAssertEqual(request.url?.absoluteString, "https://dav.example.com/dav/folder/")
+        XCTAssertEqual(request.url?.hasDirectoryPath, true)
     }
 
     func testReplaceUsesOriginalPathAndETag() async throws {
