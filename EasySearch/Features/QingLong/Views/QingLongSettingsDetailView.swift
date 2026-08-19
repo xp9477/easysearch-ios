@@ -119,7 +119,7 @@ struct QingLongSettingsDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await viewModel.prepare()
-            isEditingConnection = viewModel.profile == nil
+            isEditingConnection = viewModel.profile == nil || viewModel.requiresCredentialReconnect
         }
         .sheet(item: $viewModel.diagnosticReport) { report in
             QingLongDiagnosticReportView(report: report)

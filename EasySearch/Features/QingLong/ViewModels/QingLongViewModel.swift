@@ -160,6 +160,7 @@ final class QingLongViewModel: ObservableObject {
     @Published private(set) var isConnecting = false
     @Published private(set) var isRefreshing = false
     @Published private(set) var isRunningDiagnostics = false
+    @Published private(set) var requiresCredentialReconnect = false
     @Published private(set) var pendingEnvironmentIDs: Set<Int> = []
     @Published private(set) var pendingCronIDs: Set<Int> = []
     @Published private(set) var pendingSubscriptionIDs: Set<Int> = []
@@ -259,7 +260,12 @@ final class QingLongViewModel: ObservableObject {
         let storedConfiguration = await QingLongService.shared.loadStoredConfiguration()
         applyStoredConfiguration(storedConfiguration)
 
-        guard storedConfiguration.profile != nil else { return }
+        guard storedConfiguration.canAutoRefresh else {
+            if let reconnectMessage = storedConfiguration.reconnectMessage {
+                setStatus(reconnectMessage, tone: .error)
+            }
+            return
+        }
         await refresh(showStatus: false)
     }
 
@@ -321,6 +327,7 @@ final class QingLongViewModel: ObservableObject {
         draftBaseURL = ""
         draftClientID = ""
         draftClientSecret = ""
+        requiresCredentialReconnect = false
         savedBaseURLString = ""
         savedClientID = ""
         savedClientSecret = ""
@@ -691,6 +698,13 @@ final class QingLongViewModel: ObservableObject {
         draftBaseURL = configuration.profile?.baseURL.absoluteString ?? ""
         draftClientID = configuration.clientID
         draftClientSecret = configuration.clientSecret
+        requiresCredentialReconnect = configuration.profile != nil && !configuration.canAutoRefresh
+        if !configuration.canAutoRefresh {
+            environments = []
+            crons = []
+            subscriptions = []
+            lastRefreshedAt = nil
+        }
         savedBaseURLString = draftBaseURL
         savedClientID = draftClientID
         savedClientSecret = draftClientSecret
@@ -698,6 +712,7 @@ final class QingLongViewModel: ObservableObject {
 
     private func applySnapshot(_ snapshot: QingLongDashboardSnapshot) {
         profile = snapshot.profile
+        requiresCredentialReconnect = false
         draftBaseURL = snapshot.profile.baseURL.absoluteString
         environments = snapshot.environments
         crons = snapshot.crons

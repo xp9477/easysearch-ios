@@ -26,13 +26,8 @@ final class HiddenSpaceViewModel: ObservableObject {
 
     private var cachedTotalPages: Int?
     private var favoriteAlbumImageCache: [String: [URL]] = [:]
-    private let cloudService = HiddenSupabaseService.shared
 
     var totalFavoritesCount: Int { favoriteAlbums.count + favoriteImageURLs.count }
-
-    private var isCloudAuthenticated: Bool {
-        CloudSyncViewModel.shared.isCloudAuthenticated
-    }
 
     private static let randomAlbumCount = 9
 
@@ -112,17 +107,11 @@ final class HiddenSpaceViewModel: ObservableObject {
         }
         saveFavorites()
 
-        guard isCloudAuthenticated else { return }
         Task {
-            do {
-                if shouldRemove {
-                    try await cloudService.delete4KHDAlbum(albumID: album.id)
-                } else {
-                    try await cloudService.upsert4KHDAlbum(album)
-                }
-            } catch {
-                handleCloudMutationError(error)
-            }
+            await CloudSyncViewModel.shared.sync4KHDAlbumIfPossible(
+                album,
+                shouldRemove: shouldRemove
+            )
         }
     }
 
@@ -142,17 +131,11 @@ final class HiddenSpaceViewModel: ObservableObject {
         }
         saveFavoriteImages()
 
-        guard isCloudAuthenticated else { return }
         Task {
-            do {
-                if shouldRemove {
-                    try await cloudService.delete4KHDImage(imageID: target)
-                } else {
-                    try await cloudService.upsert4KHDImage(normalized)
-                }
-            } catch {
-                handleCloudMutationError(error)
-            }
+            await CloudSyncViewModel.shared.sync4KHDImageIfPossible(
+                normalized,
+                shouldRemove: shouldRemove
+            )
         }
     }
 
@@ -279,11 +262,4 @@ final class HiddenSpaceViewModel: ObservableObject {
         )
     }
 
-    private func handleCloudMutationError(_ error: Error) {
-        if error.isHiddenSupabaseAuthFailure {
-            Task {
-                await CloudSyncViewModel.shared.prepareIfNeeded()
-            }
-        }
-    }
 }

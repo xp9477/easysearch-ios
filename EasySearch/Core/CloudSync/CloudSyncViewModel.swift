@@ -80,18 +80,6 @@ final class CloudSyncViewModel: ObservableObject {
         await syncNow(reason: "同步成功")
     }
 
-    /// Call when a feature-level mutation gets 401/403 so UI state stays consistent.
-    func markAuthenticationLost(message: String? = nil) {
-        isCloudAuthenticated = false
-        cloudUserEmail = nil
-        cloudUserID = nil
-        isCloudIdentityMismatch = false
-        didPrepareCloud = false
-        if let message {
-            cloudStatusMessage = message
-        }
-    }
-
     func signIn(email: String, password: String) async {
         guard isCloudConfigured else {
             cloudStatusMessage = "请先配置 Supabase URL 和 publishable key。"
@@ -151,75 +139,229 @@ final class CloudSyncViewModel: ObservableObject {
     }
 
     func syncUTEntryUpsertIfPossible(_ entry: UTEntry) async {
-        guard await prepareForMutationIfNeeded() else { return }
+        guard let expectedUserID = await preparedMutationUserID() else { return }
 
         do {
-            try await cloudService.upsertUTEntry(entry)
+            try await cloudService.upsertUTEntry(
+                entry,
+                expectedUserID: expectedUserID
+            )
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             cloudStatusMessage = "已同步 UT 记录到云端"
         } catch {
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "UT 云端同步失败")
         }
     }
 
     func syncUTEntryDeletionIfPossible(_ entry: UTEntry) async {
-        guard await prepareForMutationIfNeeded() else { return }
+        guard let expectedUserID = await preparedMutationUserID() else { return }
 
         do {
-            try await cloudService.deleteUTEntry(id: entry.id)
+            try await cloudService.deleteUTEntry(
+                id: entry.id,
+                expectedUserID: expectedUserID
+            )
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             cloudStatusMessage = "已从云端移除 UT 记录"
         } catch {
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "UT 云端删除失败")
         }
     }
 
-    func syncQingLongProfileUpsertIfPossible(_ profile: QingLongPanelProfile) async {
-        guard await prepareForMutationIfNeeded() else { return }
+    func syncJavFavoriteIfPossible(
+        _ movie: HiddenJavDBMovie,
+        shouldRemove: Bool
+    ) async {
+        guard let expectedUserID = await preparedMutationUserID() else { return }
 
         do {
-            try await cloudService.upsertQingLongPanelProfile(profile)
+            if shouldRemove {
+                try await cloudService.deleteFavorite(
+                    movieID: movie.id,
+                    expectedUserID: expectedUserID
+                )
+            } else {
+                try await cloudService.upsertFavorite(
+                    movie,
+                    expectedUserID: expectedUserID
+                )
+            }
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
+            cloudStatusMessage = shouldRemove
+                ? "已从云端移除喜欢影片"
+                : "已同步喜欢影片到云端"
+        } catch {
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
+            handleCloudMutationError(error, fallbackMessage: "喜欢影片云端同步失败")
+        }
+    }
+
+    func syncJavPlaybackUpsertIfPossible(
+        _ playback: HiddenJavDBFavoritePlayback
+    ) async {
+        guard let expectedUserID = await preparedMutationUserID() else { return }
+
+        do {
+            try await cloudService.upsertPlayback(
+                playback,
+                expectedUserID: expectedUserID
+            )
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
+            cloudStatusMessage = "已同步播放收藏到云端"
+        } catch {
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
+            handleCloudMutationError(error, fallbackMessage: "播放收藏云端同步失败")
+        }
+    }
+
+    func syncJavPlaybackDeletionIfPossible(playbackID: UUID) async {
+        guard let expectedUserID = await preparedMutationUserID() else { return }
+
+        do {
+            try await cloudService.deletePlayback(
+                id: playbackID,
+                expectedUserID: expectedUserID
+            )
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
+            cloudStatusMessage = "已从云端移除播放收藏"
+        } catch {
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
+            handleCloudMutationError(error, fallbackMessage: "播放收藏删除失败")
+        }
+    }
+
+    func sync4KHDAlbumIfPossible(
+        _ album: HiddenAlbum,
+        shouldRemove: Bool
+    ) async {
+        guard let expectedUserID = await preparedMutationUserID() else { return }
+
+        do {
+            if shouldRemove {
+                try await cloudService.delete4KHDAlbum(
+                    albumID: album.id,
+                    expectedUserID: expectedUserID
+                )
+            } else {
+                try await cloudService.upsert4KHDAlbum(
+                    album,
+                    expectedUserID: expectedUserID
+                )
+            }
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
+            cloudStatusMessage = shouldRemove
+                ? "已从云端移除 4KHD 收藏"
+                : "已同步 4KHD 收藏到云端"
+        } catch {
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
+            handleCloudMutationError(error, fallbackMessage: "4KHD 收藏云端同步失败")
+        }
+    }
+
+    func sync4KHDImageIfPossible(
+        _ imageURL: URL,
+        shouldRemove: Bool
+    ) async {
+        guard let expectedUserID = await preparedMutationUserID() else { return }
+        let imageID = imageURL.absoluteString
+
+        do {
+            if shouldRemove {
+                try await cloudService.delete4KHDImage(
+                    imageID: imageID,
+                    expectedUserID: expectedUserID
+                )
+            } else {
+                try await cloudService.upsert4KHDImage(
+                    imageURL,
+                    expectedUserID: expectedUserID
+                )
+            }
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
+            cloudStatusMessage = shouldRemove
+                ? "已从云端移除图片收藏"
+                : "已同步图片收藏到云端"
+        } catch {
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
+            handleCloudMutationError(error, fallbackMessage: "图片收藏云端同步失败")
+        }
+    }
+
+    func syncQingLongProfileUpsertIfPossible(_ profile: QingLongPanelProfile) async {
+        guard let expectedUserID = await preparedMutationUserID() else { return }
+
+        do {
+            try await cloudService.upsertQingLongPanelProfile(
+                profile,
+                expectedUserID: expectedUserID
+            )
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             cloudStatusMessage = "已同步青龙面板配置到云端"
         } catch {
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "青龙面板配置同步失败")
         }
     }
 
     func syncQingLongProfileDeletionIfPossible(profileID: String) async {
-        guard await prepareForMutationIfNeeded() else { return }
+        guard let expectedUserID = await preparedMutationUserID() else { return }
 
         do {
-            try await cloudService.deleteQingLongPanelProfile(id: profileID)
+            try await cloudService.deleteQingLongPanelProfile(
+                id: profileID,
+                expectedUserID: expectedUserID
+            )
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             cloudStatusMessage = "已从云端移除青龙面板配置"
         } catch {
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "青龙面板配置删除失败")
         }
     }
 
     func syncTrainingDayUpsertIfPossible(_ day: WorkoutDay) async {
-        guard await prepareForMutationIfNeeded() else { return }
+        guard let expectedUserID = await preparedMutationUserID() else { return }
         do {
-            try await cloudService.upsertTrainingDay(day)
+            try await cloudService.upsertTrainingDay(
+                day,
+                expectedUserID: expectedUserID
+            )
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             cloudStatusMessage = "已同步训练记录到云端"
         } catch {
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "训练记录云端同步失败")
         }
     }
 
     func syncExpenseMonthlyClaimIfPossible(_ claim: MonthlyExpenseClaim) async {
-        guard await prepareForMutationIfNeeded() else { return }
+        guard let expectedUserID = await preparedMutationUserID() else { return }
         do {
-            try await cloudService.upsertExpenseMonthlyClaim(claim)
+            try await cloudService.upsertExpenseMonthlyClaim(
+                claim,
+                expectedUserID: expectedUserID
+            )
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             cloudStatusMessage = "已同步报销到云端"
         } catch {
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "报销云端同步失败")
         }
     }
 
     func syncExpenseTravelClaimIfPossible(_ claim: TravelExpenseClaim) async {
-        guard await prepareForMutationIfNeeded() else { return }
+        guard let expectedUserID = await preparedMutationUserID() else { return }
         do {
-            try await cloudService.upsertExpenseTravelClaim(claim)
+            try await cloudService.upsertExpenseTravelClaim(
+                claim,
+                expectedUserID: expectedUserID
+            )
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             cloudStatusMessage = "已同步出差报销到云端"
         } catch {
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "出差报销云端同步失败")
         }
     }
@@ -228,6 +370,10 @@ final class CloudSyncViewModel: ObservableObject {
         guard isCloudAuthenticated, !isSyncingCollections else { return }
         guard canSyncCurrentAccount else {
             cloudStatusMessage = "当前账号与此设备的本地数据绑定不一致，已暂停同步。"
+            return
+        }
+        guard let expectedUserID = cloudUserID else {
+            cloudStatusMessage = "无法确认云端账号身份，已暂停同步。"
             return
         }
 
@@ -239,9 +385,13 @@ final class CloudSyncViewModel: ObservableObject {
         }
 
         do {
-            _ = try await CloudSyncCoordinator.sync(makeCollections())
+            _ = try await CloudSyncCoordinator.sync(
+                makeCollections(expectedUserID: expectedUserID)
+            )
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             cloudStatusMessage = reason
         } catch {
+            guard mutationAccountIsCurrent(expectedUserID) else { return }
             if error.isHiddenSupabaseAuthFailure {
                 isCloudAuthenticated = false
                 cloudUserEmail = nil
@@ -253,7 +403,7 @@ final class CloudSyncViewModel: ObservableObject {
         }
     }
 
-    private func makeCollections() -> [AnyCloudSyncCollection] {
+    private func makeCollections(expectedUserID: UUID) -> [AnyCloudSyncCollection] {
         [
             CloudSyncCollection(
                 label: "jav 影片",
@@ -265,45 +415,80 @@ final class CloudSyncViewModel: ObservableObject {
                         secondary: localPlaybacks.map(\.movie)
                     )
                 },
-                fetchRemote: { try await self.cloudService.fetchFavorites() },
+                fetchRemote: {
+                    try await self.cloudService.fetchFavorites(expectedUserID: expectedUserID)
+                },
                 saveLocal: HiddenJavDBLocalStore.saveFavoriteMovies,
-                upsertRemote: { try await self.cloudService.upsertFavorites($0) },
+                upsertRemote: {
+                    try await self.cloudService.upsertFavorites(
+                        $0,
+                        expectedUserID: expectedUserID
+                    )
+                },
                 merge: HiddenCloudMerge.movies
             ).eraseToAnyCollection(),
             CloudSyncCollection(
                 label: "jav 播放点",
                 unit: "条",
                 loadLocal: HiddenJavDBLocalStore.loadFavoritePlaybacks,
-                fetchRemote: { try await self.cloudService.fetchPlaybacks() },
+                fetchRemote: {
+                    try await self.cloudService.fetchPlaybacks(expectedUserID: expectedUserID)
+                },
                 saveLocal: HiddenJavDBLocalStore.saveFavoritePlaybacks,
-                upsertRemote: { try await self.cloudService.upsertPlaybacks($0) },
+                upsertRemote: {
+                    try await self.cloudService.upsertPlaybacks(
+                        $0,
+                        expectedUserID: expectedUserID
+                    )
+                },
                 merge: HiddenCloudMerge.playbacks
             ).eraseToAnyCollection(),
             CloudSyncCollection(
                 label: "4khd album",
                 unit: "个",
                 loadLocal: Hidden4KHDLocalStore.loadFavoriteAlbums,
-                fetchRemote: { try await self.cloudService.fetch4KHDAlbums() },
+                fetchRemote: {
+                    try await self.cloudService.fetch4KHDAlbums(expectedUserID: expectedUserID)
+                },
                 saveLocal: Hidden4KHDLocalStore.saveFavoriteAlbums,
-                upsertRemote: { try await self.cloudService.upsert4KHDAlbums($0) },
+                upsertRemote: {
+                    try await self.cloudService.upsert4KHDAlbums(
+                        $0,
+                        expectedUserID: expectedUserID
+                    )
+                },
                 merge: HiddenCloudMerge.albums
             ).eraseToAnyCollection(),
             CloudSyncCollection(
                 label: "图片",
                 unit: "张",
                 loadLocal: Hidden4KHDLocalStore.loadFavoriteImages,
-                fetchRemote: { try await self.cloudService.fetch4KHDImages() },
+                fetchRemote: {
+                    try await self.cloudService.fetch4KHDImages(expectedUserID: expectedUserID)
+                },
                 saveLocal: Hidden4KHDLocalStore.saveFavoriteImages,
-                upsertRemote: { try await self.cloudService.upsert4KHDImages($0) },
+                upsertRemote: {
+                    try await self.cloudService.upsert4KHDImages(
+                        $0,
+                        expectedUserID: expectedUserID
+                    )
+                },
                 merge: HiddenCloudMerge.imageURLs
             ).eraseToAnyCollection(),
             CloudSyncCollection(
                 label: "UT",
                 unit: "条",
                 loadLocal: { UTTrackerLocalStore().loadEntries() },
-                fetchRemote: { try await self.cloudService.fetchUTEntries() },
+                fetchRemote: {
+                    try await self.cloudService.fetchUTEntries(expectedUserID: expectedUserID)
+                },
                 saveLocal: { UTTrackerLocalStore().saveEntries($0) },
-                upsertRemote: { try await self.cloudService.upsertUTEntries($0) },
+                upsertRemote: {
+                    try await self.cloudService.upsertUTEntries(
+                        $0,
+                        expectedUserID: expectedUserID
+                    )
+                },
                 merge: HiddenCloudMerge.utEntries
             ).eraseToAnyCollection(),
             CloudSyncCollection(
@@ -312,7 +497,11 @@ final class CloudSyncViewModel: ObservableObject {
                 loadLocal: {
                     QingLongPanelLocalStore().loadProfile().map { [$0] } ?? []
                 },
-                fetchRemote: { try await self.cloudService.fetchQingLongPanelProfiles() },
+                fetchRemote: {
+                    try await self.cloudService.fetchQingLongPanelProfiles(
+                        expectedUserID: expectedUserID
+                    )
+                },
                 saveLocal: { profiles in
                     let store = QingLongPanelLocalStore()
                     if let profile = profiles.first {
@@ -321,7 +510,12 @@ final class CloudSyncViewModel: ObservableObject {
                         store.deleteProfile()
                     }
                 },
-                upsertRemote: { try await self.cloudService.upsertQingLongPanelProfiles($0) },
+                upsertRemote: {
+                    try await self.cloudService.upsertQingLongPanelProfiles(
+                        $0,
+                        expectedUserID: expectedUserID
+                    )
+                },
                 merge: HiddenCloudMerge.qingLongProfiles
             ).eraseToAnyCollection(),
             CloudSyncCollection(
@@ -330,7 +524,9 @@ final class CloudSyncViewModel: ObservableObject {
                 loadLocal: {
                     Array(TrainingLogLocalStore().loadSnapshot().days.values)
                 },
-                fetchRemote: { try await self.cloudService.fetchTrainingDays() },
+                fetchRemote: {
+                    try await self.cloudService.fetchTrainingDays(expectedUserID: expectedUserID)
+                },
                 saveLocal: { days in
                     let store = TrainingLogLocalStore()
                     var map: [String: WorkoutDay] = [:]
@@ -341,35 +537,58 @@ final class CloudSyncViewModel: ObservableObject {
                     snapshot.days = map
                     store.saveSnapshot(snapshot)
                 },
-                upsertRemote: { try await self.cloudService.upsertTrainingDays($0) },
+                upsertRemote: {
+                    try await self.cloudService.upsertTrainingDays(
+                        $0,
+                        expectedUserID: expectedUserID
+                    )
+                },
                 merge: HiddenCloudMerge.workoutDays
             ).eraseToAnyCollection(),
             CloudSyncCollection(
                 label: "月度报销",
                 unit: "条",
                 loadLocal: { ExpenseAssistantLocalStore().loadSnapshot().monthlyClaims },
-                fetchRemote: { try await self.cloudService.fetchExpenseMonthlyClaims() },
+                fetchRemote: {
+                    try await self.cloudService.fetchExpenseMonthlyClaims(
+                        expectedUserID: expectedUserID
+                    )
+                },
                 saveLocal: { monthly in
                     let store = ExpenseAssistantLocalStore()
                     var snapshot = store.loadSnapshot()
                     snapshot.monthlyClaims = monthly
                     store.saveSnapshot(snapshot)
                 },
-                upsertRemote: { try await self.cloudService.upsertExpenseMonthlyClaims($0) },
+                upsertRemote: {
+                    try await self.cloudService.upsertExpenseMonthlyClaims(
+                        $0,
+                        expectedUserID: expectedUserID
+                    )
+                },
                 merge: HiddenCloudMerge.monthlyExpenseClaims
             ).eraseToAnyCollection(),
             CloudSyncCollection(
                 label: "出差报销",
                 unit: "条",
                 loadLocal: { ExpenseAssistantLocalStore().loadSnapshot().travelClaims },
-                fetchRemote: { try await self.cloudService.fetchExpenseTravelClaims() },
+                fetchRemote: {
+                    try await self.cloudService.fetchExpenseTravelClaims(
+                        expectedUserID: expectedUserID
+                    )
+                },
                 saveLocal: { travel in
                     let store = ExpenseAssistantLocalStore()
                     var snapshot = store.loadSnapshot()
                     snapshot.travelClaims = travel
                     store.saveSnapshot(snapshot)
                 },
-                upsertRemote: { try await self.cloudService.upsertExpenseTravelClaims($0) },
+                upsertRemote: {
+                    try await self.cloudService.upsertExpenseTravelClaims(
+                        $0,
+                        expectedUserID: expectedUserID
+                    )
+                },
                 merge: HiddenCloudMerge.travelExpenseClaims
             ).eraseToAnyCollection()
         ]
@@ -408,6 +627,15 @@ final class CloudSyncViewModel: ObservableObject {
         }
 
         return isCloudConfigured && canSyncCurrentAccount
+    }
+
+    private func preparedMutationUserID() async -> UUID? {
+        guard await prepareForMutationIfNeeded() else { return nil }
+        return cloudUserID
+    }
+
+    private func mutationAccountIsCurrent(_ expectedUserID: UUID) -> Bool {
+        canSyncCurrentAccount && cloudUserID == expectedUserID
     }
 
     private func handleCloudMutationError(_ error: Error, fallbackMessage: String) {

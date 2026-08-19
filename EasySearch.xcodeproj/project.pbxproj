@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		9F3D0C70B18C4A62A8E9F101 /* HiddenSupabaseSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1374C68D09A41FAB62E7D20 /* HiddenSupabaseSessionTests.swift */; };
+		BFB71BF68E226A42025894A9 /* QingLongCredentialSecurityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 475B36C140343A7D8EC9816F /* QingLongCredentialSecurityTests.swift */; };
 		239C4A07BDD01F38027F4822 /* CloudSyncIdentityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCF1056DE1D9C410B1BA4193 /* CloudSyncIdentityStore.swift */; };
 		EAB98EB26926E8A98CF274C5 /* AppGroupRollbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97DE174DF032B26557966A53 /* AppGroupRollbackTests.swift */; };
 		A26DF3D5B85340C77E3F4D8F /* ESGestureMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84EBDFADB034D60847F5EBC5 /* ESGestureMotion.swift */; };
@@ -151,6 +153,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		E1374C68D09A41FAB62E7D20 /* HiddenSupabaseSessionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSupabaseSessionTests.swift; path = EasySearchTests/HiddenSupabaseSessionTests.swift; sourceTree = SOURCE_ROOT; };
+		475B36C140343A7D8EC9816F /* QingLongCredentialSecurityTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongCredentialSecurityTests.swift; path = EasySearchTests/QingLongCredentialSecurityTests.swift; sourceTree = SOURCE_ROOT; };
 		CCF1056DE1D9C410B1BA4193 /* CloudSyncIdentityStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncIdentityStore.swift; path = EasySearch/Core/CloudSync/CloudSyncIdentityStore.swift; sourceTree = SOURCE_ROOT; };
 		AC1000000000000000000102 /* Supabase.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text; name = Supabase.xcconfig.example; path = EasySearch/Config/Supabase.xcconfig.example; sourceTree = SOURCE_ROOT; };
 		AC1000000000000000000101 /* App.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = App.xcconfig; path = EasySearch/Config/App.xcconfig; sourceTree = SOURCE_ROOT; };
@@ -485,6 +489,8 @@
 		B924F2B5DBEE2D8D30100156 /* EasySearchTests */ = {
 			isa = PBXGroup;
 			children = (
+				E1374C68D09A41FAB62E7D20 /* HiddenSupabaseSessionTests.swift */,
+				475B36C140343A7D8EC9816F /* QingLongCredentialSecurityTests.swift */,
 				97DE174DF032B26557966A53 /* AppGroupRollbackTests.swift */,
 				4646F906A597F1920A4801F6 /* ExpenseAssistantMarkOverdueTests.swift */,
 				409E3F66D770693C4E471DC9 /* TrainingLogRepeatWorkoutTests.swift */,
@@ -991,6 +997,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9F3D0C70B18C4A62A8E9F101 /* HiddenSupabaseSessionTests.swift in Sources */,
+				BFB71BF68E226A42025894A9 /* QingLongCredentialSecurityTests.swift in Sources */,
 				EAB98EB26926E8A98CF274C5 /* AppGroupRollbackTests.swift in Sources */,
 				D00D9A381C53C800921C6BAC /* ExpenseAssistantMarkOverdueTests.swift in Sources */,
 				4B340B0FC56B67FCC38D8CB1 /* TrainingLogRepeatWorkoutTests.swift in Sources */,

@@ -17,7 +17,6 @@ final class HiddenJavDBViewModel: ObservableObject {
     @Published var detailLoadingIDs: Set<String> = []
     private var cachedTotalPages: Int?
     private var randomLoadSessionID = UUID()
-    private let cloudService = HiddenSupabaseService.shared
 
     /// Mirrored from the app-wide cloud owner for UI bindings in this feature.
     var isCloudConfigured: Bool { CloudSyncViewModel.shared.isCloudConfigured }
@@ -111,9 +110,11 @@ final class HiddenJavDBViewModel: ObservableObject {
         }
         saveFavoriteMovies()
 
-        guard isCloudAuthenticated else { return }
         Task {
-            await syncFavoriteMutation(movie: movie, shouldRemove: shouldRemove)
+            await CloudSyncViewModel.shared.syncJavFavoriteIfPossible(
+                movie,
+                shouldRemove: shouldRemove
+            )
         }
     }
 
@@ -153,10 +154,8 @@ final class HiddenJavDBViewModel: ObservableObject {
         }
         saveFavoritePlaybacks()
 
-        if isCloudAuthenticated {
-            Task {
-                await syncPlaybackUpsert(storedPlayback)
-            }
+        Task {
+            await CloudSyncViewModel.shared.syncJavPlaybackUpsertIfPossible(storedPlayback)
         }
 
         return HiddenJavDBFavoritePlaybackSaveContext(
@@ -176,15 +175,13 @@ final class HiddenJavDBViewModel: ObservableObject {
 
         saveFavoritePlaybacks()
 
-        guard isCloudAuthenticated else {
-            return playbackMarkerPositions(for: context.savedPlayback.movie)
-        }
-
         Task {
             if let replacedPlayback = context.replacedPlayback {
-                await syncPlaybackUpsert(replacedPlayback)
+                await CloudSyncViewModel.shared.syncJavPlaybackUpsertIfPossible(replacedPlayback)
             } else {
-                await syncPlaybackDeletion(context.savedPlayback)
+                await CloudSyncViewModel.shared.syncJavPlaybackDeletionIfPossible(
+                    playbackID: context.savedPlayback.id
+                )
             }
         }
 
@@ -195,9 +192,10 @@ final class HiddenJavDBViewModel: ObservableObject {
         favoritePlaybacks.removeAll { $0.id == playback.id }
         saveFavoritePlaybacks()
 
-        guard isCloudAuthenticated else { return }
         Task {
-            await syncPlaybackDeletion(playback)
+            await CloudSyncViewModel.shared.syncJavPlaybackDeletionIfPossible(
+                playbackID: playback.id
+            )
         }
     }
 
@@ -300,45 +298,6 @@ final class HiddenJavDBViewModel: ObservableObject {
         }
     }
 
-    private func syncFavoriteMutation(movie: HiddenJavDBMovie, shouldRemove: Bool) async {
-        do {
-            if shouldRemove {
-                try await cloudService.deleteFavorite(movieID: movie.id)
-            } else {
-                try await cloudService.upsertFavorite(movie)
-            }
-            CloudSyncViewModel.shared.cloudStatusMessage = shouldRemove ? "已从云端移除喜欢影片" : "已同步喜欢影片到云端"
-        } catch {
-            handleCloudMutationError(error, fallback: "喜欢影片云端同步失败：\(error.localizedDescription)")
-        }
-    }
-
-    private func syncPlaybackUpsert(_ playback: HiddenJavDBFavoritePlayback) async {
-        do {
-            try await cloudService.upsertPlayback(playback)
-            CloudSyncViewModel.shared.cloudStatusMessage = "已同步播放收藏到云端"
-        } catch {
-            handleCloudMutationError(error, fallback: "播放收藏云端同步失败：\(error.localizedDescription)")
-        }
-    }
-
-    private func syncPlaybackDeletion(_ playback: HiddenJavDBFavoritePlayback) async {
-        do {
-            try await cloudService.deletePlayback(id: playback.id)
-            CloudSyncViewModel.shared.cloudStatusMessage = "已从云端移除播放收藏"
-        } catch {
-            handleCloudMutationError(error, fallback: "播放收藏删除失败：\(error.localizedDescription)")
-        }
-    }
-
-    private func handleCloudMutationError(_ error: Error, fallback: String) {
-        if error.isHiddenSupabaseAuthFailure {
-            CloudSyncViewModel.shared.markAuthenticationLost(message: fallback)
-        } else {
-            CloudSyncViewModel.shared.cloudStatusMessage = fallback
-        }
-    }
-
     private func loadFavoriteMovies() {
         favoriteMovies = HiddenJavDBLocalStore.loadFavoriteMovies()
     }
@@ -361,9 +320,11 @@ final class HiddenJavDBViewModel: ObservableObject {
         favoriteMovies.insert(movie, at: 0)
         saveFavoriteMovies()
 
-        guard isCloudAuthenticated else { return }
         Task {
-            await syncFavoriteMutation(movie: movie, shouldRemove: false)
+            await CloudSyncViewModel.shared.syncJavFavoriteIfPossible(
+                movie,
+                shouldRemove: false
+            )
         }
     }
 }

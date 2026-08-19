@@ -23,11 +23,12 @@ struct QingLongPanelLocalStore: QingLongPanelStore {
             return nil
         }
 
-        return profile
+        return try? profile.normalizedForConnection()
     }
 
     func saveProfile(_ profile: QingLongPanelProfile, postsNotification: Bool = true) {
-        guard let data = try? JSONEncoder().encode(profile) else { return }
+        guard let normalizedProfile = try? profile.normalizedForConnection(),
+              let data = try? JSONEncoder().encode(normalizedProfile) else { return }
         userDefaults.set(data, forKey: QingLongStorage.panelProfileKey)
         guard postsNotification else { return }
         NotificationCenter.default.post(name: .qingLongPanelDidChange, object: nil)

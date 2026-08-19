@@ -5,6 +5,8 @@ struct QingLongStoredConfiguration {
     let profile: QingLongPanelProfile?
     let clientID: String
     let clientSecret: String
+    let canAutoRefresh: Bool
+    let reconnectMessage: String?
 }
 
 struct QingLongDiagnosticStep: Identifiable, Hashable {
@@ -35,6 +37,7 @@ enum QingLongError: LocalizedError {
     case invalidBaseURL
     case missingCredentials
     case missingConfiguration
+    case credentialsRequireReconnect
     case missingScriptReference
     case invalidResponse
     case keychainFailure(OSStatus)
@@ -46,11 +49,13 @@ enum QingLongError: LocalizedError {
         case .emptyBaseURL:
             return "请先填写青龙面板地址。"
         case .invalidBaseURL:
-            return "青龙面板地址格式不正确，请使用域名或 IP。"
+            return "青龙面板地址格式不正确，请使用 HTTP(S) 域名或 IP，且不要包含账号、查询参数或片段。"
         case .missingCredentials:
             return "请填写 client_id 和 client_secret。"
         case .missingConfiguration:
             return "还没有保存青龙面板配置。"
+        case .credentialsRequireReconnect:
+            return "此面板没有与当前地址绑定的本机凭证。为保护 client_secret，已停止自动连接，请重新输入凭证。"
         case .missingScriptReference:
             return "当前任务未识别到脚本文件。"
         case .invalidResponse:
@@ -65,9 +70,27 @@ enum QingLongError: LocalizedError {
     }
 }
 
-private struct QingLongCredentials: Codable, Hashable {
+struct QingLongCredentials: Codable, Hashable {
     let clientID: String
     let clientSecret: String
+    let endpointIdentity: String?
+
+    init(clientID: String, clientSecret: String, endpointIdentity: String?) {
+        self.clientID = clientID
+        self.clientSecret = clientSecret
+        self.endpointIdentity = endpointIdentity
+    }
+
+    func isBound(to baseURL: URL) -> Bool {
+        guard let endpointIdentity,
+              let storedURL = try? QingLongEndpoint.normalizedURL(from: endpointIdentity),
+              let storedIdentity = try? QingLongEndpoint.identity(for: storedURL),
+              let requestedIdentity = try? QingLongEndpoint.identity(for: baseURL) else {
+            return false
+        }
+
+        return storedIdentity == requestedIdentity
+    }
 }
 
 private struct QingLongEnvironmentPayload: Encodable {
@@ -205,6 +228,13 @@ private struct QingLongKeychainStore {
         }
     }
 
+    func loadCredentials(matching baseURL: URL) throws -> QingLongCredentials? {
+        guard let credentials = try loadCredentials(), credentials.isBound(to: baseURL) else {
+            return nil
+        }
+        return credentials
+    }
+
     func saveCredentials(_ credentials: QingLongCredentials) throws {
         do {
             let data = try JSONEncoder().encode(credentials)
@@ -250,18 +280,48 @@ actor QingLongService {
         }
     }
 
+    init(testingURLSession urlSession: URLSession) {
+        store = QingLongPanelLocalStore()
+        keychainStore = QingLongKeychainStore()
+        self.urlSession = urlSession
+    }
+
     func loadStoredConfiguration() -> QingLongStoredConfiguration {
         let profile = store.loadProfile()
-        let credentials = try? keychainStore.loadCredentials()
+        guard let profile else {
+            cachedSession = nil
+            return QingLongStoredConfiguration(
+                profile: nil,
+                clientID: "",
+                clientSecret: "",
+                canAutoRefresh: false,
+                reconnectMessage: nil
+            )
+        }
+
+        let credentials = try? keychainStore.loadCredentials(matching: profile.baseURL)
+        guard let credentials else {
+            cachedSession = nil
+            return QingLongStoredConfiguration(
+                profile: profile,
+                clientID: "",
+                clientSecret: "",
+                canAutoRefresh: false,
+                reconnectMessage: QingLongError.credentialsRequireReconnect.localizedDescription
+            )
+        }
+
         return QingLongStoredConfiguration(
             profile: profile,
-            clientID: credentials?.clientID ?? "",
-            clientSecret: credentials?.clientSecret ?? ""
+            clientID: credentials.clientID,
+            clientSecret: credentials.clientSecret,
+            canAutoRefresh: true,
+            reconnectMessage: nil
         )
     }
 
     func connect(baseURLString: String, clientID: String, clientSecret: String) async throws -> QingLongDashboardSnapshot {
-        let normalizedBaseURL = try Self.normalizedBaseURL(from: baseURLString)
+        let normalizedBaseURL = try QingLongEndpoint.normalizedURL(from: baseURLString)
         let trimmedClientID = clientID.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedClientSecret = clientSecret.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -269,7 +329,11 @@ actor QingLongService {
             throw QingLongError.missingCredentials
         }
 
-        let credentials = QingLongCredentials(clientID: trimmedClientID, clientSecret: trimmedClientSecret)
+        let credentials = QingLongCredentials(
+            clientID: trimmedClientID,
+            clientSecret: trimmedClientSecret,
+            endpointIdentity: try QingLongEndpoint.identity(for: normalizedBaseURL)
+        )
         let session = try await authorize(baseURL: normalizedBaseURL, credentials: credentials, forceRefresh: true)
         let fetchedAt = Date()
         async let environments = fetchEnvironments(baseURL: normalizedBaseURL, session: session)
@@ -298,7 +362,7 @@ actor QingLongService {
     }
 
     func diagnoseConnection(baseURLString: String, clientID: String, clientSecret: String) async throws -> QingLongDiagnosticReport {
-        let normalizedBaseURL = try Self.normalizedBaseURL(from: baseURLString)
+        let normalizedBaseURL = try QingLongEndpoint.normalizedURL(from: baseURLString)
         let trimmedClientID = clientID.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedClientSecret = clientSecret.trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -306,7 +370,11 @@ actor QingLongService {
             throw QingLongError.missingCredentials
         }
 
-        let credentials = QingLongCredentials(clientID: trimmedClientID, clientSecret: trimmedClientSecret)
+        let credentials = QingLongCredentials(
+            clientID: trimmedClientID,
+            clientSecret: trimmedClientSecret,
+            endpointIdentity: try QingLongEndpoint.identity(for: normalizedBaseURL)
+        )
         var steps: [QingLongDiagnosticStep] = []
 
         var components = URLComponents(url: openBaseURL(for: normalizedBaseURL).appendingPathComponent("auth/token"), resolvingAgainstBaseURL: false)
@@ -324,7 +392,12 @@ actor QingLongService {
         tokenRequest.timeoutInterval = 20
 
         let tokenProbe = await probeRequest(tokenRequest)
-        let tokenStep = makeDiagnosticStep(title: "获取 Token", url: tokenURL, probe: tokenProbe)
+        let tokenStep = makeDiagnosticStep(
+            title: "获取 Token",
+            url: tokenURL,
+            probe: tokenProbe,
+            redactsSensitiveDetails: true
+        )
         steps.append(tokenStep)
 
         guard let tokenData = tokenProbe.data,
@@ -339,11 +412,11 @@ actor QingLongService {
             steps.append(
                 QingLongDiagnosticStep(
                     title: "Token 解析",
-                    url: tokenURL.absoluteString,
+                    url: QingLongEndpoint.redactedURLForDisplay(tokenURL),
                     httpStatus: tokenProbe.statusCode,
                     isSuccess: false,
-                    summary: error.localizedDescription,
-                    preview: responsePreview(from: tokenData)
+                    summary: "Token 响应格式无法识别。",
+                    preview: ""
                 )
             )
             return QingLongDiagnosticReport(baseURL: normalizedBaseURL.absoluteString, generatedAt: Date(), steps: steps)
@@ -385,9 +458,7 @@ actor QingLongService {
             throw QingLongError.missingConfiguration
         }
 
-        guard let credentials = try keychainStore.loadCredentials() else {
-            throw QingLongError.missingConfiguration
-        }
+        let credentials = try boundCredentials(for: profile.baseURL)
 
         let session = try await authorize(baseURL: profile.baseURL, credentials: credentials)
         let fetchedAt = Date()
@@ -602,12 +673,17 @@ actor QingLongService {
             throw QingLongError.missingConfiguration
         }
 
-        guard let credentials = try keychainStore.loadCredentials() else {
-            throw QingLongError.missingConfiguration
-        }
-
+        let credentials = try boundCredentials(for: profile.baseURL)
         let session = try await authorize(baseURL: profile.baseURL, credentials: credentials)
         return (profile, session)
+    }
+
+    private func boundCredentials(for baseURL: URL) throws -> QingLongCredentials {
+        guard let credentials = try keychainStore.loadCredentials(matching: baseURL) else {
+            cachedSession = nil
+            throw QingLongError.credentialsRequireReconnect
+        }
+        return credentials
     }
 
     private func authorize(
@@ -615,16 +691,30 @@ actor QingLongService {
         credentials: QingLongCredentials,
         forceRefresh: Bool = false
     ) async throws -> QingLongSession {
+        let normalizedBaseURL = try QingLongEndpoint.normalizedURL(from: baseURL)
+        guard credentials.isBound(to: normalizedBaseURL) else {
+            cachedSession = nil
+            throw QingLongError.credentialsRequireReconnect
+        }
+
+        if let cachedSession,
+           cachedSession.baseURL != normalizedBaseURL || cachedSession.clientID != credentials.clientID {
+            self.cachedSession = nil
+        }
+
         let refreshLeeway: TimeInterval = 60
         if !forceRefresh,
            let cachedSession,
-           cachedSession.baseURL == baseURL,
+           cachedSession.baseURL == normalizedBaseURL,
            cachedSession.clientID == credentials.clientID,
            cachedSession.expiration.timeIntervalSinceNow > refreshLeeway {
             return cachedSession
         }
 
-        var components = URLComponents(url: openBaseURL(for: baseURL).appendingPathComponent("auth/token"), resolvingAgainstBaseURL: false)
+        var components = URLComponents(
+            url: openBaseURL(for: normalizedBaseURL).appendingPathComponent("auth/token"),
+            resolvingAgainstBaseURL: false
+        )
         components?.queryItems = [
             URLQueryItem(name: "client_id", value: credentials.clientID),
             URLQueryItem(name: "client_secret", value: credentials.clientSecret)
@@ -638,13 +728,23 @@ actor QingLongService {
         request.httpMethod = "GET"
         request.timeoutInterval = 20
 
-        let payload = try await sendEnvelopeRequest(request, decodeAs: QingLongTokenPayload.self)
+        let payload: QingLongTokenPayload
+        do {
+            payload = try await sendEnvelopeRequest(request, decodeAs: QingLongTokenPayload.self)
+        } catch {
+            // Authentication endpoints receive client_secret in the query string
+            // and may echo credentials or tokens in malformed error bodies. Never
+            // promote that raw response into user-visible status or logs.
+            throw QingLongError.serverError(
+                "青龙面板鉴权失败，请检查面板地址、网络和 Open API 凭证。"
+            )
+        }
         let expiration = payload.expiration.flatMap(Self.dateFromUnixLikeValue(_:)) ?? Date().addingTimeInterval(29 * 24 * 60 * 60)
 
         let session = QingLongSession(
             token: payload.token,
             expiration: expiration,
-            baseURL: baseURL,
+            baseURL: normalizedBaseURL,
             clientID: credentials.clientID
         )
         cachedSession = session
@@ -816,29 +916,32 @@ actor QingLongService {
     private func makeDiagnosticStep(
         title: String,
         url: URL?,
-        probe: (statusCode: Int?, data: Data?, error: QingLongError?)
+        probe: (statusCode: Int?, data: Data?, error: QingLongError?),
+        redactsSensitiveDetails: Bool = false
     ) -> QingLongDiagnosticStep {
+        let displayURL = url.map(QingLongEndpoint.redactedURLForDisplay(_:)) ?? "N/A"
         if let error = probe.error {
             return QingLongDiagnosticStep(
                 title: title,
-                url: url?.absoluteString ?? "N/A",
+                url: displayURL,
                 httpStatus: nil,
                 isSuccess: false,
-                summary: error.localizedDescription,
+                summary: redactsSensitiveDetails
+                    ? "鉴权请求失败，请检查面板地址、网络和证书。"
+                    : error.localizedDescription,
                 preview: ""
             )
         }
 
         let statusCode = probe.statusCode
         let isSuccess = statusCode.map { (200..<300).contains($0) } ?? false
-        let preview = responsePreview(from: probe.data)
         return QingLongDiagnosticStep(
             title: title,
-            url: url?.absoluteString ?? "N/A",
+            url: displayURL,
             httpStatus: statusCode,
             isSuccess: isSuccess,
             summary: statusCode.map { "HTTP \($0)" } ?? "没有拿到 HTTP 状态",
-            preview: preview
+            preview: ""
         )
     }
 
@@ -887,48 +990,6 @@ actor QingLongService {
 
     private func openBaseURL(for baseURL: URL) -> URL {
         baseURL.appendingPathComponent("open")
-    }
-
-    private static func normalizedBaseURL(from rawValue: String) throws -> URL {
-        var trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            throw QingLongError.emptyBaseURL
-        }
-
-        if !trimmed.contains("://") {
-            trimmed = "https://" + trimmed
-        }
-
-        guard let url = URL(string: trimmed),
-              let scheme = url.scheme?.lowercased(),
-              ["http", "https"].contains(scheme),
-              url.host != nil else {
-            throw QingLongError.invalidBaseURL
-        }
-
-        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            throw QingLongError.invalidBaseURL
-        }
-
-        var path = components.percentEncodedPath
-        while path.hasSuffix("/") {
-            path.removeLast()
-        }
-        if path.lowercased().hasSuffix("/open") {
-            path.removeLast("/open".count)
-            while path.hasSuffix("/") {
-                path.removeLast()
-            }
-        }
-        components.percentEncodedPath = path
-        components.query = nil
-        components.fragment = nil
-
-        guard let normalizedURL = components.url else {
-            throw QingLongError.invalidBaseURL
-        }
-
-        return normalizedURL
     }
 
     private static func displayName(for url: URL) -> String {

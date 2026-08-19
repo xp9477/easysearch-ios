@@ -78,4 +78,13 @@ final class AppGroupRollbackTests: XCTestCase {
         XCTAssertEqual(store.match(for: firstUserID), .matches)
         XCTAssertEqual(store.match(for: secondUserID), .mismatches)
     }
+
+    func testCloudIdentityStoreRejectsCorruptBindingInsteadOfRebinding() {
+        let key = "test.cloud.identity.corrupt"
+        standard.set("not-a-uuid", forKey: key)
+        let store = CloudSyncIdentityStore(userDefaults: standard, key: key)
+
+        XCTAssertEqual(store.match(for: UUID()), .mismatches)
+        XCTAssertEqual(standard.string(forKey: key), "not-a-uuid")
+    }
 }

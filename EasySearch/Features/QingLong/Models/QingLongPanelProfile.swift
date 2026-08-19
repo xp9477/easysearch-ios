@@ -4,6 +4,92 @@ enum QingLongStorage {
     static let panelProfileKey = "qinglong.panel_profile.v1"
 }
 
+/// Canonicalizes the exact network boundary a QingLong credential may access.
+///
+/// Endpoint identities deliberately include the scheme, non-default port, and
+/// deployment path. Credentials for one identity must never be reused for
+/// another, even when a cloud-synced profile changes independently.
+enum QingLongEndpoint {
+    static func normalizedURL(from rawValue: String) throws -> URL {
+        var trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw QingLongError.emptyBaseURL
+        }
+        guard !trimmed.contains("\\"),
+              trimmed.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else {
+            throw QingLongError.invalidBaseURL
+        }
+
+        if !trimmed.contains("://") {
+            trimmed = "https://" + trimmed
+        }
+
+        guard var components = URLComponents(string: trimmed),
+              let scheme = components.scheme?.lowercased(),
+              ["http", "https"].contains(scheme),
+              let host = components.host?.lowercased(),
+              !host.isEmpty,
+              components.user == nil,
+              components.password == nil,
+              components.percentEncodedQuery == nil,
+              components.percentEncodedFragment == nil else {
+            throw QingLongError.invalidBaseURL
+        }
+        if let port = components.port, !(1...65_535).contains(port) {
+            throw QingLongError.invalidBaseURL
+        }
+
+        components.scheme = scheme
+        components.host = host
+        if (scheme == "https" && components.port == 443) ||
+            (scheme == "http" && components.port == 80) {
+            components.port = nil
+        }
+
+        var path = components.percentEncodedPath
+        while path.hasSuffix("/") {
+            path.removeLast()
+        }
+        if path.lowercased().hasSuffix("/open") {
+            path.removeLast("/open".count)
+            while path.hasSuffix("/") {
+                path.removeLast()
+            }
+        }
+        components.percentEncodedPath = path
+
+        guard let normalizedURL = components.url,
+              normalizedURL.user == nil,
+              normalizedURL.password == nil else {
+            throw QingLongError.invalidBaseURL
+        }
+
+        return normalizedURL
+    }
+
+    static func normalizedURL(from url: URL) throws -> URL {
+        try normalizedURL(from: url.absoluteString)
+    }
+
+    static func identity(for url: URL) throws -> String {
+        try normalizedURL(from: url).absoluteString
+    }
+
+    static func redactedURLForDisplay(_ url: URL) -> String {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return "[无法显示的地址]"
+        }
+
+        components.user = nil
+        components.password = nil
+        components.queryItems = components.queryItems?.map { item in
+            URLQueryItem(name: item.name, value: item.value == nil ? nil : "REDACTED")
+        }
+        components.fragment = nil
+        return components.string ?? "[无法显示的地址]"
+    }
+}
+
 struct QingLongPanelProfile: Codable, Hashable {
     let id: String
     let baseURL: URL
@@ -47,6 +133,17 @@ struct QingLongPanelProfile: Codable, Hashable {
             displayName: displayName,
             savedAt: savedAt,
             lastConnectedAt: date
+        )
+    }
+
+    func normalizedForConnection() throws -> QingLongPanelProfile {
+        let normalizedBaseURL = try QingLongEndpoint.normalizedURL(from: baseURL)
+        return QingLongPanelProfile(
+            id: id,
+            baseURL: normalizedBaseURL,
+            displayName: displayName,
+            savedAt: savedAt,
+            lastConnectedAt: lastConnectedAt
         )
     }
 }
