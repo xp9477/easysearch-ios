@@ -17,7 +17,7 @@ struct SearchBar: View {
             TextField("输入搜索内容", text: $text)
                 .font(.body)
                 .textInputAutocapitalization(.never)
-                .disableAutocorrection(true)
+                .autocorrectionDisabled(true)
                 .submitLabel(.search)
                 .focused(isFocused)
                 .onSubmit(onSubmit)
@@ -28,6 +28,7 @@ struct SearchBar: View {
                     ESHaptics.tap()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
+                        .font(.body)
                         .foregroundStyle(.tertiary)
                         .frame(minWidth: 44, minHeight: 44)
                         .contentShape(Rectangle())
@@ -50,7 +51,17 @@ struct SearchBar: View {
         }
         .padding(.horizontal, ESUI.Space.md)
         .frame(maxWidth: .infinity, minHeight: 48)
-        .glassEffect(.regular, in: .capsule)
+        .background(
+            RoundedRectangle(cornerRadius: ESUI.Radius.md, style: .continuous)
+                .fill(ESUI.fill)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: ESUI.Radius.md, style: .continuous)
+                .stroke(
+                    isFocused.wrappedValue ? Color.accentColor.opacity(0.4) : Color.clear,
+                    lineWidth: 1
+                )
+        )
         .animation(ESMotion.quick, value: text.isEmpty)
         .animation(ESMotion.quick, value: isFocused.wrappedValue)
         .accessibilityElement(children: .contain)

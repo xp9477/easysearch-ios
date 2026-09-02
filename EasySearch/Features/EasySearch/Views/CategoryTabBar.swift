@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 分类切换:系统分段控件质感 —— 灰色轨道 + 滑动白色胶囊。
+/// 分类切换:系统分段控件质感 —— 灰色轨道 + 滑动白色/深色胶囊。
 struct CategoryTabBar: View {
     let categories: [SearchCategory]
     @Binding var selectedCategory: SearchCategory
@@ -24,25 +24,29 @@ struct CategoryTabBar: View {
                         .font(.subheadline.weight(isSelected ? .semibold : .regular))
                         .foregroundStyle(isSelected ? Color.primary : Color.secondary)
                         .lineLimit(1)
-                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .frame(maxWidth: .infinity, minHeight: 40)
                         .background {
                             if isSelected {
-                                Capsule(style: .continuous)
-                                    .fill(Color(.systemBackground))
-                                    .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+                                RoundedRectangle(cornerRadius: ESUI.Radius.sm, style: .continuous)
+                                    .fill(ESUI.surface)
+                                    .shadow(color: .black.opacity(0.06), radius: 2, y: 1)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: ESUI.Radius.sm, style: .continuous)
+                                            .stroke(Color.primary.opacity(0.04), lineWidth: 0.5)
+                                    )
                                     .matchedGeometryEffect(id: "category-indicator", in: indicatorNamespace)
                             }
                         }
-                        .contentShape(Capsule())
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
-        .padding(3)
+        .padding(ESUI.Space.xxs)
         .background(
-            Capsule(style: .continuous)
-                .fill(Color(.tertiarySystemFill))
+            RoundedRectangle(cornerRadius: ESUI.Radius.md, style: .continuous)
+                .fill(ESUI.fill)
         )
     }
 }

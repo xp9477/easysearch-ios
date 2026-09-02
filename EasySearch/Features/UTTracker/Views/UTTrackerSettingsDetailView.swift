@@ -8,7 +8,11 @@ struct UTTrackerSettingsDetailView: View {
     var body: some View {
         List {
             Section {
-                SettingsValueRow(title: "状态", value: notificationManager.statusText)
+                HStack {
+                    Text("通知权限")
+                    Spacer()
+                    ESStatusBadge(text: notificationManager.statusText, tone: authTone)
+                }
 
                 switch notificationManager.authorizationStatus {
                 case .notDetermined:
@@ -17,7 +21,7 @@ struct UTTrackerSettingsDetailView: View {
                             await notificationManager.requestAuthorization()
                         }
                     } label: {
-                        Label("开启通知", systemImage: "bell.badge")
+                        Label("开启提醒通知", systemImage: "bell.badge")
                     }
 
                 case .denied:
@@ -25,7 +29,7 @@ struct UTTrackerSettingsDetailView: View {
                         guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
                         openURL(settingsURL)
                     } label: {
-                        Label("前往系统设置", systemImage: "gearshape")
+                        Label("前往系统设置开启通知", systemImage: "gearshape")
                     }
 
                 case .authorized, .provisional, .ephemeral:
@@ -34,18 +38,36 @@ struct UTTrackerSettingsDetailView: View {
                             await notificationManager.refreshStateAndSchedules()
                         }
                     } label: {
-                        Label("刷新提醒", systemImage: "arrow.clockwise")
+                        Label("立即刷新提醒计划", systemImage: "arrow.clockwise")
                     }
 
                 @unknown default:
                     EmptyView()
                 }
+            } header: {
+                Text("提醒与通知")
+            } footer: {
+                Text("开启通知后，系统将在未达标时提醒你记录本周工时。")
             }
         }
-        .navigationTitle("UT 记录")
+        .listStyle(.insetGrouped)
+        .navigationTitle("UT 记录设置")
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await notificationManager.configure()
+        }
+    }
+
+    private var authTone: ESStatusBadge.Tone {
+        switch notificationManager.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return .success
+        case .denied:
+            return .danger
+        case .notDetermined:
+            return .warning
+        @unknown default:
+            return .neutral
         }
     }
 }

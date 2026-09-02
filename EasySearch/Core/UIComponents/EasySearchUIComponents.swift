@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-// MARK: - Design Tokens (Native iOS · Liquid Glass)
+// MARK: - Design Tokens (Native iOS · System Grouped & Liquid Glass)
 
 enum ESUI {
     enum Space {
@@ -16,17 +16,28 @@ enum ESUI {
         static let huge: CGFloat = 48
     }
 
+    enum Radius {
+        static let xs: CGFloat = 6
+        static let sm: CGFloat = 8
+        static let md: CGFloat = 12
+        static let lg: CGFloat = 16
+        static let xl: CGFloat = 20
+        static let full: CGFloat = 999
+    }
+
     static let screenHorizontalPadding: CGFloat = Space.md
     static let sectionSpacing: CGFloat = Space.xl
     static let rowSpacing: CGFloat = Space.sm
-    static let cardCornerRadius: CGFloat = 16
-    static let compactCornerRadius: CGFloat = 12
-    static let tileCornerRadius: CGFloat = 16
+    static let cardCornerRadius: CGFloat = Radius.lg
+    static let compactCornerRadius: CGFloat = Radius.md
+    static let tileCornerRadius: CGFloat = Radius.lg
 
     static var appBackground: Color { Color(.systemGroupedBackground) }
     static var surface: Color { Color(.secondarySystemGroupedBackground) }
-    static var elevated: Color { Color(.secondarySystemBackground) }
+    static var elevated: Color { Color(.tertiarySystemGroupedBackground) }
     static var fill: Color { Color(.tertiarySystemFill) }
+    static var quaternaryFill: Color { Color(.quaternarySystemFill) }
+    static var separator: Color { Color(.separator) }
     static var elevatedBackground: Color { elevated }
     static var cardBackground: Color { surface }
 
@@ -43,7 +54,7 @@ enum ESUI {
         case "expense-assistant": return .orange
         case "qinglong-management": return .green
         case "webdav": return .blue
-        case "currency": return .gray
+        case "currency": return .teal
         case "utilities": return .gray
         case "hidden-space": return Color(.systemPurple)
         default: return .blue
@@ -142,8 +153,8 @@ struct ESCardButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .opacity(configuration.isPressed ? 0.9 : 1)
-            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.97 : 1))
+            .opacity(configuration.isPressed ? 0.88 : 1)
+            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.98 : 1))
             .animation(reduceMotion ? nil : ESMotion.press, value: configuration.isPressed)
             .onChange(of: configuration.isPressed) { _, isPressed in
                 guard haptics, isPressed else { return }
@@ -164,12 +175,19 @@ extension View {
         padding(.bottom, extra)
     }
 
-    /// Flat grouped-style card (no custom shadows / strokes).
-    func esCard(cornerRadius: CGFloat = ESUI.cardCornerRadius) -> some View {
-        padding(ESUI.Space.md)
+    /// Native grouped-style card with subtle border and adaptive fill.
+    func esCard(
+        padding: CGFloat = ESUI.Space.md,
+        cornerRadius: CGFloat = ESUI.cardCornerRadius
+    ) -> some View {
+        self.padding(padding)
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(ESUI.surface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.primary.opacity(0.04), lineWidth: 0.5)
             )
     }
 
@@ -177,6 +195,10 @@ extension View {
         background(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill(ESUI.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .stroke(Color.primary.opacity(0.04), lineWidth: 0.5)
         )
     }
 }
@@ -204,11 +226,24 @@ struct ESModuleTile: View {
                 ESFeatureIcon(systemName: systemImage, color: color, size: 40)
             }
 
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                if let summary, !summary.isEmpty {
+                    Text(summary)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                } else if let status {
+                    Text(status.text)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
 
             Spacer(minLength: 0)
 
@@ -219,14 +254,20 @@ struct ESModuleTile: View {
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
                     .background(Capsule().fill(ESUI.danger))
+            } else if let status, status.kind != .ready && status.kind != .empty {
+                ESStatusBadge(text: status.text, tone: .from(kind: status.kind))
             }
         }
-        .padding(.horizontal, ESUI.Space.sm + 2)
+        .padding(.horizontal, ESUI.Space.md)
         .padding(.vertical, ESUI.Space.sm + 2)
         .frame(maxWidth: .infinity, minHeight: isWide ? 56 : 64, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: ESUI.tileCornerRadius, style: .continuous)
                 .fill(ESUI.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: ESUI.tileCornerRadius, style: .continuous)
+                .stroke(Color.primary.opacity(0.04), lineWidth: 0.5)
         )
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
@@ -236,6 +277,9 @@ struct ESModuleTile: View {
     private var accessibilityLabelText: String {
         if let badgeCount, badgeCount > 0 {
             return "\(title)，\(badgeCount)"
+        }
+        if let status {
+            return "\(title)，\(status.text)"
         }
         return title
     }
@@ -252,17 +296,20 @@ struct ESModuleHero: View {
     var body: some View {
         let color = ESUI.moduleColor(for: featureID)
 
-        HStack(spacing: ESUI.Space.sm) {
+        HStack(spacing: ESUI.Space.md) {
             ESFeatureIcon(systemName: systemImage, color: color, size: 48)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                 Text(title)
-                    .font(.headline)
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.primary)
+
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
@@ -273,6 +320,11 @@ struct ESModuleHero: View {
             RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
                 .fill(ESUI.surface)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
+                .stroke(Color.primary.opacity(0.04), lineWidth: 0.5)
+        )
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -289,12 +341,13 @@ struct ESPrimaryCTA: View {
             HStack(spacing: ESUI.Space.xs) {
                 if let systemImage {
                     Image(systemName: systemImage)
+                        .font(.body.weight(.semibold))
                 }
                 Text(title)
                     .font(.body.weight(.semibold))
             }
             .padding(.vertical, ESUI.Space.xs)
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .frame(maxWidth: .infinity, minHeight: 46)
         }
         .buttonStyle(.glassProminent)
         .disabled(!enabled)
@@ -312,13 +365,13 @@ struct ESSectionHeader: View {
         HStack(alignment: .firstTextBaseline, spacing: ESUI.Space.sm) {
             VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                 Text(title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
 
                 if let subtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -327,10 +380,11 @@ struct ESSectionHeader: View {
 
             if let trailing, !trailing.isEmpty {
                 Text(trailing)
-                    .font(.footnote)
+                    .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
             }
         }
+        .padding(.horizontal, 2)
         .accessibilityElement(children: .combine)
     }
 }
@@ -345,10 +399,10 @@ struct ESFeatureIcon: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
-                .fill(color.opacity(0.15))
+                .fill(color.opacity(0.14))
 
             Image(systemName: systemName)
-                .font(.system(size: size * 0.42, weight: .medium))
+                .font(.system(size: size * 0.44, weight: .semibold))
                 .foregroundStyle(color)
         }
         .frame(width: size, height: size)
@@ -392,13 +446,16 @@ struct ESStatusBadge: View {
 
     var body: some View {
         Text(text)
-            .font(.caption.weight(.medium))
+            .font(.caption2.weight(.semibold))
             .foregroundStyle(tone.color)
             .padding(.horizontal, 8)
-            .padding(.vertical, 3)
+            .padding(.vertical, ESUI.Space.xxs)
             .background(Capsule().fill(tone.color.opacity(0.12)))
+            .overlay(
+                Capsule()
+                    .stroke(tone.color.opacity(0.18), lineWidth: 0.5)
+            )
             .lineLimit(1)
-            .minimumScaleFactor(0.85)
     }
 }
 
@@ -419,7 +476,7 @@ struct ESStatusBanner: View {
     var body: some View {
         HStack(alignment: .top, spacing: ESUI.Space.sm) {
             Image(systemName: systemImage)
-                .font(.title3)
+                .font(.title3.weight(.medium))
                 .foregroundStyle(tone.color)
                 .accessibilityHidden(true)
 
@@ -427,6 +484,7 @@ struct ESStatusBanner: View {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
+
                 if let message, !message.isEmpty {
                     Text(message)
                         .font(.footnote)
@@ -439,8 +497,13 @@ struct ESStatusBanner: View {
         .padding(ESUI.Space.md)
         .background(
             RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
-                .fill(tone.color.opacity(0.1))
+                .fill(tone.color.opacity(0.08))
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: ESUI.cardCornerRadius, style: .continuous)
+                .stroke(tone.color.opacity(0.18), lineWidth: 0.5)
+        )
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -540,7 +603,7 @@ struct ESFeatureEntryRow: View {
 
             VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                 Text(title)
-                    .font(.body)
+                    .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 

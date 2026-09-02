@@ -14,7 +14,13 @@ public struct UTTrackerView: View {
 
     public var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: ESUI.Space.md) {
+            VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
+                ESModuleHero(
+                    title: "UT 记录",
+                    subtitle: "工时追踪 · 70% 目标达成",
+                    featureID: "uttracker",
+                    systemImage: "chart.bar.doc.horizontal"
+                )
                 progressCard
                 quickLogCard
                 if !viewModel.currentMonthEntries.isEmpty {

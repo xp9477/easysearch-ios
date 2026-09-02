@@ -25,20 +25,77 @@ struct SettingsView: View {
         }
     }
 
+    private var cloudSubtitle: String {
+        if !cloudViewModel.isCloudConfigured {
+            return "仅本地保存"
+        }
+        if cloudViewModel.isCloudIdentityMismatch {
+            return "账号待确认"
+        }
+        if cloudViewModel.isCloudAuthenticated {
+            return cloudViewModel.cloudUserEmail ?? "已登录"
+        }
+        return "未登录"
+    }
+
     var body: some View {
         NavigationStack(path: $path) {
             List {
-                Section("通用") {
+                Section("云端与账户") {
                     NavigationLink(value: SettingsRoute.cloudSync) {
-                        Label {
-                            Text("云端同步")
-                        } icon: {
-                            ESFeatureIcon(systemName: "icloud", color: .blue, size: 30)
-                        }
+                        settingsModuleRow(
+                            title: "云端同步",
+                            subtitle: cloudSubtitle,
+                            icon: "icloud.fill",
+                            iconColor: .blue,
+                            status: statusCenter.cloudSummary
+                        )
                     }
                 }
 
-                Section("关于") {
+                Section("模块配置与权限") {
+                    NavigationLink(value: SettingsRoute.utTracker) {
+                        settingsModuleRow(
+                            title: "UT 记录",
+                            subtitle: "目标与通知提醒",
+                            icon: "chart.bar.doc.horizontal",
+                            iconColor: .indigo,
+                            status: statusCenter.summary(for: "uttracker")
+                        )
+                    }
+
+                    NavigationLink(value: SettingsRoute.expenseAssistant) {
+                        settingsModuleRow(
+                            title: "报销助手",
+                            subtitle: "单据与逾期提醒",
+                            icon: "receipt",
+                            iconColor: .orange,
+                            status: statusCenter.summary(for: "expense-assistant")
+                        )
+                    }
+
+                    NavigationLink(value: SettingsRoute.qingLong) {
+                        settingsModuleRow(
+                            title: "青龙管理",
+                            subtitle: "面板连接与诊断",
+                            icon: "server.rack",
+                            iconColor: .green,
+                            status: statusCenter.summary(for: "qinglong-management")
+                        )
+                    }
+
+                    NavigationLink(value: SettingsRoute.webDAV) {
+                        settingsModuleRow(
+                            title: "WebDAV 文件",
+                            subtitle: "存储位置与凭证",
+                            icon: "externaldrive.fill",
+                            iconColor: .blue,
+                            status: statusCenter.summary(for: "webdav")
+                        )
+                    }
+                }
+
+                Section("关于与更新") {
                     LabeledContent("版本", value: appVersionText)
 
                     Button {
@@ -96,6 +153,35 @@ struct SettingsView: View {
         }
     }
 
+    private func settingsModuleRow(
+        title: String,
+        subtitle: String,
+        icon: String,
+        iconColor: Color,
+        status: FeatureStatusSummary
+    ) -> some View {
+        HStack(spacing: ESUI.Space.sm) {
+            ESFeatureIcon(systemName: icon, color: iconColor, size: 32)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Text(subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: ESUI.Space.xs)
+
+            ESStatusBadge(text: status.text, tone: .from(kind: status.kind))
+        }
+        .padding(.vertical, 2)
+    }
+
     @ViewBuilder
     private func updateResultSection(_ result: AppUpdateCheckResult) -> some View {
         switch result {
@@ -130,7 +216,6 @@ struct SettingsView: View {
             }
 
         case let .upToDate(_, remote):
-            // Still show latest release notes so users know what landed in the current build.
             if let notes = remote.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("当前版本说明")
@@ -207,10 +292,10 @@ struct SettingsView: View {
               !message.isEmpty else { return }
         UIAccessibility.post(notification: .announcement, argument: message)
     }
-
 }
 
 #Preview {
     SettingsView()
         .environmentObject(AppNavigationState())
+        .environmentObject(FeatureStatusCenter.shared)
 }

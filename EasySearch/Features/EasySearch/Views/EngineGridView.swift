@@ -36,7 +36,7 @@ private struct EngineTile: View {
     var body: some View {
         HStack(spacing: ESUI.Space.sm) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: ESUI.Radius.md, style: .continuous)
                     .fill(ESUI.fill)
                     .frame(width: 40, height: 40)
 
@@ -45,7 +45,7 @@ private struct EngineTile: View {
                         .resizable()
                         .scaledToFill()
                         .frame(width: 40, height: 40)
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: ESUI.Radius.md, style: .continuous))
                 } else {
                     Image(systemName: fallbackIcon)
                         .font(.system(size: 16, weight: .medium))
@@ -73,6 +73,10 @@ private struct EngineTile: View {
         .background(
             RoundedRectangle(cornerRadius: ESUI.tileCornerRadius, style: .continuous)
                 .fill(ESUI.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: ESUI.tileCornerRadius, style: .continuous)
+                .stroke(Color.primary.opacity(0.04), lineWidth: 0.5)
         )
         .task(id: engine.faviconURL) {
             await loadIcon()

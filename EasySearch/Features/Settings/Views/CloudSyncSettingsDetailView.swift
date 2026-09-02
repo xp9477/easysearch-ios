@@ -16,14 +16,29 @@ struct CloudSyncSettingsDetailView: View {
 
     var body: some View {
         List {
-            Section {
-                HStack {
-                    Label("状态", systemImage: cloudViewModel.isCloudAuthenticated ? "icloud.fill" : "icloud")
-                    Spacer()
-                    Text(statusText)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.trailing)
+            Section("服务状态") {
+                HStack(spacing: ESUI.Space.sm) {
+                    ESFeatureIcon(
+                        systemName: cloudViewModel.isCloudAuthenticated ? "icloud.fill" : "icloud",
+                        color: cloudViewModel.isCloudAuthenticated ? .blue : .secondary,
+                        size: 32
+                    )
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("云端同步")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(.primary)
+
+                        Text(cloudViewModel.isCloudConfigured ? "Supabase 云同步" : "未配置凭证 · 仅本地模式")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer(minLength: ESUI.Space.xs)
+
+                    ESStatusBadge(text: statusText, tone: statusTone)
                 }
+                .padding(.vertical, 2)
 
                 if cloudViewModel.isCloudConfigured {
                     if cloudViewModel.isCloudAuthenticated {
@@ -50,7 +65,7 @@ struct CloudSyncSettingsDetailView: View {
                             }
                         } label: {
                             HStack {
-                                Label("同步", systemImage: "arrow.clockwise")
+                                Label("立即同步", systemImage: "arrow.clockwise")
                                 Spacer()
                                 if cloudViewModel.isCloudBusy {
                                     ProgressView()
@@ -70,63 +85,70 @@ struct CloudSyncSettingsDetailView: View {
                             Label("退出云端登录", systemImage: "rectangle.portrait.and.arrow.right")
                         }
                         .disabled(cloudViewModel.isCloudBusy)
-                    } else {
-                        TextField("邮箱", text: $cloudEmail)
-                            .textInputAutocapitalization(.never)
-                            .keyboardType(.emailAddress)
-                            .autocorrectionDisabled()
-
-                        SecureField("密码", text: $cloudPassword)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-
-                        Button {
-                            Task {
-                                await cloudViewModel.signIn(email: cloudEmail, password: cloudPassword)
-                                if cloudViewModel.isCloudAuthenticated {
-                                    cloudPassword = ""
-                                }
-                            }
-                        } label: {
-                            HStack {
-                                Label("登录", systemImage: "person.crop.circle.badge.checkmark")
-                                Spacer()
-                                if cloudViewModel.isCloudBusy {
-                                    ProgressView()
-                                }
-                            }
-                        }
-                        .disabled(
-                            cloudViewModel.isCloudBusy ||
-                            cloudEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                            cloudPassword.isEmpty
-                        )
-
-                        Button {
-                            Task {
-                                await cloudViewModel.signUp(email: cloudEmail, password: cloudPassword)
-                                if cloudViewModel.isCloudAuthenticated {
-                                    cloudPassword = ""
-                                }
-                            }
-                        } label: {
-                            Label("注册", systemImage: "person.crop.circle.badge.plus")
-                        }
-                        .disabled(
-                            cloudViewModel.isCloudBusy ||
-                            cloudEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                            cloudPassword.isEmpty
-                        )
                     }
                 }
+            }
 
-                if let cloudInlineMessage {
+            if cloudViewModel.isCloudConfigured && !cloudViewModel.isCloudAuthenticated {
+                Section("登录或注册") {
+                    TextField("邮箱", text: $cloudEmail)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.emailAddress)
+                        .autocorrectionDisabled()
+
+                    SecureField("密码", text: $cloudPassword)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+
+                    Button {
+                        Task {
+                            await cloudViewModel.signIn(email: cloudEmail, password: cloudPassword)
+                            if cloudViewModel.isCloudAuthenticated {
+                                cloudPassword = ""
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Label("登录", systemImage: "person.crop.circle.badge.checkmark")
+                            Spacer()
+                            if cloudViewModel.isCloudBusy {
+                                ProgressView()
+                            }
+                        }
+                    }
+                    .disabled(
+                        cloudViewModel.isCloudBusy ||
+                        cloudEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        cloudPassword.isEmpty
+                    )
+
+                    Button {
+                        Task {
+                            await cloudViewModel.signUp(email: cloudEmail, password: cloudPassword)
+                            if cloudViewModel.isCloudAuthenticated {
+                                cloudPassword = ""
+                            }
+                        }
+                    } label: {
+                        Label("注册新账号", systemImage: "person.crop.circle.badge.plus")
+                    }
+                    .disabled(
+                        cloudViewModel.isCloudBusy ||
+                        cloudEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                        cloudPassword.isEmpty
+                    )
+                }
+            }
+
+            if let cloudInlineMessage {
+                Section {
                     Text(cloudInlineMessage)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
         }
+        .listStyle(.insetGrouped)
         .navigationTitle("云端同步")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -142,6 +164,16 @@ struct CloudSyncSettingsDetailView: View {
             return "账号待确认"
         }
         return cloudViewModel.isCloudAuthenticated ? "已登录" : "未登录"
+    }
+
+    private var statusTone: ESStatusBadge.Tone {
+        if !cloudViewModel.isCloudConfigured {
+            return .neutral
+        }
+        if cloudViewModel.isCloudIdentityMismatch {
+            return .warning
+        }
+        return cloudViewModel.isCloudAuthenticated ? .success : .accent
     }
 
     private var currentAccountText: String {

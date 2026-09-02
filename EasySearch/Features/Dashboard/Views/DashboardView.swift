@@ -175,10 +175,7 @@ public struct DashboardView: View {
         ]
 
         return VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            Text(group.title)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 2)
+            ESSectionHeader(title: group.title, trailing: "\(features.count)")
 
             LazyVGrid(columns: columns, spacing: ESUI.Space.sm) {
                 ForEach(Array(features.enumerated()), id: \.element.id) { index, feature in
@@ -204,11 +201,8 @@ public struct DashboardView: View {
     }
 
     private var privateSection: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
-            Text("私密")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 2)
+        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(title: "私密", subtitle: "受保护模块")
 
             ForEach(unlockedHiddenFeatures, id: \.id) { feature in
                 Button {
@@ -238,6 +232,7 @@ public struct DashboardView: View {
             title: feature.title,
             systemImage: feature.iconName,
             featureID: feature.id,
+            status: isPrivate ? nil : statusCenter.summary(for: feature.id),
             badgeCount: isPrivate ? nil : badge,
             isWide: isWide,
             customIcon: customIcon
@@ -370,7 +365,8 @@ private extension DashboardView {
                 navigationState.openSettings(.cloudSync)
             } label: {
                 ESStatusBanner(
-                    title: "云同步异常:\(statusCenter.cloudSummary.text)",
+                    title: "云同步异常：\(statusCenter.cloudSummary.text)",
+                    message: "轻点前往设置查看云端配置与同步状态",
                     systemImage: "icloud.slash",
                     tone: .danger
                 )
