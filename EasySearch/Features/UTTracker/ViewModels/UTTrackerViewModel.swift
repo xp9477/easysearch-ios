@@ -4,6 +4,8 @@ import Foundation
 final class UTTrackerViewModel: ObservableObject {
     @Published private(set) var entries: [UTEntry] = []
     @Published private(set) var machines: [String] = []
+    @Published private(set) var factories: [String] = UTFactoryLayout.defaultFactories
+    @Published private(set) var factoryByMachine: [String: String] = [:]
     @Published private var holidayCalendar: UTHolidayCalendar
 
     private let store: any UTTrackerEntryStore
@@ -17,8 +19,38 @@ final class UTTrackerViewModel: ObservableObject {
         userDefaults.string(forKey: UTTrackerStorage.lastMachineKey) ?? ""
     }
 
+    var lastFactory: String {
+        let saved = userDefaults.string(forKey: UTTrackerStorage.lastFactoryKey)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if factories.contains(saved) {
+            return saved
+        }
+        return factories.first ?? UTFactoryLayout.defaultFactories[0]
+    }
+
     var machineDurationTotals: [UTMachineDurationTotal] {
         UTMachineDuration.totals(entries: entries, calendar: calendar)
+    }
+
+    var factoryHourGroups: [UTFactoryHoursGroup] {
+        UTFactoryLayout.groups(
+            factories: factories,
+            machines: machines,
+            assignments: factoryByMachine,
+            entries: entries,
+            calendar: calendar
+        )
+    }
+
+    func machines(in factory: String) -> [String] {
+        guard factories.contains(factory) else { return [] }
+        let firstFactory = factories.first ?? UTFactoryLayout.defaultFactories[0]
+        return machines.filter { machine in
+            let assigned = factoryByMachine[machine]
+            if let assigned, factories.contains(assigned) {
+                return assigned == factory
+            }
+            return factory == firstFactory
+        }
     }
 
     init(
@@ -112,7 +144,7 @@ final class UTTrackerViewModel: ObservableObject {
     }
 
     @discardableResult
-    func addMachine(_ raw: String) -> String? {
+    func addMachine(_ raw: String, factory: String? = nil) -> String? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
@@ -120,9 +152,54 @@ final class UTTrackerViewModel: ObservableObject {
             return existing
         }
 
+        let firstFactory = factories.first ?? UTFactoryLayout.defaultFactories[0]
+        let targetFactory: String
+        if let factory, factories.contains(factory) {
+            targetFactory = factory
+        } else {
+            targetFactory = firstFactory
+        }
+
         machines.append(trimmed)
+        factoryByMachine[trimmed] = targetFactory
+
         userDefaults.set(machines, forKey: UTTrackerStorage.machinesKey)
+        persistFactoryAssignments()
         return trimmed
+    }
+
+    @discardableResult
+    func renameFactory(_ current: String, to raw: String) -> Bool {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        guard let index = factories.firstIndex(of: current) else { return false }
+        let otherIndex = index == 0 ? 1 : 0
+        guard factories.indices.contains(otherIndex) else { return false }
+        guard factories[otherIndex] != trimmed else { return false }
+        if factories[index] == trimmed { return true }
+
+        factories[index] = trimmed
+        userDefaults.set(factories, forKey: UTTrackerStorage.factoriesKey)
+
+        var updatedAssignments = factoryByMachine
+        for (machine, assignedFactory) in updatedAssignments {
+            if assignedFactory == current {
+                updatedAssignments[machine] = trimmed
+            }
+        }
+        factoryByMachine = updatedAssignments
+        persistFactoryAssignments()
+
+        if userDefaults.string(forKey: UTTrackerStorage.lastFactoryKey) == current {
+            rememberFactory(trimmed)
+        }
+
+        return true
+    }
+
+    func rememberFactory(_ factory: String) {
+        let trimmed = factory.trimmingCharacters(in: .whitespacesAndNewlines)
+        userDefaults.set(trimmed, forKey: UTTrackerStorage.lastFactoryKey)
     }
 
     func rememberMachine(_ machine: String) {
@@ -208,6 +285,11 @@ final class UTTrackerViewModel: ObservableObject {
     }
 
     private func reconcileMachines() {
+        let loadedFactories = loadFactories()
+        if factories != loadedFactories {
+            factories = loadedFactories
+        }
+
         let saved = userDefaults.stringArray(forKey: UTTrackerStorage.machinesKey) ?? []
         var result: [String] = []
         var seen = Set<String>()
@@ -230,6 +312,47 @@ final class UTTrackerViewModel: ObservableObject {
         if result != saved {
             userDefaults.set(result, forKey: UTTrackerStorage.machinesKey)
         }
+
+        var assignments = loadFactoryAssignments()
+        let firstFactory = factories.first ?? UTFactoryLayout.defaultFactories[0]
+        var assignmentsChanged = false
+
+        for machine in result {
+            if let current = assignments[machine], factories.contains(current) {
+                // valid assignment exists
+            } else {
+                assignments[machine] = firstFactory
+                assignmentsChanged = true
+            }
+        }
+
+        if factoryByMachine != assignments {
+            factoryByMachine = assignments
+        }
+        if assignmentsChanged {
+            persistFactoryAssignments()
+        }
+    }
+
+    private func loadFactories() -> [String] {
+        let saved = userDefaults.stringArray(forKey: UTTrackerStorage.factoriesKey) ?? []
+        let cleaned = saved.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        if cleaned.count == 2 && cleaned[0] != cleaned[1] {
+            return cleaned
+        }
+        return UTFactoryLayout.defaultFactories
+    }
+
+    private func loadFactoryAssignments() -> [String: String] {
+        guard let data = userDefaults.data(forKey: UTTrackerStorage.factoryAssignmentsKey) else {
+            return [:]
+        }
+        return (try? JSONDecoder().decode([String: String].self, from: data)) ?? [:]
+    }
+
+    private func persistFactoryAssignments() {
+        guard let data = try? JSONEncoder().encode(factoryByMachine) else { return }
+        userDefaults.set(data, forKey: UTTrackerStorage.factoryAssignmentsKey)
     }
 
     private func refreshHolidayCalendar() async {

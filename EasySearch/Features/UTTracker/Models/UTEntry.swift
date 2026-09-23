@@ -10,6 +10,9 @@ enum UTTrackerStorage {
     static let entriesKey = "ut_tracker_entries_v1"
     static let machinesKey = "ut_tracker_machines_v1"
     static let lastMachineKey = "ut_tracker_last_machine_v1"
+    static let factoriesKey = "ut_tracker_factories_v1"
+    static let factoryAssignmentsKey = "ut_tracker_machine_factories_v1"
+    static let lastFactoryKey = "ut_tracker_last_factory_v1"
 }
 
 struct UTEntry: Identifiable, Codable, Hashable {
@@ -103,6 +106,94 @@ enum UTMachineDuration {
             }
     }
 }
+
+struct UTFactoryHoursGroup: Identifiable, Hashable {
+    let factory: String
+    let totals: [UTMachineDurationTotal]
+    var id: String { factory }
+    var totalHours: Double { totals.reduce(0) { $0 + $1.totalHours } }
+}
+
+enum UTFactoryLayout {
+    static let defaultFactories = ["一厂", "二厂"]
+
+    static func groups(
+        factories: [String],
+        machines: [String],
+        assignments: [String: String],
+        entries: [UTEntry],
+        now: Date = Date(),
+        calendar: Calendar = .utTracker
+    ) -> [UTFactoryHoursGroup] {
+        let effectiveFactories = normalizeFactories(factories)
+        let firstFactory = effectiveFactories[0]
+
+        let durationTotals = UTMachineDuration.totals(entries: entries, now: now, calendar: calendar)
+        let hoursByMachine = Dictionary(uniqueKeysWithValues: durationTotals.map { ($0.machine, $0.totalHours) })
+
+        var allMachines: [String] = []
+        var seenMachines = Set<String>()
+        for m in machines {
+            let trimmed = m.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty && seenMachines.insert(trimmed).inserted {
+                allMachines.append(trimmed)
+            }
+        }
+        for e in entries {
+            let trimmed = e.machine.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty && seenMachines.insert(trimmed).inserted {
+                allMachines.append(trimmed)
+            }
+        }
+
+        func factoryForMachine(_ machine: String) -> String {
+            if let assigned = assignments[machine], effectiveFactories.contains(assigned) {
+                return assigned
+            }
+            return firstFactory
+        }
+
+        return effectiveFactories.map { factory in
+            let factoryMachines = allMachines.filter { factoryForMachine($0) == factory }
+            let groupTotals = factoryMachines
+                .map { UTMachineDurationTotal(machine: $0, totalHours: hoursByMachine[$0] ?? 0.0) }
+                .sorted { lhs, rhs in
+                    if lhs.totalHours != rhs.totalHours {
+                        return lhs.totalHours > rhs.totalHours
+                    }
+                    return lhs.machine < rhs.machine
+                }
+            return UTFactoryHoursGroup(factory: factory, totals: groupTotals)
+        }
+    }
+
+    static func normalizeFactories(_ factories: [String]) -> [String] {
+        let cleaned = factories
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        if cleaned.count == 2 && cleaned[0] != cleaned[1] {
+            return cleaned
+        }
+
+        var result: [String] = []
+        var seen = Set<String>()
+        for f in cleaned {
+            if seen.insert(f).inserted {
+                result.append(f)
+                if result.count == 2 { break }
+            }
+        }
+        for def in defaultFactories {
+            if result.count == 2 { break }
+            if seen.insert(def).inserted {
+                result.append(def)
+            }
+        }
+        return result.count == 2 ? result : defaultFactories
+    }
+}
+
 
 struct UTHolidayCalendar: Codable, Hashable {
     let holidays: Set<Date>

@@ -129,6 +129,123 @@ final class UTTrackerMonthSummaryTests: XCTestCase {
         XCTAssertEqual(tieTotals.map(\.machine), ["Machine-A", "Machine-B"])
     }
 
+    func testFactoryHoursGroupsSeparatesFactoriesAndAssignsUnassignedToOneFactory() throws {
+        let calendar = Calendar.utTracker
+        let formatter = makeFormatter(calendar: calendar)
+        let now = try XCTUnwrap(formatter.date(from: "2026-10-10"))
+
+        let entries = [
+            UTEntry(date: now, hours: 5.0, note: "m1", machine: "M-A"),
+            UTEntry(date: now, hours: 8.0, note: "m2", machine: "M-B"),
+            UTEntry(date: now, hours: 3.5, note: "m3", machine: "M-C")
+        ]
+        let factories = ["一厂", "二厂"]
+        let machines = ["M-A", "M-B", "M-C"]
+        let assignments = ["M-B": "二厂", "M-C": "未知厂"]
+
+        let groups = UTFactoryLayout.groups(
+            factories: factories,
+            machines: machines,
+            assignments: assignments,
+            entries: entries,
+            now: now,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(groups.count, 2)
+        XCTAssertEqual(groups[0].factory, "一厂")
+        XCTAssertEqual(groups[1].factory, "二厂")
+
+        XCTAssertEqual(groups[0].totalHours, 8.5, accuracy: 0.001)
+        let f1Machines = groups[0].totals.map(\.machine)
+        XCTAssertTrue(f1Machines.contains("M-A"))
+        XCTAssertTrue(f1Machines.contains("M-C"))
+        XCTAssertFalse(f1Machines.contains("M-B"))
+
+        XCTAssertEqual(groups[1].totalHours, 8.0, accuracy: 0.001)
+        let f2Machines = groups[1].totals.map(\.machine)
+        XCTAssertEqual(f2Machines, ["M-B"])
+    }
+
+    func testFactoryHoursGroupsIncludesEmptyFactory() throws {
+        let calendar = Calendar.utTracker
+        let formatter = makeFormatter(calendar: calendar)
+        let now = try XCTUnwrap(formatter.date(from: "2026-10-10"))
+
+        let entries = [
+            UTEntry(date: now, hours: 6.0, note: "m1", machine: "M-1")
+        ]
+        let factories = ["一厂", "二厂"]
+        let machines = ["M-1"]
+        let assignments = ["M-1": "一厂"]
+
+        let groups = UTFactoryLayout.groups(
+            factories: factories,
+            machines: machines,
+            assignments: assignments,
+            entries: entries,
+            now: now,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(groups.count, 2)
+        XCTAssertEqual(groups[0].factory, "一厂")
+        XCTAssertEqual(groups[0].totals.count, 1)
+        XCTAssertEqual(groups[0].totalHours, 6.0, accuracy: 0.001)
+
+        XCTAssertEqual(groups[1].factory, "二厂")
+        XCTAssertTrue(groups[1].totals.isEmpty)
+        XCTAssertEqual(groups[1].totalHours, 0.0, accuracy: 0.001)
+    }
+
+    func testFactoryRenameUpdatesAssignmentsAndPersists() async throws {
+        let userDefaults = makeUserDefaults()
+        let calendar = Calendar.utTracker
+
+        await MainActor.run {
+            let store = UTTrackerLocalStore(userDefaults: userDefaults)
+            let vm = UTTrackerViewModel(
+                store: store,
+                userDefaults: userDefaults,
+                calendar: calendar,
+                holidayCalendar: UTHolidayCalendar.empty
+            )
+
+            XCTAssertEqual(vm.factories, ["一厂", "二厂"])
+
+            let added1 = vm.addMachine("M1", factory: "一厂")
+            let added2 = vm.addMachine("M2", factory: "二厂")
+            XCTAssertEqual(added1, "M1")
+            XCTAssertEqual(added2, "M2")
+            XCTAssertEqual(vm.factoryByMachine["M1"], "一厂")
+            XCTAssertEqual(vm.factoryByMachine["M2"], "二厂")
+            XCTAssertEqual(vm.machines(in: "一厂"), ["M1"])
+            XCTAssertEqual(vm.machines(in: "二厂"), ["M2"])
+
+            let renamed = vm.renameFactory("二厂", to: "东厂")
+            XCTAssertTrue(renamed)
+            XCTAssertEqual(vm.factories, ["一厂", "东厂"])
+            XCTAssertEqual(vm.factoryByMachine["M2"], "东厂")
+            XCTAssertEqual(vm.factoryByMachine["M1"], "一厂")
+            XCTAssertEqual(vm.machines(in: "东厂"), ["M2"])
+
+            let reloadedVM = UTTrackerViewModel(
+                store: store,
+                userDefaults: userDefaults,
+                calendar: calendar,
+                holidayCalendar: UTHolidayCalendar.empty
+            )
+            XCTAssertEqual(reloadedVM.factories, ["一厂", "东厂"])
+            XCTAssertEqual(reloadedVM.factoryByMachine["M2"], "东厂")
+            XCTAssertEqual(reloadedVM.factoryByMachine["M1"], "一厂")
+            XCTAssertEqual(reloadedVM.machines(in: "东厂"), ["M2"])
+
+            XCTAssertFalse(vm.renameFactory("一厂", to: "东厂"))
+            XCTAssertFalse(vm.renameFactory("一厂", to: "   "))
+            XCTAssertEqual(vm.factories, ["一厂", "东厂"])
+        }
+    }
+
     private func makeUserDefaults() -> UserDefaults {
         let suiteName = "UTTrackerMonthSummaryTests.\(UUID().uuidString)"
         let userDefaults = UserDefaults(suiteName: suiteName)!
