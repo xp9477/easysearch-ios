@@ -11,9 +11,12 @@ create table if not exists easysearch.ut_entries (
     entry_date timestamptz not null,
     hours double precision not null check (hours >= 0),
     note text not null default '',
+    machine text not null default '',
     created_at timestamptz not null default timezone('utc', now()),
     primary key (user_id, entry_id)
 );
+
+alter table easysearch.ut_entries add column if not exists machine text not null default '';
 
 create index if not exists ut_entries_user_created_at_idx
     on easysearch.ut_entries (user_id, created_at desc);

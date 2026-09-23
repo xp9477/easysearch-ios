@@ -6,11 +6,15 @@ public struct UTTrackerView: View {
     @State private var selectedDate = Date()
     @State private var draftHours = UTTrackerMetrics.dailyReferenceHours
     @State private var draftNote = ""
+    @State private var selectedMachine = ""
+    @State private var newMachineName = ""
     @State private var showingMoreOptions = false
     @State private var showingSettings = false
     @State private var showingHistory = false
 
-    public init() {}
+    public init() {
+        _selectedMachine = State(initialValue: UserDefaults.standard.string(forKey: UTTrackerStorage.lastMachineKey) ?? "")
+    }
 
     public var body: some View {
         ScrollView {
@@ -22,6 +26,7 @@ public struct UTTrackerView: View {
                     systemImage: "chart.bar.doc.horizontal"
                 )
                 progressCard
+                machineDurationCard
                 quickLogCard
                 if !viewModel.currentMonthEntries.isEmpty {
                     currentMonthEntriesCard
@@ -33,6 +38,11 @@ public struct UTTrackerView: View {
             .padding(.bottom, ESUI.Space.xxl)
         }
         .esScreenBackground()
+        .onAppear {
+            if selectedMachine.isEmpty && !viewModel.lastMachine.isEmpty {
+                selectedMachine = viewModel.lastMachine
+            }
+        }
         .navigationTitle("UT 记录")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -109,6 +119,44 @@ public struct UTTrackerView: View {
         .esCard()
     }
 
+    // MARK: - Machine Duration
+
+    private var machineDurationCard: some View {
+        let totals = viewModel.machineDurationTotals
+
+        return VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            ESSectionHeader(
+                title: "机台时长",
+                subtitle: "最近一年"
+            )
+
+            if totals.isEmpty {
+                Text("选择机台后，这里会汇总最近一年的总时长。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: ESUI.Space.xs) {
+                    ForEach(totals) { item in
+                        HStack(spacing: ESUI.Space.sm) {
+                            Text(item.machine)
+                                .font(.subheadline.weight(.semibold))
+                            Spacer(minLength: ESUI.Space.sm)
+                            Text("\(hoursText(item.totalHours))h")
+                                .font(.body.weight(.semibold).monospacedDigit())
+                        }
+                        .padding(.horizontal, ESUI.Space.md)
+                        .padding(.vertical, ESUI.Space.sm)
+                        .background(
+                            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                                .fill(ESUI.fill)
+                        )
+                    }
+                }
+            }
+        }
+        .esCard()
+    }
+
     // MARK: - Quick Log
 
     private var quickLogCard: some View {
@@ -120,6 +168,62 @@ public struct UTTrackerView: View {
                 DatePicker("", selection: $selectedDate, displayedComponents: .date)
                     .labelsHidden()
                     .datePickerStyle(.compact)
+            }
+
+            VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+                Text("机台")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 72), spacing: ESUI.Space.xs)],
+                    alignment: .leading,
+                    spacing: ESUI.Space.xs
+                ) {
+                    presetButton(
+                        title: "不选",
+                        isSelected: selectedMachine.isEmpty
+                    ) {
+                        selectedMachine = ""
+                        viewModel.rememberMachine("")
+                    }
+
+                    ForEach(viewModel.machines, id: \.self) { machine in
+                        presetButton(
+                            title: machine,
+                            isSelected: selectedMachine == machine
+                        ) {
+                            selectedMachine = machine
+                            viewModel.rememberMachine(machine)
+                        }
+                    }
+                }
+
+                HStack(spacing: ESUI.Space.xs) {
+                    TextField("新机台名称", text: $newMachineName)
+                        .font(.subheadline)
+                        .padding(.horizontal, ESUI.Space.sm)
+                        .padding(.vertical, ESUI.Space.xs)
+                        .background(
+                            RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                                .fill(ESUI.fill)
+                        )
+                        .onSubmit(addNewMachine)
+
+                    Button(action: addNewMachine) {
+                        Text("添加")
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, ESUI.Space.md)
+                            .padding(.vertical, ESUI.Space.xs)
+                            .background(
+                                RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                                    .fill(newMachineName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? ESUI.fill : Color.accentColor.opacity(0.12))
+                            )
+                            .foregroundStyle(newMachineName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.secondary : Color.accentColor)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(newMachineName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
             }
 
             LazyVGrid(
@@ -206,6 +310,11 @@ public struct UTTrackerView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(entryTitle(for: entry))
                                 .font(.subheadline.weight(.semibold))
+                            if !entry.machine.isEmpty {
+                                Text(entry.machine)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
                             if !entry.note.isEmpty {
                                 Text(entry.note)
                                     .font(.footnote)
@@ -332,12 +441,21 @@ public struct UTTrackerView: View {
     }
 
     private func saveEntry() {
-        viewModel.addEntry(date: selectedDate, hours: draftHours, note: draftNote)
+        viewModel.addEntry(date: selectedDate, hours: draftHours, note: draftNote, machine: selectedMachine)
         ESHaptics.success()
         selectedDate = Date()
         draftHours = UTTrackerMetrics.dailyReferenceHours
         draftNote = ""
         showingMoreOptions = false
+    }
+
+    private func addNewMachine() {
+        if let added = viewModel.addMachine(newMachineName) {
+            selectedMachine = added
+            viewModel.rememberMachine(added)
+            newMachineName = ""
+            ESHaptics.success()
+        }
     }
 
     private func monthRangeText(for summary: UTMonthSummary) -> String {

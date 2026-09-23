@@ -8,6 +8,8 @@ enum UTTrackerMetrics {
 
 enum UTTrackerStorage {
     static let entriesKey = "ut_tracker_entries_v1"
+    static let machinesKey = "ut_tracker_machines_v1"
+    static let lastMachineKey = "ut_tracker_last_machine_v1"
 }
 
 struct UTEntry: Identifiable, Codable, Hashable {
@@ -15,6 +17,7 @@ struct UTEntry: Identifiable, Codable, Hashable {
     let date: Date
     let hours: Double
     let note: String
+    let machine: String
     let createdAt: Date
 
     init(
@@ -22,13 +25,82 @@ struct UTEntry: Identifiable, Codable, Hashable {
         date: Date,
         hours: Double,
         note: String,
+        machine: String = "",
         createdAt: Date = Date()
     ) {
         self.id = id
         self.date = date
         self.hours = hours
         self.note = note
+        self.machine = machine.trimmingCharacters(in: .whitespacesAndNewlines)
         self.createdAt = createdAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case date
+        case hours
+        case note
+        case machine
+        case createdAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        date = try container.decode(Date.self, forKey: .date)
+        hours = try container.decode(Double.self, forKey: .hours)
+        note = try container.decode(String.self, forKey: .note)
+        let rawMachine = try container.decodeIfPresent(String.self, forKey: .machine) ?? ""
+        machine = rawMachine.trimmingCharacters(in: .whitespacesAndNewlines)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(date, forKey: .date)
+        try container.encode(hours, forKey: .hours)
+        try container.encode(note, forKey: .note)
+        try container.encode(machine, forKey: .machine)
+        try container.encode(createdAt, forKey: .createdAt)
+    }
+}
+
+struct UTMachineDurationTotal: Identifiable, Hashable {
+    let machine: String
+    let totalHours: Double
+    var id: String { machine }
+}
+
+enum UTMachineDuration {
+    static func totals(
+        entries: [UTEntry],
+        now: Date = Date(),
+        calendar: Calendar = .utTracker
+    ) -> [UTMachineDurationTotal] {
+        let startOfToday = calendar.startOfDay(for: now)
+        guard let windowStart = calendar.date(byAdding: .year, value: -1, to: startOfToday),
+              let nextDayStart = calendar.date(byAdding: .day, value: 1, to: startOfToday) else {
+            return []
+        }
+
+        var hoursByMachine: [String: Double] = [:]
+        for entry in entries {
+            guard entry.date >= windowStart && entry.date < nextDayStart else { continue }
+            let trimmedMachine = entry.machine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedMachine.isEmpty else { continue }
+            hoursByMachine[trimmedMachine, default: 0] += entry.hours
+        }
+
+        return hoursByMachine
+            .map { UTMachineDurationTotal(machine: $0.key, totalHours: $0.value) }
+            .sorted { lhs, rhs in
+                if lhs.totalHours != rhs.totalHours {
+                    return lhs.totalHours > rhs.totalHours
+                }
+                return lhs.machine < rhs.machine
+            }
     }
 }
 

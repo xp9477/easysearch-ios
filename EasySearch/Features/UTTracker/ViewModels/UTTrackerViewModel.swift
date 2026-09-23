@@ -3,22 +3,34 @@ import Foundation
 @MainActor
 final class UTTrackerViewModel: ObservableObject {
     @Published private(set) var entries: [UTEntry] = []
+    @Published private(set) var machines: [String] = []
     @Published private var holidayCalendar: UTHolidayCalendar
 
     private let store: any UTTrackerEntryStore
+    private let userDefaults: UserDefaults
     private let calendar: Calendar
     private let notificationCenter: NotificationCenter
     private let holidayStore: UTHolidayCalendarStore
     private var entriesDidChangeObserver: NSObjectProtocol?
 
+    var lastMachine: String {
+        userDefaults.string(forKey: UTTrackerStorage.lastMachineKey) ?? ""
+    }
+
+    var machineDurationTotals: [UTMachineDurationTotal] {
+        UTMachineDuration.totals(entries: entries, calendar: calendar)
+    }
+
     init(
         store: any UTTrackerEntryStore = UTTrackerLocalStore(),
+        userDefaults: UserDefaults = .standard,
         calendar: Calendar = .utTracker,
         notificationCenter: NotificationCenter = .default,
         holidayCalendar: UTHolidayCalendar? = nil,
         holidayStore: UTHolidayCalendarStore = UTHolidayCalendarStore()
     ) {
         self.store = store
+        self.userDefaults = userDefaults
         self.calendar = calendar
         self.notificationCenter = notificationCenter
         self.holidayStore = holidayStore
@@ -32,6 +44,7 @@ final class UTTrackerViewModel: ObservableObject {
             self?.reloadFromStore()
         }
         loadEntries()
+        reconcileMachines()
         Task { [weak self] in
             await self?.refreshHolidayCalendar()
         }
@@ -71,10 +84,24 @@ final class UTTrackerViewModel: ObservableObject {
         }
     }
 
-    func addEntry(date: Date, hours: Double, note: String) {
+    func addEntry(date: Date, hours: Double, note: String, machine: String = "") {
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedMachine = machine.trimmingCharacters(in: .whitespacesAndNewlines)
+        let effectiveMachine: String
+        if !trimmedMachine.isEmpty {
+            effectiveMachine = addMachine(trimmedMachine) ?? trimmedMachine
+        } else {
+            effectiveMachine = ""
+        }
+        rememberMachine(effectiveMachine)
+
         let normalizedDate = calendar.startOfDay(for: date)
-        let entry = UTEntry(date: normalizedDate, hours: hours, note: trimmedNote)
+        let entry = UTEntry(
+            date: normalizedDate,
+            hours: hours,
+            note: trimmedNote,
+            machine: effectiveMachine
+        )
 
         entries.append(entry)
         sortAndPersistEntries()
@@ -82,6 +109,25 @@ final class UTTrackerViewModel: ObservableObject {
             await CloudSyncViewModel.shared.syncUTEntryUpsertIfPossible(entry)
             await UTNotificationManager.shared.refreshSchedulesIfAuthorized()
         }
+    }
+
+    @discardableResult
+    func addMachine(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        if let existing = machines.first(where: { $0 == trimmed }) {
+            return existing
+        }
+
+        machines.append(trimmed)
+        userDefaults.set(machines, forKey: UTTrackerStorage.machinesKey)
+        return trimmed
+    }
+
+    func rememberMachine(_ machine: String) {
+        let trimmed = machine.trimmingCharacters(in: .whitespacesAndNewlines)
+        userDefaults.set(trimmed, forKey: UTTrackerStorage.lastMachineKey)
     }
 
     func deleteEntry(_ entry: UTEntry) {
@@ -158,6 +204,32 @@ final class UTTrackerViewModel: ObservableObject {
         let reloaded = store.loadEntries().sorted(by: sortEntries(lhs:rhs:))
         guard reloaded != entries else { return }
         entries = reloaded
+        reconcileMachines()
+    }
+
+    private func reconcileMachines() {
+        let saved = userDefaults.stringArray(forKey: UTTrackerStorage.machinesKey) ?? []
+        var result: [String] = []
+        var seen = Set<String>()
+
+        for name in saved {
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, seen.insert(trimmed).inserted else { continue }
+            result.append(trimmed)
+        }
+
+        for entry in entries {
+            let trimmed = entry.machine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, seen.insert(trimmed).inserted else { continue }
+            result.append(trimmed)
+        }
+
+        if result != machines {
+            machines = result
+        }
+        if result != saved {
+            userDefaults.set(result, forKey: UTTrackerStorage.machinesKey)
+        }
     }
 
     private func refreshHolidayCalendar() async {

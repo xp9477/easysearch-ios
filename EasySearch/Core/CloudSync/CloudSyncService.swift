@@ -619,6 +619,7 @@ private struct HiddenSupabaseUTEntryRow: Decodable {
     let entry_date: String
     let hours: Double
     let note: String
+    let machine: String?
     let created_at: String
 
     func asUTEntry() -> UTEntry? {
@@ -631,6 +632,7 @@ private struct HiddenSupabaseUTEntryRow: Decodable {
             date: date,
             hours: hours,
             note: note,
+            machine: machine ?? "",
             createdAt: HiddenSupabaseDateFormatter.date(from: created_at) ?? Date()
         )
     }
@@ -641,6 +643,7 @@ private struct HiddenSupabaseUTEntryPayload: Encodable {
     let entry_date: String
     let hours: Double
     let note: String
+    let machine: String
     let created_at: String
 
     init(entry: UTEntry) {
@@ -648,6 +651,7 @@ private struct HiddenSupabaseUTEntryPayload: Encodable {
         entry_date = HiddenSupabaseDateFormatter.string(from: entry.date)
         hours = entry.hours
         note = entry.note
+        machine = entry.machine
         created_at = HiddenSupabaseDateFormatter.string(from: entry.createdAt)
     }
 }
