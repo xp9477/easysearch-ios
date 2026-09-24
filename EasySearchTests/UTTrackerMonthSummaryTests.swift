@@ -281,6 +281,34 @@ final class UTTrackerMonthSummaryTests: XCTestCase {
         }
     }
 
+    func testMachineDurationTotalsIncludesConfiguredMachinesWithZeroHours() async throws {
+        let userDefaults = makeUserDefaults()
+        let calendar = Calendar.utTracker
+        let formatter = makeFormatter(calendar: calendar)
+        let now = try XCTUnwrap(formatter.date(from: "2026-10-10"))
+
+        await MainActor.run {
+            let store = UTTrackerLocalStore(userDefaults: userDefaults)
+            let vm = UTTrackerViewModel(
+                store: store,
+                userDefaults: userDefaults,
+                calendar: calendar,
+                holidayCalendar: UTHolidayCalendar.empty
+            )
+
+            _ = vm.addMachine("ECI-01")
+            _ = vm.addMachine("ECI-02")
+            vm.addEntry(date: now, hours: 6.5, note: "run eci 1", machine: "ECI-01")
+
+            let totals = vm.machineDurationTotals
+            XCTAssertEqual(totals.count, 2)
+            XCTAssertEqual(totals[0].machine, "ECI-01")
+            XCTAssertEqual(totals[0].totalHours, 6.5, accuracy: 0.001)
+            XCTAssertEqual(totals[1].machine, "ECI-02")
+            XCTAssertEqual(totals[1].totalHours, 0.0, accuracy: 0.001)
+        }
+    }
+
     private func makeUserDefaults() -> UserDefaults {
         let suiteName = "UTTrackerMonthSummaryTests.\(UUID().uuidString)"
         let userDefaults = UserDefaults(suiteName: suiteName)!

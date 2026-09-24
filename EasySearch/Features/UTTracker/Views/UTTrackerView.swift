@@ -1,6 +1,5 @@
 import SwiftUI
 import UIKit
-import SceneKit
 
 public struct UTTrackerView: View {
     @StateObject private var viewModel = UTTrackerViewModel()
@@ -13,9 +12,6 @@ public struct UTTrackerView: View {
     @State private var showingMoreOptions = false
     @State private var showingSettings = false
     @State private var showingHistory = false
-    @State private var showingRenameAlert = false
-    @State private var factoryToRename = ""
-    @State private var newFactoryName = ""
 
     public init() {
         let initialFactory = UserDefaults.standard.string(forKey: UTTrackerStorage.lastFactoryKey)?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -66,26 +62,7 @@ public struct UTTrackerView: View {
                 selectedMachine = viewModel.lastMachine
             }
         }
-        .alert("重命名厂名", isPresented: $showingRenameAlert) {
-            TextField("新厂名", text: $newFactoryName)
-            Button("取消", role: .cancel) {
-                factoryToRename = ""
-                newFactoryName = ""
-            }
-            Button("确定") {
-                let trimmed = newFactoryName.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty && !factoryToRename.isEmpty {
-                    let success = viewModel.renameFactory(factoryToRename, to: trimmed)
-                    if success && selectedFactory == factoryToRename {
-                        selectedFactory = trimmed
-                    }
-                }
-                factoryToRename = ""
-                newFactoryName = ""
-            }
-        } message: {
-            Text("请输入「\(factoryToRename)」的新名称，不可为空且不能与另一厂重名。")
-        }
+
         .navigationTitle("UT 记录")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -165,81 +142,53 @@ public struct UTTrackerView: View {
     // MARK: - Machine Duration
 
     private var machineDurationCard: some View {
-        let groups = viewModel.factoryHourGroups
+        let totals = viewModel.machineDurationTotals
+        let maxHours = totals.map(\.totalHours).max() ?? 0.0
+        let grandTotal = totals.reduce(0) { $0 + $1.totalHours }
 
         return VStack(alignment: .leading, spacing: ESUI.Space.sm) {
             ESSectionHeader(
                 title: "机台时长",
-                subtitle: "最近一年 · 两个厂"
+                subtitle: "最近一年累计",
+                trailing: totals.isEmpty ? nil : "共 \(hoursText(grandTotal))h"
             )
 
-            UTFactoryHoursScene(groups: groups)
-                .frame(height: 280)
-                .clipShape(RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous))
-
-            Text("拖动旋转")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .center)
-
-            VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-                ForEach(groups) { group in
-                    VStack(alignment: .leading, spacing: ESUI.Space.xs) {
-                        HStack(spacing: ESUI.Space.xs) {
-                            Circle()
-                                .fill(group.factory == viewModel.factories.first ? Color.blue : Color.orange)
-                                .frame(width: 8, height: 8)
-
-                            Text(group.factory)
+            if totals.isEmpty {
+                Text("暂无机台记录")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, ESUI.Space.xs)
+            } else {
+                VStack(spacing: ESUI.Space.xs) {
+                    ForEach(totals) { item in
+                        HStack(spacing: ESUI.Space.sm) {
+                            Text(item.machine)
                                 .font(.subheadline.weight(.semibold))
 
-                            Button("重命名") {
-                                factoryToRename = group.factory
-                                newFactoryName = group.factory
-                                showingRenameAlert = true
-                            }
-                            .font(.caption)
-                            .foregroundStyle(Color.accentColor)
-                            .buttonStyle(.plain)
+                            Spacer(minLength: ESUI.Space.sm)
 
-                            Spacer()
-
-                            Text("\(hoursText(group.totalHours))h")
+                            Text("\(hoursText(item.totalHours))h")
                                 .font(.subheadline.weight(.semibold).monospacedDigit())
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(item.totalHours > 0 ? Color.primary : Color.secondary)
                         }
+                        .padding(.horizontal, ESUI.Space.md)
+                        .padding(.vertical, ESUI.Space.sm)
+                        .background(
+                            GeometryReader { geo in
+                                let progress = maxHours > 0 ? (item.totalHours / maxHours) : 0
+                                ZStack(alignment: .leading) {
+                                    RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                                        .fill(ESUI.fill)
 
-                        if group.totals.isEmpty {
-                            Text("暂无设备")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .padding(.leading, 12)
-                        } else {
-                            VStack(spacing: 4) {
-                                ForEach(group.totals) { item in
-                                    HStack {
-                                        Text(item.machine)
-                                            .font(.caption.weight(.medium))
-                                        Spacer()
-                                        Text("\(hoursText(item.totalHours))h")
-                                            .font(.caption.monospacedDigit())
-                                            .foregroundStyle(.secondary)
+                                    if progress > 0 {
+                                        RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
+                                            .fill(Color.accentColor.opacity(0.12))
+                                            .frame(width: geo.size.width * CGFloat(progress))
                                     }
-                                    .padding(.horizontal, ESUI.Space.sm)
-                                    .padding(.vertical, 4)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                            .fill(ESUI.fill)
-                                    )
                                 }
                             }
-                        }
+                        )
                     }
-                    .padding(ESUI.Space.sm)
-                    .background(
-                        RoundedRectangle(cornerRadius: ESUI.compactCornerRadius, style: .continuous)
-                            .fill(ESUI.fill.opacity(0.4))
-                    )
                 }
             }
         }
@@ -612,150 +561,5 @@ public struct UTTrackerView: View {
 #Preview {
     NavigationStack {
         UTTrackerView()
-    }
-}
-
-
-struct UTFactoryHoursScene: UIViewRepresentable {
-    let groups: [UTFactoryHoursGroup]
-
-    func makeUIView(context: Context) -> SCNView {
-        let scnView = SCNView()
-        scnView.backgroundColor = .clear
-        scnView.allowsCameraControl = true
-        scnView.autoenablesDefaultLighting = true
-        scnView.antialiasingMode = .multisampling4X
-        scnView.scene = makeScene()
-        return scnView
-    }
-
-    func updateUIView(_ scnView: SCNView, context: Context) {
-        scnView.scene = makeScene()
-    }
-
-    private func makeScene() -> SCNScene {
-        let scene = SCNScene()
-
-        let cameraNode = SCNNode()
-        cameraNode.camera = SCNCamera()
-        cameraNode.position = SCNVector3(0, 4.2, 8.5)
-        cameraNode.look(at: SCNVector3(0, 0.6, 0))
-        scene.rootNode.addChildNode(cameraNode)
-
-        let ambientNode = SCNNode()
-        ambientNode.light = SCNLight()
-        ambientNode.light?.type = .ambient
-        ambientNode.light?.color = UIColor(white: 0.5, alpha: 1.0)
-        scene.rootNode.addChildNode(ambientNode)
-
-        let allHours = groups.flatMap(\.totals).map(\.totalHours)
-        let globalMaxHours = allHours.max() ?? 0.0
-
-        let maxPillarHeight: Float = 2.4
-        let minPillarHeight: Float = 0.12
-        let floorWidth: Float = 3.6
-        let floorHeight: Float = 0.08
-        let floorLength: Float = 2.4
-        let floorTopY: Float = floorHeight
-
-        let centersX: [Float] = [-2.1, 2.1]
-        let factoryColors: [UIColor] = [.systemBlue, .systemOrange]
-
-        for (index, group) in groups.prefix(2).enumerated() {
-            let centerX = index < centersX.count ? centersX[index] : (index == 0 ? -2.1 : 2.1)
-            let color = index < factoryColors.count ? factoryColors[index] : .systemGray
-
-            let floorGeometry = SCNBox(
-                width: CGFloat(floorWidth),
-                height: CGFloat(floorHeight),
-                length: CGFloat(floorLength),
-                chamferRadius: 0.04
-            )
-            floorGeometry.firstMaterial?.diffuse.contents = UIColor.secondarySystemFill
-            floorGeometry.firstMaterial?.specular.contents = UIColor.white
-            let floorNode = SCNNode(geometry: floorGeometry)
-            floorNode.position = SCNVector3(centerX, floorHeight / 2.0, 0)
-            scene.rootNode.addChildNode(floorNode)
-
-            let factoryNameNode = createTextNode(text: group.factory, color: color, fontSize: 2.0, scale: 0.08, isBillboard: false)
-            factoryNameNode.position = SCNVector3(centerX, floorHeight + 0.1, Float(floorLength / 2.0) - 0.25)
-            factoryNameNode.eulerAngles.x = -.pi / 4.0
-            scene.rootNode.addChildNode(factoryNameNode)
-
-            let machineCount = group.totals.count
-            if machineCount > 0 {
-                let usableWidth: Float = floorWidth - 0.8
-                let step: Float = machineCount > 1 ? min(usableWidth / Float(machineCount - 1), 0.7) : 0.0
-                let startX: Float = centerX - Float(machineCount - 1) * step / 2.0
-                let pillarSize: CGFloat = machineCount > 5 ? 0.26 : 0.34
-
-                for (mIndex, total) in group.totals.enumerated() {
-                    let posX = startX + Float(mIndex) * step
-                    let posZ: Float = 0.0
-
-                    let pillarHeight: Float
-                    if total.totalHours > 0 && globalMaxHours > 0 {
-                        pillarHeight = max(minPillarHeight, Float(total.totalHours / globalMaxHours) * maxPillarHeight)
-                    } else {
-                        pillarHeight = minPillarHeight
-                    }
-
-                    let pillarGeometry = SCNBox(
-                        width: pillarSize,
-                        height: CGFloat(pillarHeight),
-                        length: pillarSize,
-                        chamferRadius: 0.03
-                    )
-                    pillarGeometry.firstMaterial?.diffuse.contents = color
-                    pillarGeometry.firstMaterial?.specular.contents = UIColor.white
-
-                    let pillarNode = SCNNode(geometry: pillarGeometry)
-                    pillarNode.position = SCNVector3(posX, floorTopY + pillarHeight / 2.0, posZ)
-                    scene.rootNode.addChildNode(pillarNode)
-
-                    let labelNode = createTextNode(
-                        text: total.machine,
-                        color: .label,
-                        fontSize: 2.0,
-                        scale: 0.08,
-                        isBillboard: true
-                    )
-                    labelNode.position = SCNVector3(posX, floorTopY + pillarHeight + 0.2, posZ)
-                    scene.rootNode.addChildNode(labelNode)
-                }
-            }
-        }
-
-        return scene
-    }
-
-    private func createTextNode(
-        text: String,
-        color: UIColor,
-        fontSize: CGFloat = 2.0,
-        scale: Float = 0.08,
-        isBillboard: Bool = false
-    ) -> SCNNode {
-        let scnText = SCNText(string: text, extrusionDepth: 0.2)
-        scnText.font = UIFont.systemFont(ofSize: fontSize, weight: .bold)
-        scnText.firstMaterial?.diffuse.contents = color
-        scnText.firstMaterial?.isDoubleSided = true
-
-        let textNode = SCNNode(geometry: scnText)
-        textNode.scale = SCNVector3(scale, scale, scale)
-
-        let (minVec, maxVec) = textNode.boundingBox
-        let dx = (maxVec.x - minVec.x) / 2.0 + minVec.x
-        let dy = (maxVec.y - minVec.y) / 2.0 + minVec.y
-        let dz = (maxVec.z - minVec.z) / 2.0 + minVec.z
-        textNode.pivot = SCNMatrix4MakeTranslation(dx, dy, dz)
-
-        if isBillboard {
-            let constraint = SCNBillboardConstraint()
-            constraint.freeAxes = .Y
-            textNode.constraints = [constraint]
-        }
-
-        return textNode
     }
 }

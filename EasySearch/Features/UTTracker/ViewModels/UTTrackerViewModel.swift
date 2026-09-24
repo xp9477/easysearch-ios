@@ -28,7 +28,7 @@ final class UTTrackerViewModel: ObservableObject {
     }
 
     var machineDurationTotals: [UTMachineDurationTotal] {
-        UTMachineDuration.totals(entries: entries, calendar: calendar)
+        UTMachineDuration.totals(entries: entries, machines: machines, calendar: calendar)
     }
 
     var factoryHourGroups: [UTFactoryHoursGroup] {

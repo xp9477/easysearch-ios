@@ -79,6 +79,7 @@ struct UTMachineDurationTotal: Identifiable, Hashable {
 enum UTMachineDuration {
     static func totals(
         entries: [UTEntry],
+        machines: [String] = [],
         now: Date = Date(),
         calendar: Calendar = .utTracker
     ) -> [UTMachineDurationTotal] {
@@ -89,6 +90,11 @@ enum UTMachineDuration {
         }
 
         var hoursByMachine: [String: Double] = [:]
+        for m in machines {
+            let trimmed = m.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            hoursByMachine[trimmed] = 0
+        }
         for entry in entries {
             guard entry.date >= windowStart && entry.date < nextDayStart else { continue }
             let trimmedMachine = entry.machine.trimmingCharacters(in: .whitespacesAndNewlines)
