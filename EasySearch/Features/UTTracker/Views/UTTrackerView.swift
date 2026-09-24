@@ -30,7 +30,7 @@ public struct UTTrackerView: View {
         if let initialFactory, effectiveFactories.contains(initialFactory) {
             factory = initialFactory
         } else {
-            factory = effectiveFactories[0]
+            factory = ""
         }
         _selectedFactory = State(initialValue: factory)
         _selectedMachine = State(initialValue: UserDefaults.standard.string(forKey: UTTrackerStorage.lastMachineKey) ?? "")
@@ -59,7 +59,7 @@ public struct UTTrackerView: View {
         }
         .esScreenBackground()
         .onAppear {
-            if selectedFactory.isEmpty || !viewModel.factories.contains(selectedFactory) {
+            if !selectedFactory.isEmpty && !viewModel.factories.contains(selectedFactory) {
                 selectedFactory = viewModel.lastFactory
             }
             if selectedMachine.isEmpty && !viewModel.lastMachine.isEmpty {
@@ -265,6 +265,14 @@ public struct UTTrackerView: View {
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: ESUI.Space.xs) {
+                    presetButton(
+                        title: "不选",
+                        isSelected: selectedFactory.isEmpty
+                    ) {
+                        selectedFactory = ""
+                        viewModel.rememberFactory("")
+                    }
+
                     ForEach(viewModel.factories, id: \.self) { factory in
                         presetButton(
                             title: factory,
@@ -561,7 +569,8 @@ public struct UTTrackerView: View {
     }
 
     private func addNewMachine() {
-        if let added = viewModel.addMachine(newMachineName, factory: selectedFactory) {
+        let targetFactory = selectedFactory.isEmpty ? nil : selectedFactory
+        if let added = viewModel.addMachine(newMachineName, factory: targetFactory) {
             selectedMachine = added
             viewModel.rememberMachine(added)
             newMachineName = ""

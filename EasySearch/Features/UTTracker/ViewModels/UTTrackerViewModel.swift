@@ -24,7 +24,7 @@ final class UTTrackerViewModel: ObservableObject {
         if factories.contains(saved) {
             return saved
         }
-        return factories.first ?? UTFactoryLayout.defaultFactories[0]
+        return ""
     }
 
     var machineDurationTotals: [UTMachineDurationTotal] {
@@ -42,6 +42,9 @@ final class UTTrackerViewModel: ObservableObject {
     }
 
     func machines(in factory: String) -> [String] {
+        guard !factory.isEmpty else {
+            return machines
+        }
         guard factories.contains(factory) else { return [] }
         let firstFactory = factories.first ?? UTFactoryLayout.defaultFactories[0]
         return machines.filter { machine in

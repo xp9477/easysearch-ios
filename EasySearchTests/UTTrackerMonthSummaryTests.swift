@@ -246,6 +246,41 @@ final class UTTrackerMonthSummaryTests: XCTestCase {
         }
     }
 
+    func testMachinesWhenFactoryIsEmptyReturnsAllMachines() async throws {
+        let userDefaults = makeUserDefaults()
+        let calendar = Calendar.utTracker
+
+        await MainActor.run {
+            let store = UTTrackerLocalStore(userDefaults: userDefaults)
+            let vm = UTTrackerViewModel(
+                store: store,
+                userDefaults: userDefaults,
+                calendar: calendar,
+                holidayCalendar: UTHolidayCalendar.empty
+            )
+
+            _ = vm.addMachine("ECI-01", factory: "一厂")
+            _ = vm.addMachine("ECI-02", factory: "二厂")
+
+            XCTAssertEqual(vm.machines(in: "一厂"), ["ECI-01"])
+            XCTAssertEqual(vm.machines(in: "二厂"), ["ECI-02"])
+            XCTAssertEqual(vm.machines(in: ""), ["ECI-01", "ECI-02"])
+
+            vm.rememberFactory("")
+            XCTAssertEqual(vm.lastFactory, "")
+
+            vm.rememberFactory("一厂")
+            XCTAssertEqual(vm.lastFactory, "一厂")
+
+            vm.rememberFactory("无效厂名")
+            XCTAssertEqual(vm.lastFactory, "")
+
+            let addedWithoutFactory = vm.addMachine("ECI-03")
+            XCTAssertEqual(addedWithoutFactory, "ECI-03")
+            XCTAssertTrue(vm.machines(in: "").contains("ECI-03"))
+        }
+    }
+
     private func makeUserDefaults() -> UserDefaults {
         let suiteName = "UTTrackerMonthSummaryTests.\(UUID().uuidString)"
         let userDefaults = UserDefaults(suiteName: suiteName)!
