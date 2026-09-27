@@ -28,11 +28,54 @@ final class UTTrackerMonthSummaryTests: XCTestCase {
             holidayCalendar: holidayCalendar
         )
 
-        XCTAssertEqual(summary.totalHours, 16)
+        XCTAssertEqual(summary.totalHours, 24)
         XCTAssertFalse(calendar.isUTWorkingDay(nationalHoliday, holidayCalendar: holidayCalendar))
         XCTAssertTrue(calendar.isUTWorkingDay(makeupWorkday, holidayCalendar: holidayCalendar))
+        XCTAssertGreaterThan(summary.targetProgress, 0)
         XCTAssertEqual(summary.targetHours, summary.elapsedMonthHours * UTTrackerMetrics.targetRatio, accuracy: 0.001)
         XCTAssertLessThanOrEqual(summary.elapsedWorkingDays, summary.totalWorkingDays)
+    }
+
+    func testNonWorkingDayHoursStillMoveTargetProgress() throws {
+        let userDefaults = makeUserDefaults()
+        let calendar = Calendar.utTracker
+        let holidayCalendar = UTHolidayCalendar(holidays: [], makeupWorkdays: [])
+        let formatter = makeFormatter(calendar: calendar)
+
+        let weekday = try XCTUnwrap(formatter.date(from: "2026-09-25"))
+        let weekend = try XCTUnwrap(formatter.date(from: "2026-09-27"))
+        let now = weekend
+
+        userDefaults.set(
+            try JSONEncoder().encode([UTEntry(date: weekday, hours: 8, note: "weekday")]),
+            forKey: UTTrackerStorage.entriesKey
+        )
+        let before = UTTrackerSnapshot.currentMonthSummary(
+            userDefaults: userDefaults,
+            calendar: calendar,
+            now: now,
+            holidayCalendar: holidayCalendar
+        )
+
+        userDefaults.set(
+            try JSONEncoder().encode([
+                UTEntry(date: weekday, hours: 8, note: "weekday"),
+                UTEntry(date: weekend, hours: 8, note: "weekend")
+            ]),
+            forKey: UTTrackerStorage.entriesKey
+        )
+        let after = UTTrackerSnapshot.currentMonthSummary(
+            userDefaults: userDefaults,
+            calendar: calendar,
+            now: now,
+            holidayCalendar: holidayCalendar
+        )
+
+        XCTAssertFalse(calendar.isUTWorkingDay(weekend, holidayCalendar: holidayCalendar))
+        XCTAssertEqual(after.totalHours, before.totalHours + 8, accuracy: 0.001)
+        XCTAssertEqual(after.elapsedWorkingDays, before.elapsedWorkingDays)
+        XCTAssertGreaterThan(after.targetProgress, before.targetProgress)
+        XCTAssertGreaterThan(after.elapsedMonthProgress, before.elapsedMonthProgress)
     }
 
     func testTargetUsesElapsedWorkingDaysNotWholeMonth() throws {

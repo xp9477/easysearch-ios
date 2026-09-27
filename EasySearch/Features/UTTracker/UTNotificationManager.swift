@@ -147,7 +147,7 @@ final class UTNotificationManager: NSObject, ObservableObject {
         let totalWorkingDays = calendar.utWorkingDays(in: monthInterval, holidayCalendar: holidayCalendar)
         let elapsedWorkingDays = calendar.utWorkingDays(in: elapsedInterval, holidayCalendar: holidayCalendar)
         let totalHours = entries
-            .filter { monthInterval.contains($0.date) && calendar.isUTWorkingDay($0.date, holidayCalendar: holidayCalendar) }
+            .filter { monthInterval.contains($0.date) }
             .reduce(0) { $0 + $1.hours }
 
         return UTMonthSummary(

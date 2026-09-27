@@ -490,6 +490,9 @@ private struct UTModuleProgressIcon: View {
         }
         .frame(width: 40, height: 40)
         .onAppear { refreshSummary() }
+        .onReceive(NotificationCenter.default.publisher(for: .utTrackerEntriesDidChange)) { _ in
+            refreshSummary()
+        }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
             refreshSummary()
         }

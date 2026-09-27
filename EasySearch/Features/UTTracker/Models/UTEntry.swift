@@ -407,7 +407,7 @@ enum UTTrackerSnapshot {
 
         let totalHours = UTTrackerLocalStore(userDefaults: userDefaults)
             .loadEntries()
-            .filter { monthInterval.contains($0.date) && calendar.isUTWorkingDay($0.date, holidayCalendar: effectiveHolidayCalendar) }
+            .filter { monthInterval.contains($0.date) }
             .reduce(0) { $0 + $1.hours }
 
         return UTMonthSummary(

@@ -236,7 +236,6 @@ final class UTTrackerViewModel: ObservableObject {
         let totalWorkingDays = calendar.utWorkingDays(in: interval, holidayCalendar: holidayCalendar)
         let elapsedWorkingDays = calendar.utWorkingDays(in: elapsedInterval, holidayCalendar: holidayCalendar)
         let totalHours = entries(in: interval)
-            .filter { calendar.isUTWorkingDay($0.date, holidayCalendar: holidayCalendar) }
             .reduce(0) { $0 + $1.hours }
 
         return UTMonthSummary(
