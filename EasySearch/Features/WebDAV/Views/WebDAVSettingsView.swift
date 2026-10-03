@@ -4,10 +4,13 @@ import SwiftUI
 struct WebDAVSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var store: WebDAVSettingsStore
+    @ObservedObject private var filesCoordinator = ExternalStorageFilesCoordinator.shared
     let showsCloseButton: Bool
 
     @State private var editorDestination: LocationEditorDestination?
     @State private var pendingDeletion: WebDAVLocation?
+    @State private var isSyncingFiles = false
+    @State private var isShowingLicenseSheet = false
 
     init(store: WebDAVSettingsStore = .shared, showsCloseButton: Bool = false) {
         self.store = store
@@ -18,7 +21,7 @@ struct WebDAVSettingsView: View {
         List {
             Section {
                 if store.locations.isEmpty {
-                    Text("还没有 WebDAV 位置")
+                    Text("还没有配置存储位置")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(store.locations) { location in
@@ -29,12 +32,44 @@ struct WebDAVSettingsView: View {
                 Button {
                     editorDestination = LocationEditorDestination(locationID: UUID(), isNew: true)
                 } label: {
-                    Label("添加 WebDAV 位置", systemImage: "plus")
+                    Label("添加存储位置", systemImage: "plus")
                 }
             } header: {
-                Text("WebDAV 位置")
+                Text("存储位置")
             } footer: {
                 Text("当前位置用于文件浏览和从分享菜单上传；可以随时在文件管理页面切换。")
+            }
+
+            Section("系统“文件” App (Files)") {
+                if let status = filesCoordinator.statusMessage {
+                    Text(status)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if filesCoordinator.syncedDomainCount > 0 {
+                    Text("已同步 \(filesCoordinator.syncedDomainCount) 个存储位置至系统文件")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let error = filesCoordinator.lastError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+
+                Button {
+                    Task {
+                        isSyncingFiles = true
+                        defer { isSyncingFiles = false }
+                        try? await filesCoordinator.sync(locations: store.locations)
+                    }
+                } label: {
+                    HStack {
+                        Label("同步到系统“文件” App", systemImage: "arrow.triangle.2.circlepath")
+                        Spacer()
+                        if isSyncingFiles { ProgressView() }
+                    }
+                }
             }
 
             Section("浏览") {
@@ -43,9 +78,23 @@ struct WebDAVSettingsView: View {
                     set: { store.setShowsHiddenFolders($0) }
                 ))
             }
+
+            Section("开源许可") {
+                Button {
+                    isShowingLicenseSheet = true
+                } label: {
+                    HStack {
+                        Label("开源协议告知 (AMSMB2 / LGPL)", systemImage: "doc.text")
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("WebDAV 设置")
+        .navigationTitle("外置存储设置")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if showsCloseButton {
@@ -63,7 +112,12 @@ struct WebDAVSettingsView: View {
                 )
             }
         }
-        .alert("删除 WebDAV 位置？", isPresented: Binding(
+        .sheet(isPresented: $isShowingLicenseSheet) {
+            NavigationStack {
+                ExternalStorageLicenseSheet()
+            }
+        }
+        .alert("删除存储位置？", isPresented: Binding(
             get: { pendingDeletion != nil },
             set: { if !$0 { pendingDeletion = nil } }
         ), presenting: pendingDeletion) { location in
@@ -86,8 +140,16 @@ struct WebDAVSettingsView: View {
                     Image(systemName: store.selectedLocationID == location.id ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(store.selectedLocationID == location.id ? Color.accentColor : Color.secondary)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(location.name)
-                            .foregroundStyle(.primary)
+                        HStack(spacing: 6) {
+                            Text(location.name)
+                                .foregroundStyle(.primary)
+                            Text(location.isSMB ? "SMB" : "WebDAV")
+                                .font(.caption2.weight(.medium))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(Color.secondary.opacity(0.15), in: Capsule())
+                                .foregroundStyle(.secondary)
+                        }
                         Text(location.baseURL.host ?? location.baseURL.absoluteString)
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -131,11 +193,18 @@ private struct LocationEditorDestination: Identifiable {
 }
 
 private struct WebDAVLocationEditorView: View {
+    enum ProtocolType: String, CaseIterable, Identifiable {
+        case webdav = "WebDAV"
+        case smb = "SMB"
+        var id: String { rawValue }
+    }
+
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var store: WebDAVSettingsStore
 
     let locationID: UUID
     let isNew: Bool
+    @State private var protocolType: ProtocolType
     @State private var name: String
     @State private var baseURL: String
     @State private var username: String
@@ -153,6 +222,8 @@ private struct WebDAVLocationEditorView: View {
         self.locationID = locationID
         self.isNew = isNew
         let location = isNew ? nil : store.location(withID: locationID)
+        let isSMB = location?.baseURL.scheme?.lowercased() == "smb"
+        _protocolType = State(initialValue: isSMB ? .smb : .webdav)
         _name = State(initialValue: location?.name ?? "")
         _baseURL = State(initialValue: location?.baseURL.absoluteString ?? "")
         _username = State(initialValue: location?.username ?? "")
@@ -162,15 +233,26 @@ private struct WebDAVLocationEditorView: View {
 
     var body: some View {
         Form {
-            Section {
-                TextField("位置名称，例如 家庭 NAS", text: $name)
+            Section("协议选择") {
+                Picker("协议类型", selection: $protocolType) {
+                    Text("WebDAV (HTTP/HTTPS)").tag(ProtocolType.webdav)
+                    Text("SMB (Windows / NAS 共享)").tag(ProtocolType.smb)
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: protocolType) { newType in
+                    adjustDefaultURL(for: newType)
+                }
+            }
 
-                TextField("服务器地址", text: $baseURL)
+            Section {
+                TextField(protocolType == .smb ? "例如 局域网 NAS" : "例如 云端网盘", text: $name)
+
+                TextField(serverAddressPlaceholder, text: $baseURL)
                     .textInputAutocapitalization(.never)
                     .keyboardType(.URL)
                     .autocorrectionDisabled()
 
-                TextField("用户名（可选）", text: $username)
+                TextField(protocolType == .smb ? "用户名（匿名留空）" : "用户名（可选）", text: $username)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
 
@@ -178,14 +260,14 @@ private struct WebDAVLocationEditorView: View {
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
 
-                if usesInsecureHTTP {
+                if protocolType == .webdav && usesInsecureHTTP {
                     Toggle("允许不安全的 HTTP 连接", isOn: $allowsInsecureHTTP)
                         .tint(.orange)
                 }
             } header: {
                 Text("连接配置")
             } footer: {
-                Text("建议使用 HTTPS；HTTP 仅适用于可信局域网。位置名称留空时使用服务器域名。")
+                Text(connectionFooterText)
             }
 
             Section {
@@ -221,17 +303,62 @@ private struct WebDAVLocationEditorView: View {
         }
     }
 
+    private var serverAddressPlaceholder: String {
+        switch protocolType {
+        case .webdav:
+            return "https://dav.example.com/files/"
+        case .smb:
+            return "smb://192.168.1.100/share"
+        }
+    }
+
+    private var connectionFooterText: String {
+        switch protocolType {
+        case .webdav:
+            return "建议使用 HTTPS；HTTP 仅适用于可信局域网。位置名称留空时使用服务器域名。"
+        case .smb:
+            return "SMB 地址格式为 smb://主机/共享名[/子文件夹]，例如 smb://192.168.1.100/data。支持 Windows 共享、群晖、TrueNAS 等。"
+        }
+    }
+
+    private func adjustDefaultURL(for type: ProtocolType) {
+        let trimmed = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if type == .smb {
+            if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") {
+                if let url = URL(string: trimmed), let host = url.host {
+                    baseURL = "smb://\(host)/share"
+                }
+            } else if trimmed.isEmpty {
+                baseURL = "smb://"
+            }
+        } else {
+            if trimmed.hasPrefix("smb://") {
+                if let url = URL(string: trimmed), let host = url.host {
+                    baseURL = "https://\(host)/dav"
+                }
+            } else if trimmed.isEmpty {
+                baseURL = "https://"
+            }
+        }
+    }
+
     private func saveAndTest() {
         errorMessage = nil
-        guard !usesInsecureHTTP || allowsInsecureHTTP else {
-            errorMessage = "HTTP 会以明文传输 WebDAV 凭据。确认这是可信局域网后，再开启“不安全的 HTTP 连接”。"
+        if protocolType == .webdav, usesInsecureHTTP, !allowsInsecureHTTP {
+            errorMessage = "HTTP 会以明文传输凭据。确认这是可信局域网后，再开启“不安全的 HTTP 连接”。"
             return
         }
+
+        var urlString = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if protocolType == .smb, !urlString.lowercased().hasPrefix("smb://") {
+            urlString = "smb://\(urlString)"
+        }
+
         isTesting = true
         let result = store.makeLocation(
             id: locationID,
             name: name,
-            baseURLString: baseURL,
+            baseURLString: urlString,
             username: username,
             password: password
         )
@@ -259,5 +386,46 @@ private struct WebDAVLocationEditorView: View {
                 }
             }
         }
+    }
+}
+
+private struct ExternalStorageLicenseSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(licenseContent)
+                    .font(.system(.footnote, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding()
+        }
+        .navigationTitle("开源许可")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("关闭") { dismiss() }
+            }
+        }
+    }
+
+    private var licenseContent: String {
+        if let url = Bundle.main.url(forResource: "ExternalStorageLicenses", withExtension: "txt"),
+           let content = try? String(contentsOf: url, encoding: .utf8),
+           !content.isEmpty {
+            return content
+        }
+        return """
+        EasySearch 外置存储 (SMB / WebDAV) 开源许可证声明
+
+        1. AMSMB2
+        Copyright (c) Amir Abbas Mousavian
+        Licensed under the MIT License and uses libsmb2 (LGPL v2.1/v3).
+        Source code: https://github.com/amosavian/AMSMB2
+
+        AMSMB2 在本应用中作为动态链接库运行，其底层的 libsmb2 遵循 GNU Lesser General Public License (LGPL)。
+        用户有权获取相应源码并重新链接该库。
+        """
     }
 }

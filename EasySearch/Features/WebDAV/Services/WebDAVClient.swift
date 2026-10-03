@@ -4,6 +4,8 @@ protocol WebDAVClientProtocol {
     func list(path: String) async throws -> [WebDAVItem]
     func createDirectory(path: String) async throws
     func upload(localURL: URL, remotePath: String) async throws
+    func uploadExact(localURL: URL, remotePath: String) async throws
+    func move(item: WebDAVItem, to destinationPath: String) async throws
     func details(for item: WebDAVItem) async throws -> WebDAVItemDetails
     func delete(item: WebDAVItem) async throws
     func replace(localURL: URL, item: WebDAVItem, force: Bool) async throws
@@ -39,6 +41,7 @@ final class WebDAVClient: WebDAVClientProtocol {
     private let configuration: WebDAVConfiguration
     private let session: URLSession
     private let fileManager: FileManager
+    private let smbClient: SMBStorageClient?
 
     init(
         configuration: WebDAVConfiguration,
@@ -48,9 +51,17 @@ final class WebDAVClient: WebDAVClientProtocol {
         self.configuration = configuration
         self.session = session
         self.fileManager = fileManager
+        if configuration.isSMB {
+            self.smbClient = SMBStorageClient(configuration: configuration, fileManager: fileManager)
+        } else {
+            self.smbClient = nil
+        }
     }
 
     func list(path: String = "") async throws -> [WebDAVItem] {
+        if let smbClient {
+            return try await smbClient.list(path: path)
+        }
         let url = try remoteURL(for: path, isCollection: true)
         var request = makeRequest(url: url, method: "PROPFIND")
         request.setValue("1", forHTTPHeaderField: "Depth")
@@ -68,7 +79,7 @@ final class WebDAVClient: WebDAVClientProtocol {
         </d:propfind>
         """.utf8)
 
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request, delegate: WebDAVRedirectDelegate(initialURL: url))
         try validate(response: response, data: data, accepted: [207])
 
         let parser = WebDAVListingParser(baseURL: configuration.baseURL, requestedPath: path)
@@ -81,17 +92,22 @@ final class WebDAVClient: WebDAVClientProtocol {
     }
 
     func createDirectory(path: String) async throws {
+        if let smbClient {
+            return try await smbClient.createDirectory(path: path)
+        }
         let url = try remoteURL(for: path, isCollection: true)
         let request = makeRequest(url: url, method: "MKCOL")
-        let (_, response) = try await session.data(for: request)
+        let (_, response) = try await session.data(for: request, delegate: WebDAVRedirectDelegate(initialURL: url))
         guard let httpResponse = response as? HTTPURLResponse else { throw WebDAVError.invalidResponse }
-        if (200..<300).contains(httpResponse.statusCode) || httpResponse.statusCode == 405 {
-            return
-        }
+        if httpResponse.statusCode == 405 { throw WebDAVError.destinationExists }
+        if (200..<300).contains(httpResponse.statusCode) { return }
         throw WebDAVError.server(statusCode: httpResponse.statusCode, message: "")
     }
 
     func upload(localURL: URL, remotePath: String) async throws {
+        if let smbClient {
+            return try await smbClient.upload(localURL: localURL, remotePath: remotePath)
+        }
         guard fileManager.fileExists(atPath: localURL.path) else {
             throw WebDAVError.localFileMissing
         }
@@ -125,7 +141,78 @@ final class WebDAVClient: WebDAVClientProtocol {
         try await uploadFile(localURL: localURL, requestedPath: remotePath)
     }
 
+
+    func uploadExact(localURL: URL, remotePath: String) async throws {
+        if let smbClient {
+            return try await smbClient.uploadExact(localURL: localURL, remotePath: remotePath)
+        }
+
+        guard fileManager.fileExists(atPath: localURL.path) else {
+            throw WebDAVError.localFileMissing
+        }
+
+        let resourceValues = try localURL.resourceValues(forKeys: [.isSymbolicLinkKey])
+        if resourceValues.isSymbolicLink == true {
+            throw WebDAVError.symbolicLinkUnsupported
+        }
+
+        let cleanPath = remotePath.trimmingCharacters(in: CharacterSet(charactersIn: "/\\"))
+        guard !cleanPath.isEmpty else { throw WebDAVError.invalidURL }
+        let url = try remoteURL(for: cleanPath)
+        var request = makeRequest(url: url, method: "PUT")
+        request.setValue("*", forHTTPHeaderField: "If-None-Match")
+
+        let redirectDelegate = WebDAVRedirectDelegate(initialURL: sourceURL)
+        let (data, response) = try await session.upload(for: request, fromFile: localURL, delegate: redirectDelegate)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw WebDAVError.invalidResponse
+        }
+        if httpResponse.statusCode == 412 {
+            throw WebDAVError.destinationExists
+        }
+        try validate(response: response, data: data, accepted: [200, 201, 204])
+    }
+
+    func move(item: WebDAVItem, to destinationPath: String) async throws {
+        if let smbClient {
+            return try await smbClient.move(item: item, to: destinationPath)
+        }
+
+        let cleanDest = destinationPath.trimmingCharacters(in: CharacterSet(charactersIn: "/\\"))
+        guard !cleanDest.isEmpty else { throw WebDAVError.invalidDestination }
+        guard cleanDest != item.path else { return }
+
+        if item.isDirectory {
+            if cleanDest == item.path || cleanDest.hasPrefix(item.path + "/") {
+                throw WebDAVError.destinationIsDescendant
+            }
+        }
+
+        let sourceURL = try remoteURL(for: item.path, isCollection: item.isDirectory)
+        let destinationURL = try remoteURL(for: cleanDest, isCollection: item.isDirectory)
+
+        var request = makeRequest(url: sourceURL, method: "MOVE")
+        request.setValue(destinationURL.absoluteString, forHTTPHeaderField: "Destination")
+        request.setValue("F", forHTTPHeaderField: "Overwrite")
+
+        let redirectDelegate = WebDAVRedirectDelegate(initialURL: sourceURL)
+        let (data, response) = try await session.data(for: request, delegate: redirectDelegate)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw WebDAVError.invalidResponse
+        }
+        if httpResponse.statusCode == 412 {
+            throw WebDAVError.destinationExists
+        }
+        if httpResponse.statusCode == 409 {
+            throw WebDAVError.invalidDestination
+        }
+        try validate(response: response, data: data, accepted: [201, 204])
+    }
+
     func details(for item: WebDAVItem) async throws -> WebDAVItemDetails {
+        if let smbClient {
+            return try await smbClient.details(for: item)
+        }
         let plan = try await makeDownloadPlan(for: item)
         return WebDAVItemDetails(
             fileCount: plan.files.count,
@@ -136,13 +223,19 @@ final class WebDAVClient: WebDAVClientProtocol {
     }
 
     func delete(item: WebDAVItem) async throws {
+        if let smbClient {
+            return try await smbClient.delete(item: item)
+        }
         let url = try remoteURL(for: item.path, isCollection: item.isDirectory)
         let request = makeRequest(url: url, method: "DELETE")
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request, delegate: WebDAVRedirectDelegate(initialURL: url))
         try validate(response: response, data: data)
     }
 
     func replace(localURL: URL, item: WebDAVItem, force: Bool = false) async throws {
+        if let smbClient {
+            return try await smbClient.replace(localURL: localURL, item: item, force: force)
+        }
         guard !item.isDirectory, fileManager.fileExists(atPath: localURL.path) else {
             throw WebDAVError.localFileMissing
         }
@@ -151,7 +244,7 @@ final class WebDAVClient: WebDAVClientProtocol {
         if !force, let etag = item.etag, !etag.isEmpty {
             request.setValue(etag, forHTTPHeaderField: "If-Match")
         }
-        let (data, response) = try await session.upload(for: request, fromFile: localURL)
+        let (data, response) = try await session.upload(for: request, fromFile: localURL, delegate: WebDAVRedirectDelegate(initialURL: url))
         guard let httpResponse = response as? HTTPURLResponse else {
             throw WebDAVError.invalidResponse
         }
@@ -166,6 +259,9 @@ final class WebDAVClient: WebDAVClientProtocol {
         into localDirectory: URL,
         progress: @escaping (WebDAVTransferProgress) -> Void
     ) async throws -> URL {
+        if let smbClient {
+            return try await smbClient.download(item: item, into: localDirectory, progress: progress)
+        }
         try fileManager.createDirectory(at: localDirectory, withIntermediateDirectories: true)
         let plan = try await makeDownloadPlan(for: item)
         let stagingRoot = fileManager.temporaryDirectory
@@ -245,6 +341,9 @@ final class WebDAVClient: WebDAVClientProtocol {
         item: WebDAVItem,
         progress: @escaping (WebDAVTransferProgress) -> Void
     ) async throws -> URL {
+        if let smbClient {
+            return try await smbClient.downloadForPreview(item: item, progress: progress)
+        }
         guard !item.isDirectory else { throw WebDAVError.invalidURL }
         let previewDirectory = try WebDAVLocalFileStore.makePreviewDirectory()
         let target = previewDirectory.appendingPathComponent(
@@ -398,7 +497,7 @@ final class WebDAVClient: WebDAVClientProtocol {
             let url = try remoteURL(for: candidatePath)
             var request = makeRequest(url: url, method: "PUT")
             request.setValue("*", forHTTPHeaderField: "If-None-Match")
-            let (data, response) = try await session.upload(for: request, fromFile: localURL)
+            let (data, response) = try await session.upload(for: request, fromFile: localURL, delegate: WebDAVRedirectDelegate(initialURL: url))
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw WebDAVError.invalidResponse
             }
@@ -414,7 +513,7 @@ final class WebDAVClient: WebDAVClientProtocol {
             let candidatePath = uniqueRemotePath(requestedPath, attempt: attempt, isDirectory: true)
             let url = try remoteURL(for: candidatePath, isCollection: true)
             let request = makeRequest(url: url, method: "MKCOL")
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await session.data(for: request, delegate: WebDAVRedirectDelegate(initialURL: url))
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw WebDAVError.invalidResponse
             }
@@ -481,9 +580,15 @@ final class WebDAVClient: WebDAVClientProtocol {
         }
 
         let basePath = components.path.hasSuffix("/") ? components.path : components.path + "/"
-        let segments = path.split(separator: "/").map(String.init)
-        guard !segments.contains(where: { $0 == "." || $0 == ".." }) else {
+        if basePath.contains("..") || basePath.contains("\\") || basePath.contains("\0") {
             throw WebDAVError.invalidURL
+        }
+
+        let segments = path.split(separator: "/").map(String.init)
+        for segment in segments {
+            if segment == "." || segment == ".." || segment.contains("..") || segment.contains("\\") || segment.contains("\0") {
+                throw WebDAVError.invalidURL
+            }
         }
         var resolvedPath = basePath + segments.joined(separator: "/")
         if isCollection, !resolvedPath.hasSuffix("/") {
@@ -560,6 +665,36 @@ private final class WebDAVProgressDownloadOperation: NSObject, URLSessionDownloa
         let task = self.task
         lock.unlock()
         task?.cancel()
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        guard let initialURL = task.originalRequest?.url,
+              let newURL = request.url else {
+            completionHandler(nil)
+            return
+        }
+        let initialScheme = initialURL.scheme?.lowercased() ?? ""
+        let newScheme = newURL.scheme?.lowercased() ?? ""
+        if initialScheme == "https" && newScheme != "https" {
+            completionHandler(nil)
+            return
+        }
+        let initialHost = initialURL.host?.lowercased() ?? ""
+        let newHost = newURL.host?.lowercased() ?? ""
+        let initialPort = initialURL.port ?? (initialScheme == "https" ? 443 : 80)
+        let newPort = newURL.port ?? (newScheme == "https" ? 443 : 80)
+
+        guard (initialScheme == newScheme) && (initialHost == newHost) && (initialPort == newPort) else {
+            completionHandler(nil)
+            return
+        }
+        completionHandler(request)
     }
 
     func urlSession(
@@ -912,4 +1047,48 @@ private struct ParsedResponse {
         "application/x-directory",
         "vnd.apache.httpd.unix-directory"
     ]
+}
+
+final class WebDAVRedirectDelegate: NSObject, URLSessionTaskDelegate {
+    let initialURL: URL?
+
+    init(initialURL: URL?) {
+        self.initialURL = initialURL
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        guard let initialURL = initialURL ?? task.originalRequest?.url,
+              let newURL = request.url else {
+            completionHandler(nil)
+            return
+        }
+
+        let initialScheme = initialURL.scheme?.lowercased() ?? ""
+        let newScheme = newURL.scheme?.lowercased() ?? ""
+
+        // Strictly reject HTTPS -> HTTP downgrade redirects
+        if initialScheme == "https" && newScheme != "https" {
+            completionHandler(nil)
+            return
+        }
+
+        let initialHost = initialURL.host?.lowercased() ?? ""
+        let newHost = newURL.host?.lowercased() ?? ""
+        let initialPort = initialURL.port ?? (initialScheme == "https" ? 443 : 80)
+        let newPort = newURL.port ?? (newScheme == "https" ? 443 : 80)
+
+        // Strictly reject cross-origin redirects (scheme, host, port) to prevent sending data to third parties
+        guard (initialScheme == newScheme) && (initialHost == newHost) && (initialPort == newPort) else {
+            completionHandler(nil)
+            return
+        }
+
+        completionHandler(request)
+    }
 }

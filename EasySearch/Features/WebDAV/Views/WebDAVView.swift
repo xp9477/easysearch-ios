@@ -15,6 +15,9 @@ struct WebDAVView: View {
     @State private var previewRequest: WebDAVPreviewRequest?
     @State private var detailsRequest: WebDAVItemDetailsRequest?
     @State private var deletionRequest: WebDAVDeletionRequest?
+    @State private var renamingItem: WebDAVItem?
+    @State private var renameText = ""
+    @State private var movingItem: WebDAVItem?
 
     private var visibleItems: [WebDAVItem] {
         items.filter { settingsStore.showsHiddenFolders || !$0.isHiddenFolder }
@@ -46,6 +49,34 @@ struct WebDAVView: View {
                 WebDAVItemDetailsView(request: request)
             }
         }
+        .sheet(item: $movingItem) { item in
+            if let configuration = settingsStore.configuration {
+                NavigationStack {
+                    WebDAVMovePickerView(
+                        configuration: configuration,
+                        movingItem: item,
+                        initialDirectory: currentPath
+                    ) { targetDirectory in
+                        performMove(item: item, toDirectory: targetDirectory)
+                    }
+                }
+            }
+        }
+        .alert("重命名", isPresented: Binding(
+            get: { renamingItem != nil },
+            set: { if !$0 { renamingItem = nil } }
+        )) {
+            TextField("新名称", text: $renameText)
+            Button("确定") {
+                if let item = renamingItem {
+                    performRename(item: item, newName: renameText)
+                }
+                renamingItem = nil
+            }
+            Button("取消", role: .cancel) { renamingItem = nil }
+        } message: {
+            Text("请输入新的文件或文件夹名称。")
+        }
         .fileImporter(
             isPresented: $isImporting,
             allowedContentTypes: [.item],
@@ -72,6 +103,7 @@ struct WebDAVView: View {
         }
         .task(id: "\(settingsStore.configuration?.cacheKey ?? "not-configured")|\(currentPath)") {
             guard settingsStore.configuration != nil else { return }
+            try? await ExternalStorageFilesCoordinator.shared.sync(locations: settingsStore.locations)
             await reload()
         }
         .onChange(of: settingsStore.selectedLocationID) { _ in
@@ -82,29 +114,29 @@ struct WebDAVView: View {
 
     private var navigationTitle: String {
         if !currentPath.isEmpty {
-            return currentPath.split(separator: "/").last.map(String.init) ?? "WebDAV 文件"
+            return currentPath.split(separator: "/").last.map(String.init) ?? "外置存储"
         }
-        return settingsStore.selectedLocation?.name ?? "WebDAV 文件"
+        return settingsStore.selectedLocation?.name ?? "外置存储"
     }
 
     private var configurationPrompt: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
                 ESModuleHero(
-                    title: "WebDAV 文件",
+                    title: "外置存储",
                     subtitle: "浏览 · 上传 · 下载远程文件",
                     featureID: "webdav",
                     systemImage: "externaldrive.fill"
                 )
 
                 ESInfoBanner(
-                    title: "还没有连接 WebDAV",
-                    message: "添加一个或多个 WebDAV 位置后，就可以浏览、上传和管理文件。",
+                    title: "还没有连接外置存储",
+                    message: "添加一个或多个外置存储（WebDAV / SMB）位置后，就可以浏览、上传和管理文件。",
                     systemImage: "externaldrive.badge.questionmark",
                     tone: .accent
                 )
 
-                ESPrimaryCTA(title: "添加 WebDAV 位置", systemImage: "plus.circle") {
+                ESPrimaryCTA(title: "添加存储位置", systemImage: "plus.circle") {
                     isShowingSettings = true
                 }
             }
@@ -154,6 +186,18 @@ struct WebDAVView: View {
                             showDetails(item)
                         } label: {
                             Label("查看详情", systemImage: "info.circle")
+                        }
+
+                        Button {
+                            startRenaming(item)
+                        } label: {
+                            Label("重命名", systemImage: "pencil")
+                        }
+
+                        Button {
+                            startMoving(item)
+                        } label: {
+                            Label("移动到…", systemImage: "folder")
                         }
 
                         Divider()
@@ -239,7 +283,7 @@ struct WebDAVView: View {
                     Button {
                         isShowingSettings = true
                     } label: {
-                        Label("WebDAV 设置", systemImage: "gearshape")
+                        Label("外置存储设置", systemImage: "gearshape")
                     }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -260,7 +304,7 @@ struct WebDAVView: View {
                 } label: {
                     Image(systemName: "plus.circle")
                 }
-                .accessibilityLabel("添加 WebDAV 位置")
+                .accessibilityLabel("添加存储位置")
             }
         }
     }
@@ -297,6 +341,58 @@ struct WebDAVView: View {
         }
     }
 
+    private func startRenaming(_ item: WebDAVItem) {
+        renamingItem = item
+        renameText = item.name
+    }
+
+    private func performRename(item: WebDAVItem, newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != item.name else { return }
+        guard !trimmed.contains("/") && !trimmed.contains("\\") else {
+            errorMessage = "名称不能包含斜杠或反斜杠"
+            return
+        }
+        guard let configuration = settingsStore.configuration else { return }
+        let parent = parentPath(of: item.path)
+        let destination = join(parent, trimmed)
+        Task {
+            isLoading = true
+            defer { isLoading = false }
+            do {
+                try await WebDAVClient(configuration: configuration).move(item: item, to: destination)
+                if let locID = settingsStore.selectedLocationID {
+                    Task { try? await ExternalStorageFilesCoordinator.shared.notifyChanges(locationID: locID, path: destination) }
+                }
+                await reload()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func startMoving(_ item: WebDAVItem) {
+        movingItem = item
+    }
+
+    private func performMove(item: WebDAVItem, toDirectory: String) {
+        guard let configuration = settingsStore.configuration else { return }
+        let destination = join(toDirectory, item.name)
+        Task {
+            isLoading = true
+            defer { isLoading = false }
+            do {
+                try await WebDAVClient(configuration: configuration).move(item: item, to: destination)
+                if let locID = settingsStore.selectedLocationID {
+                    Task { try? await ExternalStorageFilesCoordinator.shared.notifyChanges(locationID: locID, path: destination) }
+                }
+                await reload()
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
     private func open(_ item: WebDAVItem) {
         guard let configuration = settingsStore.configuration else { return }
         if item.isDirectory {
@@ -328,6 +424,9 @@ struct WebDAVView: View {
             defer { isLoading = false }
             do {
                 try await WebDAVClient(configuration: request.configuration).delete(item: request.item)
+                if let locID = settingsStore.selectedLocationID {
+                    Task { try? await ExternalStorageFilesCoordinator.shared.notifyChanges(locationID: locID, path: request.item.path) }
+                }
                 if settingsStore.configuration?.cacheKey == request.configuration.cacheKey {
                     items.removeAll(where: { $0.id == request.item.id })
                 }
@@ -364,6 +463,9 @@ struct WebDAVView: View {
                         }
                     }
                     statusMessage = "上传完成"
+                    if let locID = settingsStore.selectedLocationID {
+                        Task { try? await ExternalStorageFilesCoordinator.shared.notifyChanges(locationID: locID, path: destinationPath) }
+                    }
                     if currentPath == destinationPath,
                        settingsStore.configuration?.cacheKey == configuration.cacheKey {
                         items = try await WebDAVClient(configuration: configuration).list(path: destinationPath)

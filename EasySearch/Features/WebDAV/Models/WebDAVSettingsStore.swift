@@ -4,7 +4,7 @@ import Security
 
 @MainActor
 final class WebDAVSettingsStore: ObservableObject {
-    static let shared = WebDAVSettingsStore()
+    static let shared = WebDAVSettingsStore(syncToFiles: true)
 
     @Published private(set) var locations: [WebDAVLocation]
     @Published private(set) var selectedLocationID: UUID?
@@ -12,6 +12,7 @@ final class WebDAVSettingsStore: ObservableObject {
 
     private let userDefaults: UserDefaults
     private let keychain: WebDAVCredentialStoring
+    private let syncToFiles: Bool
 
     private enum Keys {
         static let locations = "webdav.locations.v2"
@@ -39,16 +40,19 @@ final class WebDAVSettingsStore: ObservableObject {
 
     init(
         userDefaults: UserDefaults = .standard,
-        keychain: WebDAVCredentialStoring = WebDAVKeychain()
+        keychain: WebDAVCredentialStoring = WebDAVKeychain(),
+        syncToFiles: Bool = false
     ) {
         self.userDefaults = userDefaults
         self.keychain = keychain
+        self.syncToFiles = syncToFiles
         self.locations = []
         self.selectedLocationID = userDefaults.string(forKey: Keys.selectedLocationID).flatMap(UUID.init(uuidString:))
         self.showsHiddenFolders = userDefaults.bool(forKey: Keys.showsHiddenFolders)
         self.locations = loadLocations()
         migrateLegacyConfigurationIfNeeded()
         normalizeSelection()
+        scheduleFilesSync()
     }
 
     func reload() {
@@ -56,6 +60,7 @@ final class WebDAVSettingsStore: ObservableObject {
         selectedLocationID = userDefaults.string(forKey: Keys.selectedLocationID).flatMap(UUID.init(uuidString:))
         showsHiddenFolders = userDefaults.bool(forKey: Keys.showsHiddenFolders)
         normalizeSelection()
+        scheduleFilesSync()
     }
 
     func location(withID id: UUID) -> WebDAVLocation? {
@@ -82,15 +87,29 @@ final class WebDAVSettingsStore: ObservableObject {
     ) -> Result<WebDAVLocation, WebDAVError> {
         let trimmedURL = baseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: trimmedURL),
+              url.user == nil && url.password == nil,
               let scheme = url.scheme?.lowercased(),
-              (scheme == "http" || scheme == "https"),
-              url.host != nil else {
+              (scheme == "http" || scheme == "https" || scheme == "smb"),
+              let host = url.host, !host.isEmpty else {
             return .failure(.invalidURL)
+        }
+
+        let path = url.path
+        if path.contains("..") || path.contains("\\") || path.contains("\0") {
+            return .failure(.invalidURL)
+        }
+
+        if scheme == "smb" {
+            let parts = path.split(separator: "/").filter { !$0.isEmpty }
+            guard !parts.isEmpty else {
+                return .failure(.invalidURL)
+            }
         }
 
         let normalizedURL = Self.normalizedBaseURL(url)
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let displayName = trimmedName.isEmpty ? (normalizedURL.host ?? "WebDAV") : trimmedName
+        let defaultName = normalizedURL.host ?? (scheme == "smb" ? "SMB 共享" : "WebDAV")
+        let displayName = trimmedName.isEmpty ? defaultName : trimmedName
         return .success(WebDAVLocation(
             id: id,
             name: displayName,
@@ -115,9 +134,10 @@ final class WebDAVSettingsStore: ObservableObject {
             if select || selectedLocationID == nil {
                 self.select(locationID: location.id)
             }
+            scheduleFilesSync()
             return .success(())
         } catch {
-            return .failure(.server(statusCode: 0, message: "无法保存 WebDAV 位置：\(error.localizedDescription)"))
+            return .failure(.server(statusCode: 0, message: "无法保存存储位置：\(error.localizedDescription)"))
         }
     }
 
@@ -133,6 +153,7 @@ final class WebDAVSettingsStore: ObservableObject {
                 userDefaults.removeObject(forKey: Keys.selectedLocationID)
             }
         }
+        scheduleFilesSync()
     }
 
     func clear() {
@@ -146,6 +167,7 @@ final class WebDAVSettingsStore: ObservableObject {
         userDefaults.removeObject(forKey: Keys.legacyBaseURL)
         userDefaults.removeObject(forKey: Keys.legacyUsername)
         try? keychain.deleteLegacyPassword()
+        scheduleFilesSync()
     }
 
     private func loadLocations() -> [WebDAVLocation] {
@@ -216,6 +238,13 @@ final class WebDAVSettingsStore: ObservableObject {
             userDefaults.set(selectedLocationID.uuidString, forKey: Keys.selectedLocationID)
         } else {
             userDefaults.removeObject(forKey: Keys.selectedLocationID)
+        }
+    }
+
+    private func scheduleFilesSync() {
+        guard syncToFiles else { return }
+        Task { @MainActor in
+            try? await ExternalStorageFilesCoordinator.shared.sync(locations: self.locations)
         }
     }
 

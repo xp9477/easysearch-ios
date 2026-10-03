@@ -110,10 +110,30 @@ jobs:
           set -euo pipefail
           APP_PATH="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/EasySearch.app"
           SHARE_EXTENSION="$APP_PATH/PlugIns/EasySearchShare.appex"
+          FILE_PROVIDER_EXTENSION="$APP_PATH/PlugIns/EasySearchFileProvider.appex"
           test -d "$APP_PATH"
           test -x "$APP_PATH/EasySearch"
           test -d "$SHARE_EXTENSION"
           test -x "$SHARE_EXTENSION/EasySearchShare"
+          test -d "$FILE_PROVIDER_EXTENSION"
+          test -x "$FILE_PROVIDER_EXTENSION/EasySearchFileProvider"
+          test -d "$APP_PATH/Frameworks/AMSMB2.framework"
+
+          # Verify build numbers and marketing versions match across main app and extensions
+          APP_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_PATH/Info.plist")"
+          SHARE_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$SHARE_EXTENSION/Info.plist")"
+          FP_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$FILE_PROVIDER_EXTENSION/Info.plist")"
+          if [[ "$APP_BUILD" != "$FP_BUILD" || "$APP_BUILD" != "$SHARE_BUILD" ]]; then
+            echo "Build number mismatch: App=$APP_BUILD, FileProvider=$FP_BUILD, Share=$SHARE_BUILD" >&2
+            exit 1
+          fi
+
+          APP_VER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Info.plist")"
+          FP_VER="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$FILE_PROVIDER_EXTENSION/Info.plist")"
+          if [[ "$APP_VER" != "$FP_VER" ]]; then
+            echo "Short version string mismatch: App=$APP_VER, FileProvider=$FP_VER" >&2
+            exit 1
+          fi
 
           # Supabase credentials must be injected from secrets, not left as $(VAR).
           for key in SUPABASE_URL SUPABASE_PUBLISHABLE_KEY; do
@@ -140,6 +160,8 @@ jobs:
           unzip -l EasySearch-unsigned.ipa > "$RUNNER_TEMP/ipa-contents.txt"
           grep -q 'Payload/EasySearch.app/EasySearch' "$RUNNER_TEMP/ipa-contents.txt"
           grep -q 'Payload/EasySearch.app/PlugIns/EasySearchShare.appex/EasySearchShare' "$RUNNER_TEMP/ipa-contents.txt"
+          grep -q 'Payload/EasySearch.app/PlugIns/EasySearchFileProvider.appex/EasySearchFileProvider' "$RUNNER_TEMP/ipa-contents.txt"
+          grep -q 'Payload/EasySearch.app/Frameworks/AMSMB2.framework' "$RUNNER_TEMP/ipa-contents.txt"
           if grep -Eq '_CodeSignature|embedded.mobileprovision' "$RUNNER_TEMP/ipa-contents.txt"; then
             echo 'Unexpected signing files found in unsigned IPA.' >&2
             exit 1

@@ -2,8 +2,8 @@ import SwiftUI
 
 struct WebDAVFeature: AppFeature {
     var id: String = "webdav"
-    var title: String = "WebDAV 文件"
-    var summary: String = "连接 WebDAV，浏览、上传和下载文件。"
+    var title: String = "外置存储"
+    var summary: String = "连接 WebDAV / SMB，浏览、上传和下载文件。"
     var iconName: String = "externaldrive.fill"
     var color: Color = .blue
     var placement: AppFeaturePlacement = .moduleList

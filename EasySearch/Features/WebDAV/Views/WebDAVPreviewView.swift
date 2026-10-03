@@ -29,7 +29,7 @@ struct WebDAVPreviewView: View {
 
     var body: some View {
         Group {
-            if requestedPreviewKind == .video, !streamingFallbackRequested {
+            if requestedPreviewKind == .video, !streamingFallbackRequested, !request.configuration.isSMB {
                 WebDAVStreamingVideoPlayerView(
                     configuration: request.configuration,
                     item: request.item,
@@ -159,7 +159,7 @@ struct WebDAVPreviewView: View {
     }
 
     private func loadPreview() async {
-        guard requestedPreviewKind != .video || streamingFallbackRequested else {
+        guard requestedPreviewKind != .video || streamingFallbackRequested || request.configuration.isSMB else {
             isLoading = false
             return
         }
@@ -219,7 +219,7 @@ struct WebDAVPreviewView: View {
             defer { isSaving = false }
             do {
                 try await replaceRemoteFile(with: url)
-                saveMessage = "修改已保存到 WebDAV。"
+                saveMessage = "修改已保存到外置存储。"
             } catch {
                 saveMessage = error.localizedDescription
             }
@@ -242,6 +242,10 @@ struct WebDAVPreviewView: View {
             item: request.item,
             force: false
         )
+        if let locationID = request.configuration.locationID {
+            let parentPath = request.item.path.split(separator: "/").dropLast().joined(separator: "/")
+            try? await ExternalStorageFilesCoordinator.shared.notifyChanges(locationID: locationID, path: parentPath)
+        }
     }
 }
 

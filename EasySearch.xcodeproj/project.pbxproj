@@ -7,6 +7,35 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E40000000000000000000003 /* AMSMB2 in Frameworks */ = {isa = PBXBuildFile; productRef = E40000000000000000000002 /* AMSMB2 */; };
+		E40000000000000000000004 /* AMSMB2 in Embed Frameworks */ = {isa = PBXBuildFile; productRef = E40000000000000000000002 /* AMSMB2 */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		F40000000000000000000020 /* SMBStorageClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000123 /* SMBStorageClient.swift */; };
+		F40000000000000000000021 /* WebDAVMovePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000124 /* WebDAVMovePickerView.swift */; };
+		F40000000000000000000022 /* ExternalStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000125 /* ExternalStorageTests.swift */; };
+		F60000000000000000000001 /* ExternalStorageLicenses.txt in Resources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000100 /* ExternalStorageLicenses.txt */; };
+		F60000000000000000000003 /* AMSMB2 in Frameworks */ = {isa = PBXBuildFile; productRef = E40000000000000000000002 /* AMSMB2 */; };
+		F60000000000000000000010 /* EasySearchFileProvider.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = F60000000000000000000120 /* EasySearchFileProvider.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F60000000000000000000011 /* ExternalStorageClientProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000101 /* ExternalStorageClientProtocol.swift */; };
+		F60000000000000000000012 /* ExternalStorageError.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000102 /* ExternalStorageError.swift */; };
+		F60000000000000000000013 /* ExternalStorageFilesCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000103 /* ExternalStorageFilesCoordinator.swift */; };
+		F60000000000000000000014 /* ExternalStorageModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000104 /* ExternalStorageModels.swift */; };
+		F60000000000000000000015 /* ExternalStorageSharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000105 /* ExternalStorageSharedStore.swift */; };
+		F60000000000000000000016 /* ExternalStorageItemRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000112 /* ExternalStorageItemRegistry.swift */; };
+		F60000000000000000000017 /* FileProviderItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000114 /* FileProviderItem.swift */; };
+		F60000000000000000000018 /* FileProviderEnumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000113 /* FileProviderEnumerator.swift */; };
+		F60000000000000000000023 /* ExternalStorageProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000126 /* ExternalStorageProviderTests.swift */; };
+		F60000000000000000000031 /* ExternalStorageClientProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000101 /* ExternalStorageClientProtocol.swift */; };
+		F60000000000000000000032 /* ExternalStorageError.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000102 /* ExternalStorageError.swift */; };
+		F60000000000000000000033 /* ExternalStorageModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000104 /* ExternalStorageModels.swift */; };
+		F60000000000000000000034 /* ExternalStorageSharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000105 /* ExternalStorageSharedStore.swift */; };
+		F60000000000000000000035 /* FileProviderExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000111 /* FileProviderExtension.swift */; };
+		F60000000000000000000036 /* ExternalStorageItemRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000112 /* ExternalStorageItemRegistry.swift */; };
+		F60000000000000000000037 /* FileProviderEnumerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000113 /* FileProviderEnumerator.swift */; };
+		F60000000000000000000038 /* FileProviderItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000114 /* FileProviderItem.swift */; };
+		F60000000000000000000039 /* WebDAVModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000102 /* WebDAVModels.swift */; };
+		F6000000000000000000003A /* WebDAVClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000104 /* WebDAVClient.swift */; };
+		F6000000000000000000003B /* WebDAVLocalFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000105 /* WebDAVLocalFileStore.swift */; };
+		F6000000000000000000003C /* SMBStorageClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40000000000000000000123 /* SMBStorageClient.swift */; };
 		9F3D0C70B18C4A62A8E9F101 /* HiddenSupabaseSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1374C68D09A41FAB62E7D20 /* HiddenSupabaseSessionTests.swift */; };
 		BFB71BF68E226A42025894A9 /* QingLongCredentialSecurityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 475B36C140343A7D8EC9816F /* QingLongCredentialSecurityTests.swift */; };
 		239C4A07BDD01F38027F4822 /* CloudSyncIdentityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCF1056DE1D9C410B1BA4193 /* CloudSyncIdentityStore.swift */; };
@@ -122,6 +151,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		F60000000000000000000301 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A7000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F60000000000000000000400;
+			remoteInfo = EasySearchFileProvider;
+		};
 		F40000000000000000000301 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A7000000 /* Project object */;
@@ -139,6 +175,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		A4000004 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				E40000000000000000000004 /* AMSMB2 in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F40000000000000000000500 /* Embed App Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -146,6 +193,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				F40000000000000000000010 /* EasySearchShare.appex in Embed App Extensions */,
+				F60000000000000000000010 /* EasySearchFileProvider.appex in Embed App Extensions */,
 			);
 			name = "Embed App Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -153,6 +201,23 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		F40000000000000000000123 /* SMBStorageClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SMBStorageClient.swift; path = EasySearch/Features/WebDAV/Services/SMBStorageClient.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000124 /* WebDAVMovePickerView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = WebDAVMovePickerView.swift; path = EasySearch/Features/WebDAV/Views/WebDAVMovePickerView.swift; sourceTree = SOURCE_ROOT; };
+		F40000000000000000000125 /* ExternalStorageTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExternalStorageTests.swift; sourceTree = "<group>"; };
+		F60000000000000000000100 /* ExternalStorageLicenses.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = ExternalStorageLicenses.txt; sourceTree = "<group>"; };
+		F60000000000000000000101 /* ExternalStorageClientProtocol.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExternalStorageClientProtocol.swift; path = EasySearch/Features/ExternalStorage/ExternalStorageClientProtocol.swift; sourceTree = SOURCE_ROOT; };
+		F60000000000000000000102 /* ExternalStorageError.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExternalStorageError.swift; path = EasySearch/Features/ExternalStorage/ExternalStorageError.swift; sourceTree = SOURCE_ROOT; };
+		F60000000000000000000103 /* ExternalStorageFilesCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExternalStorageFilesCoordinator.swift; path = EasySearch/Features/ExternalStorage/ExternalStorageFilesCoordinator.swift; sourceTree = SOURCE_ROOT; };
+		F60000000000000000000104 /* ExternalStorageModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExternalStorageModels.swift; path = EasySearch/Features/ExternalStorage/ExternalStorageModels.swift; sourceTree = SOURCE_ROOT; };
+		F60000000000000000000105 /* ExternalStorageSharedStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExternalStorageSharedStore.swift; path = EasySearch/Features/ExternalStorage/ExternalStorageSharedStore.swift; sourceTree = SOURCE_ROOT; };
+		F60000000000000000000111 /* FileProviderExtension.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FileProviderExtension.swift; sourceTree = "<group>"; };
+		F60000000000000000000112 /* ExternalStorageItemRegistry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExternalStorageItemRegistry.swift; sourceTree = "<group>"; };
+		F60000000000000000000113 /* FileProviderEnumerator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FileProviderEnumerator.swift; sourceTree = "<group>"; };
+		F60000000000000000000114 /* FileProviderItem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FileProviderItem.swift; sourceTree = "<group>"; };
+		F60000000000000000000115 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F60000000000000000000116 /* EasySearchFileProvider.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = EasySearchFileProvider.entitlements; sourceTree = "<group>"; };
+		F60000000000000000000120 /* EasySearchFileProvider.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = EasySearchFileProvider.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F60000000000000000000126 /* ExternalStorageProviderTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExternalStorageProviderTests.swift; sourceTree = "<group>"; };
 		E1374C68D09A41FAB62E7D20 /* HiddenSupabaseSessionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HiddenSupabaseSessionTests.swift; path = EasySearchTests/HiddenSupabaseSessionTests.swift; sourceTree = SOURCE_ROOT; };
 		475B36C140343A7D8EC9816F /* QingLongCredentialSecurityTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QingLongCredentialSecurityTests.swift; path = EasySearchTests/QingLongCredentialSecurityTests.swift; sourceTree = SOURCE_ROOT; };
 		CCF1056DE1D9C410B1BA4193 /* CloudSyncIdentityStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CloudSyncIdentityStore.swift; path = EasySearch/Core/CloudSync/CloudSyncIdentityStore.swift; sourceTree = SOURCE_ROOT; };
@@ -275,6 +340,22 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		A4000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E40000000000000000000003 /* AMSMB2 in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F60000000000000000000501 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F60000000000000000000003 /* AMSMB2 in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F40000000000000000000501 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -294,6 +375,31 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		F60000000000000000000201 /* ExternalStorage */ = {
+			isa = PBXGroup;
+			children = (
+				F60000000000000000000101 /* ExternalStorageClientProtocol.swift */,
+				F60000000000000000000102 /* ExternalStorageError.swift */,
+				F60000000000000000000103 /* ExternalStorageFilesCoordinator.swift */,
+				F60000000000000000000104 /* ExternalStorageModels.swift */,
+				F60000000000000000000105 /* ExternalStorageSharedStore.swift */,
+			);
+			path = ExternalStorage;
+			sourceTree = "<group>";
+		};
+		F60000000000000000000202 /* EasySearchFileProvider */ = {
+			isa = PBXGroup;
+			children = (
+				F60000000000000000000111 /* FileProviderExtension.swift */,
+				F60000000000000000000112 /* ExternalStorageItemRegistry.swift */,
+				F60000000000000000000113 /* FileProviderEnumerator.swift */,
+				F60000000000000000000114 /* FileProviderItem.swift */,
+				F60000000000000000000115 /* Info.plist */,
+				F60000000000000000000116 /* EasySearchFileProvider.entitlements */,
+			);
+			path = EasySearchFileProvider;
+			sourceTree = "<group>";
+		};
 		AC1000000000000000000201 /* Config */ = {
 			isa = PBXGroup;
 			children = (
@@ -448,6 +554,7 @@
 			children = (
 				A5000001 /* EasySearch */,
 				F40000000000000000000206 /* EasySearchShare */,
+				F60000000000000000000202 /* EasySearchFileProvider */,
 				A5000099 /* Products */,
 				B924F2B5DBEE2D8D30100156 /* EasySearchTests */,
 				669A203D6FEC862139AC385F /* Frameworks */,
@@ -472,6 +579,7 @@
 			isa = PBXGroup;
 			children = (
 				A2000010 /* search-engines.json */,
+				F60000000000000000000100 /* ExternalStorageLicenses.txt */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -481,6 +589,7 @@
 			children = (
 				A3000000 /* EasySearch.app */,
 				F40000000000000000000110 /* EasySearchShare.appex */,
+				F60000000000000000000120 /* EasySearchFileProvider.appex */,
 				CC601343648B48283FAC97DF /* EasySearchTests.xctest */,
 			);
 			name = Products;
@@ -496,6 +605,8 @@
 				409E3F66D770693C4E471DC9 /* TrainingLogRepeatWorkoutTests.swift */,
 				F5FBB6B3F3C019DD9B453577 /* SearchEngineUsageStoreTests.swift */,
 				F40000000000000000000114 /* WebDAVClientTests.swift */,
+				F40000000000000000000125 /* ExternalStorageTests.swift */,
+				F60000000000000000000126 /* ExternalStorageProviderTests.swift */,
 				F30000000000000000000102 /* SearchEngineIconCacheTests.swift */,
 				E100000000000000000000107 /* ExpenseAssistantTests.swift */,
 				C800000000000000000000104 /* CurrencyConverterViewModelTests.swift */,
@@ -548,6 +659,7 @@
 				F50000000000000000000201 /* TrainingLog */,
 				D400000000000000000000201 /* QingLong */,
 				F40000000000000000000201 /* WebDAV */,
+				F60000000000000000000201 /* ExternalStorage */,
 				9184EB6BD9CBA9B4D5FB8E9F /* Utilities */,
 			);
 			name = Features;
@@ -738,6 +850,7 @@
 		F40000000000000000000203 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				F40000000000000000000123 /* SMBStorageClient.swift */,
 				F40000000000000000000104 /* WebDAVClient.swift */,
 				F40000000000000000000105 /* WebDAVLocalFileStore.swift */,
 				F40000000000000000000118 /* WebDAVDownloadManager.swift */,
@@ -749,6 +862,7 @@
 		F40000000000000000000204 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				F40000000000000000000124 /* WebDAVMovePickerView.swift */,
 				F40000000000000000000106 /* WebDAVView.swift */,
 				F40000000000000000000115 /* WebDAVSettingsView.swift */,
 				F40000000000000000000116 /* WebDAVShareUploadView.swift */,
@@ -819,6 +933,27 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		F60000000000000000000400 /* EasySearchFileProvider */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F60000000000000000000703 /* Build configuration list for PBXNativeTarget "EasySearchFileProvider" */;
+			buildPhases = (
+				F60000000000000000000502 /* Sources */,
+				F60000000000000000000501 /* Frameworks */,
+				F60000000000000000000503 /* Resources */,
+				F60000000000000000000504 /* Dynamic Build Version */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = EasySearchFileProvider;
+			packageProductDependencies = (
+				E40000000000000000000002 /* AMSMB2 */,
+			);
+			productName = EasySearchFileProvider;
+			productReference = F60000000000000000000120 /* EasySearchFileProvider.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		F40000000000000000000400 /* EasySearchShare */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = F40000000000000000000703 /* Build configuration list for PBXNativeTarget "EasySearchShare" */;
@@ -860,16 +995,22 @@
 			buildConfigurationList = A8000002 /* Build configuration list for PBXNativeTarget "EasySearch" */;
 			buildPhases = (
 				A4000000 /* Sources */,
+				A4000003 /* Frameworks */,
 				A4000002 /* Resources */,
 				F40000000000000000000500 /* Embed App Extensions */,
+				A4000004 /* Embed Frameworks */,
 				A4000001 /* Dynamic Build Version */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				F40000000000000000000600 /* PBXTargetDependency */,
+				F60000000000000000000600 /* PBXTargetDependency */,
 			);
 			name = EasySearch;
+			packageProductDependencies = (
+				E40000000000000000000002 /* AMSMB2 */,
+			);
 			productName = EasySearch;
 			productReference = A3000000 /* EasySearch.app */;
 			productType = "com.apple.product-type.application";
@@ -885,6 +1026,14 @@
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					F40000000000000000000400 = {
+						CreatedOnToolsVersion = 15.0;
+						SystemCapabilities = {
+							com.apple.ApplicationGroups.iOS = {
+								enabled = 1;
+							};
+						};
+					};
+					F60000000000000000000400 = {
 						CreatedOnToolsVersion = 15.0;
 						SystemCapabilities = {
 							com.apple.ApplicationGroups.iOS = {
@@ -912,16 +1061,39 @@
 				Base,
 			);
 			mainGroup = A5000000;
+			packageReferences = (
+				E40000000000000000000001 /* XCRemoteSwiftPackageReference "AMSMB2" */,
+			);
 			productRefGroup = A5000099 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				A6000000 /* EasySearch */,
 				F40000000000000000000400 /* EasySearchShare */,
+				F60000000000000000000400 /* EasySearchFileProvider */,
 				78345ACD5240AE76362DCBB7 /* EasySearchTests */,
 			);
 		};
 /* End PBXProject section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E40000000000000000000001 /* XCRemoteSwiftPackageReference "AMSMB2" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/amosavian/AMSMB2.git";
+			requirement = {
+				kind = exactVersion;
+				version = 4.0.3;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E40000000000000000000002 /* AMSMB2 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E40000000000000000000001 /* XCRemoteSwiftPackageReference "AMSMB2" */;
+			productName = AMSMB2;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin PBXResourcesBuildPhase section */
 		F40000000000000000000503 /* Resources */ = {
@@ -944,12 +1116,36 @@
 			files = (
 				A1000009 /* Assets.xcassets in Resources */,
 				A1000010 /* search-engines.json in Resources */,
+				F60000000000000000000001 /* ExternalStorageLicenses.txt in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F60000000000000000000503 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		F60000000000000000000504 /* Dynamic Build Version */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Dynamic Build Version";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/easysearch_versioning/build_number",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"${SRCROOT}/scripts/update_dynamic_build_version.sh\"\n";
+		};
 		F40000000000000000000504 /* Dynamic Build Version */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -985,6 +1181,25 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		F60000000000000000000502 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F60000000000000000000031 /* ExternalStorageClientProtocol.swift in Sources */,
+				F60000000000000000000032 /* ExternalStorageError.swift in Sources */,
+				F60000000000000000000033 /* ExternalStorageModels.swift in Sources */,
+				F60000000000000000000034 /* ExternalStorageSharedStore.swift in Sources */,
+				F60000000000000000000035 /* FileProviderExtension.swift in Sources */,
+				F60000000000000000000036 /* ExternalStorageItemRegistry.swift in Sources */,
+				F60000000000000000000037 /* FileProviderEnumerator.swift in Sources */,
+				F60000000000000000000038 /* FileProviderItem.swift in Sources */,
+				F60000000000000000000039 /* WebDAVModels.swift in Sources */,
+				F6000000000000000000003A /* WebDAVClient.swift in Sources */,
+				F6000000000000000000003B /* WebDAVLocalFileStore.swift in Sources */,
+				F6000000000000000000003C /* SMBStorageClient.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F40000000000000000000502 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -997,6 +1212,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F40000000000000000000022 /* ExternalStorageTests.swift in Sources */,
+				F60000000000000000000023 /* ExternalStorageProviderTests.swift in Sources */,
 				9F3D0C70B18C4A62A8E9F101 /* HiddenSupabaseSessionTests.swift in Sources */,
 				BFB71BF68E226A42025894A9 /* QingLongCredentialSecurityTests.swift in Sources */,
 				EAB98EB26926E8A98CF274C5 /* AppGroupRollbackTests.swift in Sources */,
@@ -1018,6 +1235,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F40000000000000000000020 /* SMBStorageClient.swift in Sources */,
+				F40000000000000000000021 /* WebDAVMovePickerView.swift in Sources */,
+				F60000000000000000000011 /* ExternalStorageClientProtocol.swift in Sources */,
+				F60000000000000000000012 /* ExternalStorageError.swift in Sources */,
+				F60000000000000000000013 /* ExternalStorageFilesCoordinator.swift in Sources */,
+				F60000000000000000000014 /* ExternalStorageModels.swift in Sources */,
+				F60000000000000000000015 /* ExternalStorageSharedStore.swift in Sources */,
+				F60000000000000000000016 /* ExternalStorageItemRegistry.swift in Sources */,
+				F60000000000000000000017 /* FileProviderItem.swift in Sources */,
+				F60000000000000000000018 /* FileProviderEnumerator.swift in Sources */,
 				239C4A07BDD01F38027F4822 /* CloudSyncIdentityStore.swift in Sources */,
 				A26DF3D5B85340C77E3F4D8F /* ESGestureMotion.swift in Sources */,
 				D6EE2B6924FDC2E8D749EAFA /* AppGroupStorage.swift in Sources */,
@@ -1117,6 +1344,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		F60000000000000000000600 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F60000000000000000000400 /* EasySearchFileProvider */;
+			targetProxy = F60000000000000000000301 /* PBXContainerItemProxy */;
+		};
 		F40000000000000000000600 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = F40000000000000000000400 /* EasySearchShare */;
@@ -1131,6 +1363,62 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		F60000000000000000000701 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = EasySearchFileProvider/EasySearchFileProvider.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 2NTKHNF6H6;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = EasySearchFileProvider/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.easysearch.xp9477.FileProvider;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F60000000000000000000702 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = EasySearchFileProvider/EasySearchFileProvider.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 3;
+				DEVELOPMENT_TEAM = 2NTKHNF6H6;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = EasySearchFileProvider/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.easysearch.xp9477.FileProvider;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		F40000000000000000000701 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1428,6 +1716,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		F60000000000000000000703 /* Build configuration list for PBXNativeTarget "EasySearchFileProvider" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F60000000000000000000701 /* Debug */,
+				F60000000000000000000702 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		F40000000000000000000703 /* Build configuration list for PBXNativeTarget "EasySearchShare" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

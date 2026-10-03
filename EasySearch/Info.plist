@@ -71,7 +71,7 @@
 		<true/>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>用于连接你在局域网中的 WebDAV 服务器。</string>
+	<string>用于在局域网中发现并访问 WebDAV 与 SMB 外部存储服务器及文件共享。</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>xhsdiscover</string>

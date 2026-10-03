@@ -21,9 +21,39 @@ struct WebDAVConfiguration: Equatable, Sendable {
         self.password = password
     }
 
+    var isSMB: Bool {
+        baseURL.scheme?.lowercased() == "smb"
+    }
+
+    var isWebDAV: Bool {
+        let scheme = baseURL.scheme?.lowercased()
+        return scheme == "http" || scheme == "https"
+    }
+
     var isValid: Bool {
+        // Disallow inline credentials in URL to prevent plain-text credential leaks in UserDefaults
+        if baseURL.user != nil || baseURL.password != nil {
+            return false
+        }
+
         guard let scheme = baseURL.scheme?.lowercased() else { return false }
-        return (scheme == "http" || scheme == "https") && baseURL.host != nil
+        let path = baseURL.path
+        if path.contains("..") || path.contains("\\") || path.contains("\0") {
+            return false
+        }
+
+        if scheme == "http" || scheme == "https" {
+            guard let host = baseURL.host, !host.isEmpty else { return false }
+            return true
+        }
+
+        if scheme == "smb" {
+            guard let host = baseURL.host, !host.isEmpty else { return false }
+            let parts = path.split(separator: "/").filter { !$0.isEmpty }
+            return !parts.isEmpty
+        }
+
+        return false
     }
 
     var cacheKey: String {
@@ -46,6 +76,10 @@ struct WebDAVLocation: Identifiable, Equatable, Sendable {
             username: username,
             password: password
         )
+    }
+
+    var isSMB: Bool {
+        baseURL.scheme?.lowercased() == "smb"
     }
 }
 
@@ -117,20 +151,23 @@ enum WebDAVError: LocalizedError {
     case editConflict
     case textFileTooLarge
     case unsupportedTextEncoding
+    case invalidDestination
+    case destinationExists
+    case destinationIsDescendant
 
     var errorDescription: String? {
         switch self {
         case .invalidConfiguration:
-            return "请先完成 WebDAV 连接配置。"
+            return "请先完成存储连接配置。"
         case .invalidURL:
-            return "WebDAV 地址无效，请检查协议和域名。"
+            return "存储服务器地址无效，请检查协议和地址格式（不得包含内联用户名密码或 .. 路径）。"
         case .invalidResponse:
             return "服务器返回了无法识别的响应。"
         case let .server(statusCode, message):
             if message.isEmpty {
-                return "WebDAV 请求失败（HTTP \(statusCode)）。"
+                return "请求失败（状态码 \(statusCode)）。"
             }
-            return "WebDAV 请求失败（HTTP \(statusCode)）：\(message)"
+            return "请求失败（状态码 \(statusCode)）：\(message)"
         case .malformedListing:
             return "服务器目录列表格式无法解析。"
         case .localFileMissing:
@@ -140,11 +177,17 @@ enum WebDAVError: LocalizedError {
         case .tooManyNameConflicts:
             return "远程目录中存在过多同名项目，无法生成可用名称。"
         case .editConflict:
-            return "远程文件已经被其他设备修改，请重新打开后再编辑。"
+            return "远程文件已被修改或版本不一致，请重新打开后再编辑。"
         case .textFileTooLarge:
             return "该文本文件过大，无法在 App 内编辑。"
         case .unsupportedTextEncoding:
             return "该文档不是可编辑的 UTF-8 文本。"
+        case .invalidDestination:
+            return "目标路径无效，请选择合法的目标目录。"
+        case .destinationExists:
+            return "目标位置已存在同名项目。"
+        case .destinationIsDescendant:
+            return "无法将文件夹移动到自身或其子目录中。"
         }
     }
 }

@@ -144,6 +144,37 @@ final class WebDAVStreamResourceLoader: NSObject, AVAssetResourceLoaderDelegate,
         entry.value.task?.cancel()
     }
 
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        guard let initialURL = task.originalRequest?.url,
+              let newURL = request.url else {
+            completionHandler(nil)
+            return
+        }
+        let initialScheme = initialURL.scheme?.lowercased() ?? ""
+        let newScheme = newURL.scheme?.lowercased() ?? ""
+        if initialScheme == "https" && newScheme != "https" {
+            completionHandler(nil)
+            return
+        }
+        let initialHost = initialURL.host?.lowercased() ?? ""
+        let newHost = newURL.host?.lowercased() ?? ""
+        let initialPort = initialURL.port ?? (initialScheme == "https" ? 443 : 80)
+        let newPort = newURL.port ?? (newScheme == "https" ? 443 : 80)
+
+        guard (initialScheme == newScheme) && (initialHost == newHost) && (initialPort == newPort) else {
+            completionHandler(nil)
+            return
+        }
+        completionHandler(request)
+    }
+
     func urlSession(
         _ session: URLSession,
         dataTask: URLSessionDataTask,
