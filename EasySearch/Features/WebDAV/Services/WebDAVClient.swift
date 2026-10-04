@@ -162,7 +162,7 @@ final class WebDAVClient: WebDAVClientProtocol {
         var request = makeRequest(url: url, method: "PUT")
         request.setValue("*", forHTTPHeaderField: "If-None-Match")
 
-        let redirectDelegate = WebDAVRedirectDelegate(initialURL: sourceURL)
+        let redirectDelegate = WebDAVRedirectDelegate(initialURL: url)
         let (data, response) = try await session.upload(for: request, fromFile: localURL, delegate: redirectDelegate)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw WebDAVError.invalidResponse
