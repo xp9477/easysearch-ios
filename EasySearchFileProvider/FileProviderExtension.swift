@@ -317,7 +317,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                         parentIdentifier: parentID,
                         contentLength: size,
                         modifiedAt: mtime,
-                        contentType: itemTemplate.contentType.preferredMIMEType,
+                        contentType: itemTemplate.contentType?.preferredMIMEType,
                         etag: nil
                     )
 

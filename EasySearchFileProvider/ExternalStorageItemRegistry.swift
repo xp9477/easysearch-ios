@@ -397,7 +397,7 @@ final class ExternalStorageItemRegistry: @unchecked Sendable {
     // MARK: - Sync Anchors & Journaling
 
     func currentAnchor() -> NSFileProviderSyncAnchor {
-        let seq = (try? synchronized {
+        let seq: UInt64 = (try? synchronized {
             try reloadFromDiskLocked()
             return snapshot.syncAnchorSequence
         }) ?? 1

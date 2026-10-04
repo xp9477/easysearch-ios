@@ -70,7 +70,8 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
         observer: any NSFileProviderEnumerationObserver,
         startingAt page: NSFileProviderPage
     ) async throws {
-        let isInitial = (page == .initialPageSortedByName || page == .initialPageSortedByDate)
+        let isInitial = (page.rawValue == NSFileProviderPage.initialPageSortedByName as Data
+            || page.rawValue == NSFileProviderPage.initialPageSortedByDate as Data)
 
         let snapshot: EnumerationSnapshot
         let offset: Int
@@ -153,7 +154,8 @@ final class FileProviderEnumerator: NSObject, NSFileProviderEnumerator {
         observer: any NSFileProviderEnumerationObserver,
         startingAt page: NSFileProviderPage
     ) async throws {
-        let isInitial = (page == .initialPageSortedByName || page == .initialPageSortedByDate)
+        let isInitial = (page.rawValue == NSFileProviderPage.initialPageSortedByName as Data
+            || page.rawValue == NSFileProviderPage.initialPageSortedByDate as Data)
 
         let snapshot: EnumerationSnapshot
         let offset: Int

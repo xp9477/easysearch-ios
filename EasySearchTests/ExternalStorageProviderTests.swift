@@ -109,6 +109,32 @@ private final class MockChangeObserver: NSObject, NSFileProviderChangeObserver {
     }
 }
 
+private final class MockEnumerationObserver: NSObject, NSFileProviderEnumerationObserver {
+    var items: [any NSFileProviderItemProtocol] = []
+    var finishedError: Error?
+    var nextPage: NSFileProviderPage?
+    let completion: XCTestExpectation
+
+    init(completion: XCTestExpectation) {
+        self.completion = completion
+        super.init()
+    }
+
+    func didEnumerate(_ updatedItems: [any NSFileProviderItemProtocol]) {
+        items.append(contentsOf: updatedItems)
+    }
+
+    func finishEnumerating(upTo nextPage: NSFileProviderPage?) {
+        self.nextPage = nextPage
+        completion.fulfill()
+    }
+
+    func finishEnumeratingWithError(_ error: Error) {
+        finishedError = error
+        completion.fulfill()
+    }
+}
+
 // MARK: - Test Case
 
 final class ExternalStorageProviderTests: XCTestCase {
@@ -638,6 +664,60 @@ final class ExternalStorageProviderTests: XCTestCase {
         XCTAssertEqual(error.code, NSFileProviderError.Code.cannotSynchronize.rawValue)
         XCTAssertNotEqual(error.code, NSFileProviderError.Code.serverUnreachable.rawValue)
         XCTAssertTrue(error.localizedDescription.contains("412"))
+    }
+
+    func testInitialPagesEnumerateDirectoryAndWorkingSet() async throws {
+        let initialPages = [
+            NSFileProviderPage(NSFileProviderPage.initialPageSortedByName as Data),
+            NSFileProviderPage(NSFileProviderPage.initialPageSortedByDate as Data)
+        ]
+        let containers: [NSFileProviderItemIdentifier] = [.rootContainer, .workingSet]
+
+        for container in containers {
+            for page in initialPages {
+                let registry = try ExternalStorageItemRegistry(
+                    domainID: UUID().uuidString, baseStorageURL: tempDirectory
+                )
+                let record = try registry.registerOrUpdate(
+                    remotePath: "report.txt", name: "report.txt", isDirectory: false,
+                    parentIdentifier: .rootContainer
+                )
+                registry.markAccessed(identifier: record.itemIdentifier)
+                let client = MockExternalStorageClient()
+                client.itemsToList = [WebDAVItem(
+                    path: "report.txt", name: "report.txt", kind: .file,
+                    contentLength: nil, modifiedAt: nil
+                )]
+                let enumerator = FileProviderEnumerator(
+                    containerItemIdentifier: container, registry: registry,
+                    client: client, domainDisplayName: "Test"
+                )
+                let completed = expectation(description: "Initial page enumerated")
+                let observer = MockEnumerationObserver(completion: completed)
+
+                enumerator.enumerateItems(for: observer, startingAt: page)
+                await fulfillment(of: [completed], timeout: 3)
+                enumerator.invalidate()
+
+                XCTAssertNil(observer.finishedError)
+                XCTAssertNil(observer.nextPage)
+                XCTAssertEqual(observer.items.map(\.filename), ["report.txt"])
+            }
+        }
+    }
+
+    func testSyncAnchorRoundtripPreservesUInt64Range() throws {
+        let registry = try ExternalStorageItemRegistry(
+            domainID: UUID().uuidString, baseStorageURL: tempDirectory
+        )
+        XCTAssertEqual(registry.parseAnchor(registry.currentAnchor()), UInt64(1))
+        _ = try registry.registerOrUpdate(
+            remotePath: "report.txt", name: "report.txt", isDirectory: false,
+            parentIdentifier: .rootContainer
+        )
+        XCTAssertEqual(registry.parseAnchor(registry.currentAnchor()), UInt64(2))
+        let maximumAnchor = NSFileProviderSyncAnchor(Data(String(UInt64.max).utf8))
+        XCTAssertEqual(registry.parseAnchor(maximumAnchor), UInt64.max)
     }
 
 }
