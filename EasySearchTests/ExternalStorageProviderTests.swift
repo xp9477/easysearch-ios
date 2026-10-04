@@ -603,4 +603,41 @@ final class ExternalStorageProviderTests: XCTestCase {
         XCTAssertEqual(movedRecord.version.contentVersionString, originalContentVersion, "跨目录移动时 contentVersion 必须保持不变")
         XCTAssertNotEqual(movedRecord.version.metadataVersionString, renamedRecord.version.metadataVersionString, "跨目录移动时 metadataVersion 必须变化")
     }
+
+    // MARK: - iOS-compatible conflict errors
+
+    func testVersionConflictMapsToIOSCompatibleErrorAndPreservesVersions() {
+        let conflict = ExternalStorageError.versionConflict(expected: "v1", actual: "v2")
+        let direct = conflict.toNSFileProviderError() as NSError
+        let mapped = ExternalStorageErrorMapper.mapToNSFileProviderError(conflict) as NSError
+
+        for error in [direct, mapped] {
+            XCTAssertEqual(error.domain, NSFileProviderErrorDomain)
+            XCTAssertEqual(error.code, NSFileProviderError.Code.cannotSynchronize.rawValue)
+            XCTAssertEqual(error.localizedDescription, conflict.localizedDescription)
+            XCTAssertTrue(error.localizedDescription.contains("v1"))
+            XCTAssertTrue(error.localizedDescription.contains("v2"))
+        }
+    }
+
+    func testWebDAVEditConflictRemainsAConflictRatherThanNetworkFailure() {
+        let conflict = WebDAVError.editConflict
+        let error = ExternalStorageErrorMapper.mapToNSFileProviderError(conflict) as NSError
+
+        XCTAssertEqual(error.domain, NSFileProviderErrorDomain)
+        XCTAssertEqual(error.code, NSFileProviderError.Code.cannotSynchronize.rawValue)
+        XCTAssertNotEqual(error.code, NSFileProviderError.Code.serverUnreachable.rawValue)
+        XCTAssertEqual(error.localizedDescription, conflict.localizedDescription)
+    }
+
+    func testWebDAVPreconditionFailureRemainsRejectedWithHTTPContext() {
+        let conflict = WebDAVError.server(statusCode: 412, message: "Precondition Failed")
+        let error = ExternalStorageErrorMapper.mapToNSFileProviderError(conflict) as NSError
+
+        XCTAssertEqual(error.domain, NSFileProviderErrorDomain)
+        XCTAssertEqual(error.code, NSFileProviderError.Code.cannotSynchronize.rawValue)
+        XCTAssertNotEqual(error.code, NSFileProviderError.Code.serverUnreachable.rawValue)
+        XCTAssertTrue(error.localizedDescription.contains("412"))
+    }
+
 }

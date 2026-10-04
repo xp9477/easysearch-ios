@@ -183,7 +183,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                    preVersion.fileProviderItemVersion.contentVersion != requested.contentVersion {
                     throw NSError(
                         domain: NSFileProviderErrorDomain,
-                        code: NSFileProviderError.Code.versionNoLongerAvailable.rawValue,
+                        code: NSFileProviderError.Code.cannotSynchronize.rawValue,
                         userInfo: [NSLocalizedDescriptionKey: "Requested version is out of date before download"]
                     )
                 }
@@ -216,7 +216,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                     try? FileManager.default.removeItem(at: downloadedURL)
                     throw NSError(
                         domain: NSFileProviderErrorDomain,
-                        code: NSFileProviderError.Code.versionNoLongerAvailable.rawValue,
+                        code: NSFileProviderError.Code.cannotSynchronize.rawValue,
                         userInfo: [NSLocalizedDescriptionKey: "Remote file modified during download"]
                     )
                 }
@@ -374,7 +374,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         if currentVersion.contentVersion != version.contentVersion || currentVersion.metadataVersion != version.metadataVersion {
             let conflictError = NSError(
                 domain: NSFileProviderErrorDomain,
-                code: NSFileProviderError.Code.versionNoLongerAvailable.rawValue,
+                code: NSFileProviderError.Code.cannotSynchronize.rawValue,
                 userInfo: [NSLocalizedDescriptionKey: "Remote version conflict. Item has been modified."]
             )
             completionHandler(nil, changedFields, false, conflictError)
@@ -388,7 +388,11 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 let freshVersion = fresh.version.fileProviderItemVersion
                 guard freshVersion.contentVersion == version.contentVersion,
                       freshVersion.metadataVersion == version.metadataVersion else {
-                    throw NSFileProviderError(.versionNoLongerAvailable)
+                    throw NSError(
+                        domain: NSFileProviderErrorDomain,
+                        code: NSFileProviderError.Code.cannotSynchronize.rawValue,
+                        userInfo: [NSLocalizedDescriptionKey: "Remote version conflict. Refresh before retrying."]
+                    )
                 }
                 try Task.checkCancellation()
                 var updatedRecord = fresh
@@ -523,7 +527,7 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                         if remoteVersion.fileProviderItemVersion.contentVersion != version.contentVersion {
                             throw NSError(
                                 domain: NSFileProviderErrorDomain,
-                                code: NSFileProviderError.Code.versionNoLongerAvailable.rawValue,
+                                code: NSFileProviderError.Code.cannotSynchronize.rawValue,
                                 userInfo: [NSLocalizedDescriptionKey: "Remote version conflict before deletion"]
                             )
                         }

@@ -73,9 +73,13 @@ enum ExternalStorageError: LocalizedError, Sendable {
                 userInfo: [NSLocalizedDescriptionKey: errorDescription ?? "Server unreachable"]
             )
         case .versionConflict:
+            // iOS does not expose the macOS version-expiry error code. Keep the
+            // operation rejected and preserve the conflict description for Files.
+            // Do not use localVersionConflictingWithServer: it excludes the item
+            // from sync and instructs the system to call deleteItem on the provider.
             return NSError(
                 domain: NSFileProviderErrorDomain,
-                code: NSFileProviderError.Code.versionNoLongerAvailable.rawValue,
+                code: NSFileProviderError.Code.cannotSynchronize.rawValue,
                 userInfo: [NSLocalizedDescriptionKey: errorDescription ?? "Version out of date"]
             )
         case .rootOperationForbidden, .traversalDetected, .invalidRemotePath:
@@ -150,7 +154,7 @@ enum ExternalStorageErrorMapper {
                 case 412:
                     return NSError(
                         domain: NSFileProviderErrorDomain,
-                        code: NSFileProviderError.Code.versionNoLongerAvailable.rawValue,
+                        code: NSFileProviderError.Code.cannotSynchronize.rawValue,
                         userInfo: [NSLocalizedDescriptionKey: "版本过期冲突（HTTP 412）"]
                     )
                 default:
@@ -163,7 +167,7 @@ enum ExternalStorageErrorMapper {
             case .editConflict:
                 return NSError(
                     domain: NSFileProviderErrorDomain,
-                    code: NSFileProviderError.Code.versionNoLongerAvailable.rawValue,
+                    code: NSFileProviderError.Code.cannotSynchronize.rawValue,
                     userInfo: [NSLocalizedDescriptionKey: webDAVError.localizedDescription]
                 )
             case .tooManyNameConflicts, .destinationExists:
