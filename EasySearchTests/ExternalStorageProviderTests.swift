@@ -392,7 +392,12 @@ final class ExternalStorageProviderTests: XCTestCase {
         XCTAssertFalse(caps.contains(.allowsDeleting))
         XCTAssertFalse(caps.contains(.allowsRenaming))
         XCTAssertFalse(caps.contains(.allowsReparenting))
-        XCTAssertFalse(caps.contains(.allowsWriting))
+        // For directories, allowsAddingSubItems aliases the allowsWriting bit.
+        // Assert the complete capability set instead of forbidding that shared bit.
+        let expectedRootCapabilities: NSFileProviderItemCapabilities = [
+            .allowsAddingSubItems, .allowsContentEnumerating, .allowsReading
+        ]
+        XCTAssertEqual(caps, expectedRootCapabilities)
 
         // 验证对根目录进行重命名、移动或删除操作被严格抛错拒绝
         XCTAssertThrowsError(try registry.renameOrMove(
