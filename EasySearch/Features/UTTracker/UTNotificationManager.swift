@@ -143,7 +143,7 @@ final class UTNotificationManager: NSObject, ObservableObject {
             ?? DateInterval(start: calendar.startOfDay(for: date), duration: 31 * 24 * 60 * 60)
         let monthStart = monthInterval.start
         let monthEnd = calendar.date(byAdding: .day, value: -1, to: monthInterval.end) ?? monthStart
-        let elapsedInterval = DateInterval(start: monthStart, end: min(monthInterval.end, date.addingTimeInterval(1)))
+        let elapsedInterval = calendar.utMonthElapsedInterval(in: monthInterval, asOf: date)
         let totalWorkingDays = calendar.utWorkingDays(in: monthInterval, holidayCalendar: holidayCalendar)
         let elapsedWorkingDays = calendar.utWorkingDays(in: elapsedInterval, holidayCalendar: holidayCalendar)
         let totalHours = entries

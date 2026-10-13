@@ -230,9 +230,7 @@ final class UTTrackerViewModel: ObservableObject {
     private func monthSummary(monthStartingAt monthStart: Date, now: Date? = nil) -> UTMonthSummary {
         let interval = monthInterval(for: monthStart)
         let monthEnd = calendar.date(byAdding: .day, value: -1, to: interval.end) ?? monthStart
-        let summaryNow = now ?? monthEnd
-        let elapsedEnd = min(interval.end, summaryNow.addingTimeInterval(1))
-        let elapsedInterval = DateInterval(start: interval.start, end: elapsedEnd)
+        let elapsedInterval = calendar.utMonthElapsedInterval(in: interval, asOf: now ?? interval.end)
         let totalWorkingDays = calendar.utWorkingDays(in: interval, holidayCalendar: holidayCalendar)
         let elapsedWorkingDays = calendar.utWorkingDays(in: elapsedInterval, holidayCalendar: holidayCalendar)
         let totalHours = entries(in: interval)

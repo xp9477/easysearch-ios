@@ -403,7 +403,7 @@ enum UTTrackerSnapshot {
             ?? DateInterval(start: calendar.startOfDay(for: now), duration: 31 * 24 * 60 * 60)
         let monthStart = monthInterval.start
         let monthEnd = calendar.date(byAdding: .day, value: -1, to: monthInterval.end) ?? monthStart
-        let elapsedInterval = DateInterval(start: monthStart, end: min(monthInterval.end, now.addingTimeInterval(1)))
+        let elapsedInterval = calendar.utMonthElapsedInterval(in: monthInterval, asOf: now)
 
         let totalHours = UTTrackerLocalStore(userDefaults: userDefaults)
             .loadEntries()
@@ -432,6 +432,13 @@ extension Calendar {
             }
         }
         return !isDateInWeekend(day)
+    }
+
+    /// Working days strictly before the calendar day of `now`.
+    /// Pass the month interval's end to include every day in that month.
+    func utMonthElapsedInterval(in monthInterval: DateInterval, asOf now: Date) -> DateInterval {
+        let elapsedEnd = min(monthInterval.end, startOfDay(for: now))
+        return DateInterval(start: monthInterval.start, end: max(monthInterval.start, elapsedEnd))
     }
 
     func utWorkingDays(in interval: DateInterval, holidayCalendar: UTHolidayCalendar? = nil) -> [Date] {

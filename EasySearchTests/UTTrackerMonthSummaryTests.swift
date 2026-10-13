@@ -36,6 +36,64 @@ final class UTTrackerMonthSummaryTests: XCTestCase {
         XCTAssertLessThanOrEqual(summary.elapsedWorkingDays, summary.totalWorkingDays)
     }
 
+    func testOctober2026ScheduleExcludesTodayFromElapsedHours() throws {
+        let userDefaults = makeUserDefaults()
+        let calendar = Calendar.utTracker
+        let holidayCalendar = UTHolidayCalendar.chinaPRC2026(calendar: calendar)
+        let formatter = makeFormatter(calendar: calendar)
+
+        for day in 1...7 {
+            let date = try XCTUnwrap(formatter.date(from: String(format: "2026-10-%02d", day)))
+            XCTAssertFalse(
+                calendar.isUTWorkingDay(date, holidayCalendar: holidayCalendar),
+                "2026-10-\(day) should be a National Day holiday"
+            )
+        }
+
+        for day in [8, 9, 12, 13] {
+            let date = try XCTUnwrap(formatter.date(from: String(format: "2026-10-%02d", day)))
+            XCTAssertTrue(
+                calendar.isUTWorkingDay(date, holidayCalendar: holidayCalendar),
+                "2026-10-\(day) should be a working day"
+            )
+        }
+
+        let makeup = try XCTUnwrap(formatter.date(from: "2026-10-10"))
+        let sunday = try XCTUnwrap(formatter.date(from: "2026-10-11"))
+        XCTAssertTrue(calendar.isUTWorkingDay(makeup, holidayCalendar: holidayCalendar))
+        XCTAssertTrue(calendar.isDateInWeekend(makeup))
+        XCTAssertFalse(calendar.isUTWorkingDay(sunday, holidayCalendar: holidayCalendar))
+
+        let startOfToday = try XCTUnwrap(formatter.date(from: "2026-10-13"))
+        let now = startOfToday.addingTimeInterval(15 * 60 * 60)
+        let summary = UTTrackerSnapshot.currentMonthSummary(
+            userDefaults: userDefaults,
+            calendar: calendar,
+            now: now,
+            holidayCalendar: holidayCalendar
+        )
+
+        let monthInterval = try XCTUnwrap(calendar.dateInterval(of: .month, for: now))
+        let elapsedDays = calendar.utWorkingDays(
+            in: calendar.utMonthElapsedInterval(in: monthInterval, asOf: now),
+            holidayCalendar: holidayCalendar
+        )
+        XCTAssertEqual(
+            elapsedDays.map { formatter.string(from: $0) },
+            ["2026-10-08", "2026-10-09", "2026-10-10", "2026-10-12"]
+        )
+        XCTAssertEqual(summary.elapsedWorkingDays, 4)
+        XCTAssertEqual(summary.elapsedMonthHours, 32, accuracy: 0.001)
+        XCTAssertFalse(elapsedDays.contains(startOfToday))
+
+        let completedDays = calendar.utWorkingDays(
+            in: calendar.utMonthElapsedInterval(in: monthInterval, asOf: monthInterval.end),
+            holidayCalendar: holidayCalendar
+        )
+        XCTAssertTrue(completedDays.contains(startOfToday))
+        XCTAssertGreaterThan(completedDays.count, summary.elapsedWorkingDays)
+    }
+
     func testNonWorkingDayHoursStillMoveTargetProgress() throws {
         let userDefaults = makeUserDefaults()
         let calendar = Calendar.utTracker
