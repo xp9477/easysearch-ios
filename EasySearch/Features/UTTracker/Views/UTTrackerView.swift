@@ -91,7 +91,7 @@ public struct UTTrackerView: View {
 
     private var progressCard: some View {
         let summary = viewModel.currentMonthSummary
-        let progress = clamped(summary.targetProgress)
+        let progress = clamped(summary.elapsedMonthProgress)
 
         return VStack(alignment: .leading, spacing: ESUI.Space.md) {
             HStack(alignment: .center, spacing: ESUI.Space.lg) {
@@ -108,9 +108,9 @@ public struct UTTrackerView: View {
                         .animation(ESMotion.value, value: progress)
 
                     VStack(spacing: 0) {
-                        Text(percentText(for: summary.targetProgress))
+                        Text(percentText(for: summary.elapsedMonthProgress))
                             .font(.title3.weight(.bold).monospacedDigit())
-                        Text("70% 目标")
+                        Text("已过工时")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -122,13 +122,13 @@ public struct UTTrackerView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
 
-                    Text("\(hoursText(summary.totalHours)) / \(hoursText(summary.targetHours))h")
+                    Text("\(hoursText(summary.totalHours)) / \(hoursText(summary.elapsedMonthHours))h")
                         .font(.title3.weight(.semibold).monospacedDigit())
 
                     if summary.isTargetMet {
-                        ESStatusBadge(text: "已达标 · 超出 \(hoursText(max(0, summary.totalHours - summary.targetHours)))h", tone: .success)
+                        ESStatusBadge(text: "已达 70% 目标", tone: .success)
                     } else {
-                        ESStatusBadge(text: "还差 \(hoursText(summary.remainingToTarget))h", tone: .warning)
+                        ESStatusBadge(text: "距 70% 目标还差 \(hoursText(summary.remainingToTarget))h", tone: .warning)
                     }
                 }
 
@@ -439,7 +439,7 @@ public struct UTTrackerView: View {
                                 )
                             }
 
-                            ProgressView(value: clamped(summary.targetProgress))
+                            ProgressView(value: clamped(summary.elapsedMonthProgress))
                                 .tint(summary.isTargetMet ? .green : .orange)
                         }
                     }
@@ -545,8 +545,8 @@ public struct UTTrackerView: View {
     }
 
     private func percentText(for progress: Double) -> String {
-        let percent = progress * 100
-        return percent.formatted(.number.precision(.fractionLength(0))) + "%"
+        let percent = Int((progress * 100).rounded())
+        return "\(max(percent, 0))%"
     }
 
     private func clamped(_ value: Double) -> Double {
