@@ -46,8 +46,14 @@ struct UTTrackerSettingsDetailView: View {
                 }
             } header: {
                 Text("提醒与通知")
-            } footer: {
-                Text("开启通知后，系统将在未达标时提醒你记录本周工时。")
+            }
+
+            Section {
+                DisclosureGroup("提醒规则") {
+                    Text("未达标时，系统将提醒你记录本周工时。")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .listStyle(.insetGrouped)

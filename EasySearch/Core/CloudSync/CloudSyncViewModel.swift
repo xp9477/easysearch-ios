@@ -9,7 +9,21 @@ final class CloudSyncViewModel: ObservableObject {
     @Published var isCloudConfigured = false
     @Published var isCloudAuthenticated = false
     @Published var cloudUserEmail: String?
-    @Published var cloudStatusMessage: String?
+    enum Feedback {
+        case status(String)
+        case failure(String)
+        case syncCompleted
+    }
+
+    @Published private(set) var feedback: Feedback?
+
+    var cloudStatusMessage: String? {
+        switch feedback {
+        case let .status(message), let .failure(message): return message
+        case .syncCompleted: return "同步成功"
+        case nil: return nil
+        }
+    }
     @Published var isPreparingCloud = false
     @Published var isCloudBusy = false
     @Published private(set) var isCloudIdentityMismatch = false
@@ -40,12 +54,12 @@ final class CloudSyncViewModel: ObservableObject {
             cloudUserEmail = nil
             cloudUserID = nil
             isCloudIdentityMismatch = false
-            cloudStatusMessage = "未配置云端同步，当前仅保存在本地。"
+            report("未配置云端同步，当前仅保存在本地。")
             return
         }
 
         isCloudConfigured = true
-        cloudStatusMessage = "已连接 \(configuration.projectHost)，正在检查会话..."
+        report("已连接 \(configuration.projectHost)，正在检查会话...")
 
         do {
             if let session = try await cloudService.restoreSessionIfPossible() {
@@ -56,14 +70,14 @@ final class CloudSyncViewModel: ObservableObject {
                 cloudUserEmail = nil
                 cloudUserID = nil
                 isCloudIdentityMismatch = false
-                cloudStatusMessage = "云端已配置，但尚未登录。"
+                report("云端已配置，但尚未登录。")
             }
         } catch {
             isCloudAuthenticated = false
             cloudUserEmail = nil
             cloudUserID = nil
             isCloudIdentityMismatch = false
-            cloudStatusMessage = "云端会话恢复失败：\(error.localizedDescription)"
+            report("云端会话恢复失败：\(error.localizedDescription)", isFailure: true)
             didPrepareCloud = false
         }
     }
@@ -81,8 +95,10 @@ final class CloudSyncViewModel: ObservableObject {
     }
 
     func signIn(email: String, password: String) async {
+        guard !isCloudBusy else { return }
+        feedback = nil
         guard isCloudConfigured else {
-            cloudStatusMessage = "请先配置 Supabase URL 和 publishable key。"
+            report("请先配置 Supabase URL 和 publishable key。", isFailure: true)
             return
         }
 
@@ -94,13 +110,13 @@ final class CloudSyncViewModel: ObservableObject {
             applySession(session)
             await syncNow(reason: "登录成功")
         } catch {
-            cloudStatusMessage = "登录失败：\(error.localizedDescription)"
+            report("登录失败：\(error.localizedDescription)", isFailure: true)
         }
     }
 
     func signUp(email: String, password: String) async {
         guard isCloudConfigured else {
-            cloudStatusMessage = "请先配置 Supabase URL 和 publishable key。"
+            report("请先配置 Supabase URL 和 publishable key。", isFailure: true)
             return
         }
 
@@ -118,24 +134,27 @@ final class CloudSyncViewModel: ObservableObject {
                 cloudUserEmail = nil
                 cloudUserID = nil
                 isCloudIdentityMismatch = false
-                cloudStatusMessage = message
+                report(message)
             }
         } catch {
-            cloudStatusMessage = "注册失败：\(error.localizedDescription)"
+            report("注册失败：\(error.localizedDescription)", isFailure: true)
         }
     }
 
     func signOut() async {
+        guard !isCloudBusy else { return }
+        isCloudBusy = true
+        defer { isCloudBusy = false }
         await cloudService.signOut()
         isCloudAuthenticated = false
         cloudUserEmail = nil
         cloudUserID = nil
         isCloudIdentityMismatch = false
-        cloudStatusMessage = "已退出云端登录，当前仅保存在本地。"
+        report("已退出云端登录，当前仅保存在本地。")
     }
 
     func syncNow() async {
-        await syncNow(reason: "同步成功")
+        await syncNow(reason: nil)
     }
 
     func syncUTEntryUpsertIfPossible(_ entry: UTEntry) async {
@@ -147,7 +166,7 @@ final class CloudSyncViewModel: ObservableObject {
                 expectedUserID: expectedUserID
             )
             guard mutationAccountIsCurrent(expectedUserID) else { return }
-            cloudStatusMessage = "已同步 UT 记录到云端"
+            report("已同步 UT 记录到云端")
         } catch {
             guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "UT 云端同步失败")
@@ -163,7 +182,7 @@ final class CloudSyncViewModel: ObservableObject {
                 expectedUserID: expectedUserID
             )
             guard mutationAccountIsCurrent(expectedUserID) else { return }
-            cloudStatusMessage = "已从云端移除 UT 记录"
+            report("已从云端移除 UT 记录")
         } catch {
             guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "UT 云端删除失败")
@@ -189,9 +208,9 @@ final class CloudSyncViewModel: ObservableObject {
                 )
             }
             guard mutationAccountIsCurrent(expectedUserID) else { return }
-            cloudStatusMessage = shouldRemove
+            report(shouldRemove
                 ? "已从云端移除喜欢影片"
-                : "已同步喜欢影片到云端"
+                : "已同步喜欢影片到云端")
         } catch {
             guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "喜欢影片云端同步失败")
@@ -209,7 +228,7 @@ final class CloudSyncViewModel: ObservableObject {
                 expectedUserID: expectedUserID
             )
             guard mutationAccountIsCurrent(expectedUserID) else { return }
-            cloudStatusMessage = "已同步播放收藏到云端"
+            report("已同步播放收藏到云端")
         } catch {
             guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "播放收藏云端同步失败")
@@ -225,7 +244,7 @@ final class CloudSyncViewModel: ObservableObject {
                 expectedUserID: expectedUserID
             )
             guard mutationAccountIsCurrent(expectedUserID) else { return }
-            cloudStatusMessage = "已从云端移除播放收藏"
+            report("已从云端移除播放收藏")
         } catch {
             guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "播放收藏删除失败")
@@ -251,9 +270,9 @@ final class CloudSyncViewModel: ObservableObject {
                 )
             }
             guard mutationAccountIsCurrent(expectedUserID) else { return }
-            cloudStatusMessage = shouldRemove
+            report(shouldRemove
                 ? "已从云端移除 4KHD 收藏"
-                : "已同步 4KHD 收藏到云端"
+                : "已同步 4KHD 收藏到云端")
         } catch {
             guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "4KHD 收藏云端同步失败")
@@ -280,9 +299,9 @@ final class CloudSyncViewModel: ObservableObject {
                 )
             }
             guard mutationAccountIsCurrent(expectedUserID) else { return }
-            cloudStatusMessage = shouldRemove
+            report(shouldRemove
                 ? "已从云端移除图片收藏"
-                : "已同步图片收藏到云端"
+                : "已同步图片收藏到云端")
         } catch {
             guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "图片收藏云端同步失败")
@@ -298,7 +317,7 @@ final class CloudSyncViewModel: ObservableObject {
                 expectedUserID: expectedUserID
             )
             guard mutationAccountIsCurrent(expectedUserID) else { return }
-            cloudStatusMessage = "已同步青龙面板配置到云端"
+            report("已同步青龙面板配置到云端")
         } catch {
             guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "青龙面板配置同步失败")
@@ -314,7 +333,7 @@ final class CloudSyncViewModel: ObservableObject {
                 expectedUserID: expectedUserID
             )
             guard mutationAccountIsCurrent(expectedUserID) else { return }
-            cloudStatusMessage = "已从云端移除青龙面板配置"
+            report("已从云端移除青龙面板配置")
         } catch {
             guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "青龙面板配置删除失败")
@@ -329,7 +348,7 @@ final class CloudSyncViewModel: ObservableObject {
                 expectedUserID: expectedUserID
             )
             guard mutationAccountIsCurrent(expectedUserID) else { return }
-            cloudStatusMessage = "已同步训练记录到云端"
+            report("已同步训练记录到云端")
         } catch {
             guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "训练记录云端同步失败")
@@ -344,7 +363,7 @@ final class CloudSyncViewModel: ObservableObject {
                 expectedUserID: expectedUserID
             )
             guard mutationAccountIsCurrent(expectedUserID) else { return }
-            cloudStatusMessage = "已同步报销到云端"
+            report("已同步报销到云端")
         } catch {
             guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "报销云端同步失败")
@@ -359,21 +378,21 @@ final class CloudSyncViewModel: ObservableObject {
                 expectedUserID: expectedUserID
             )
             guard mutationAccountIsCurrent(expectedUserID) else { return }
-            cloudStatusMessage = "已同步出差报销到云端"
+            report("已同步出差报销到云端")
         } catch {
             guard mutationAccountIsCurrent(expectedUserID) else { return }
             handleCloudMutationError(error, fallbackMessage: "出差报销云端同步失败")
         }
     }
 
-    private func syncNow(reason: String) async {
+    private func syncNow(reason: String?) async {
         guard isCloudAuthenticated, !isSyncingCollections else { return }
         guard canSyncCurrentAccount else {
-            cloudStatusMessage = "当前账号与此设备的本地数据绑定不一致，已暂停同步。"
+            report("当前账号与此设备的本地数据绑定不一致，已暂停同步。")
             return
         }
         guard let expectedUserID = cloudUserID else {
-            cloudStatusMessage = "无法确认云端账号身份，已暂停同步。"
+            report("无法确认云端账号身份，已暂停同步。")
             return
         }
 
@@ -389,7 +408,7 @@ final class CloudSyncViewModel: ObservableObject {
                 makeCollections(expectedUserID: expectedUserID)
             )
             guard mutationAccountIsCurrent(expectedUserID) else { return }
-            cloudStatusMessage = reason
+            feedback = reason.map(Feedback.status) ?? .syncCompleted
         } catch {
             guard mutationAccountIsCurrent(expectedUserID) else { return }
             if error.isHiddenSupabaseAuthFailure {
@@ -399,7 +418,7 @@ final class CloudSyncViewModel: ObservableObject {
                 isCloudIdentityMismatch = false
                 didPrepareCloud = false
             }
-            cloudStatusMessage = "云端同步失败：\(error.localizedDescription)"
+            report("云端同步失败：\(error.localizedDescription)", isFailure: true)
         }
     }
 
@@ -600,7 +619,7 @@ final class CloudSyncViewModel: ObservableObject {
         cloudUserEmail = session.email
         guard let userID = session.userID else {
             isCloudIdentityMismatch = true
-            cloudStatusMessage = "无法确认云端账号身份，已暂停同步。"
+            report("无法确认云端账号身份，已暂停同步。")
             return
         }
 
@@ -615,9 +634,9 @@ final class CloudSyncViewModel: ObservableObject {
         }
 
         if isCloudIdentityMismatch {
-            cloudStatusMessage = "检测到不同云端账号。为避免数据互相覆盖，已暂停同步。"
+            report("检测到不同云端账号。为避免数据互相覆盖，已暂停同步。")
         } else {
-            cloudStatusMessage = session.email?.cloudNonEmpty.map { "已登录 \($0)" } ?? "已登录云端同步"
+            report(session.email?.cloudNonEmpty.map { "已登录 \($0)" } ?? "已登录云端同步")
         }
     }
 
@@ -647,7 +666,11 @@ final class CloudSyncViewModel: ObservableObject {
             didPrepareCloud = false
         }
 
-        cloudStatusMessage = "\(fallbackMessage)：\(error.localizedDescription)"
+        report("\(fallbackMessage)：\(error.localizedDescription)", isFailure: true)
+    }
+
+    private func report(_ message: String, isFailure: Bool = false) {
+        feedback = isFailure ? .failure(message) : .status(message)
     }
 
     private func finishPreparation() {

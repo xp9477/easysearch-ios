@@ -12,6 +12,7 @@ enum SettingsRoute: Hashable {
     case expenseAssistant
     case qingLong
     case webDAV
+    case softwareUpdate
     case hiddenSpace
 }
 

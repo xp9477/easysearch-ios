@@ -17,6 +17,11 @@ struct AppUpdateManifest: Codable, Equatable {
         return Int(build.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
     }
 
+    var versionLabel: String {
+        let trimmed = version.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? displayVersion : trimmed
+    }
+
     var displayVersion: String {
         let versionText = version.trimmingCharacters(in: .whitespacesAndNewlines)
         let buildText = build.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -62,6 +67,9 @@ final class AppUpdateService: ObservableObject {
     var currentVersionText: String {
         Self.makeVersionText(version: Self.localShortVersion, build: Self.localBuild)
     }
+
+    var currentVersionLabel: String { Self.localShortVersion.isEmpty ? currentVersionText : Self.localShortVersion }
+    var currentBuild: String { Self.localBuild }
 
     func checkForUpdates() async {
         guard !isChecking else { return }
@@ -117,10 +125,10 @@ final class AppUpdateService: ObservableObject {
         }
     }
 
-    func presentShareSheet(for fileURL: URL) {
-        guard let presenter = Self.topViewController() else {
+    func presentShareSheet(for fileURL: URL) -> Bool {
+        guard let presenter = Self.activeViewController() else {
             statusMessage = "无法打开分享面板"
-            return
+            return false
         }
 
         let controller = UIActivityViewController(activityItems: [fileURL], applicationActivities: nil)
@@ -135,6 +143,7 @@ final class AppUpdateService: ObservableObject {
             popover.permittedArrowDirections = []
         }
         presenter.present(controller, animated: true)
+        return true
     }
 
     // MARK: - Private
@@ -204,22 +213,22 @@ final class AppUpdateService: ObservableObject {
         return "\(version) (\(build))"
     }
 
-    private static func topViewController(
-        base: UIViewController? = {
-            let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            let windows = scenes.flatMap { $0.windows }
-            let window = windows.first(where: { $0.isKeyWindow }) ?? windows.first
-            return window?.rootViewController
-        }()
-    ) -> UIViewController? {
+    private static func activeViewController() -> UIViewController? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let windows = scenes.filter { $0.activationState == .foregroundActive }.flatMap(\.windows)
+        let window = windows.first(where: \.isKeyWindow) ?? windows.first
+        return topViewController(base: window?.rootViewController)
+    }
+
+    private static func topViewController(base: UIViewController?) -> UIViewController? {
+        if let presented = base?.presentedViewController {
+            return topViewController(base: presented)
+        }
         if let nav = base as? UINavigationController {
             return topViewController(base: nav.visibleViewController)
         }
         if let tab = base as? UITabBarController {
             return topViewController(base: tab.selectedViewController)
-        }
-        if let presented = base?.presentedViewController {
-            return topViewController(base: presented)
         }
         return base
     }

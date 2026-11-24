@@ -19,14 +19,9 @@ struct WebDAVSettingsView: View {
 
     var body: some View {
         List {
-            Section {
-                if store.locations.isEmpty {
-                    Text("还没有配置存储位置")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(store.locations) { location in
-                        locationRow(location)
-                    }
+            Section("存储位置") {
+                ForEach(store.locations) { location in
+                    locationRow(location)
                 }
 
                 Button {
@@ -34,61 +29,50 @@ struct WebDAVSettingsView: View {
                 } label: {
                     Label("添加存储位置", systemImage: "plus")
                 }
-            } header: {
-                Text("存储位置")
-            } footer: {
-                Text("当前位置用于文件浏览和从分享菜单上传；可以随时在文件管理页面切换。")
             }
 
-            Section("系统“文件” App (Files)") {
-                if let status = filesCoordinator.statusMessage {
-                    Text(status)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else if filesCoordinator.syncedDomainCount > 0 {
-                    Text("已同步 \(filesCoordinator.syncedDomainCount) 个存储位置至系统文件")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            Section("偏好设置") {
+                Button(action: syncToFiles) {
+                    if isSyncingFiles {
+                        ProgressView("正在同步到系统「文件」…")
+                    } else {
+                        Label("同步到系统「文件」", systemImage: "arrow.triangle.2.circlepath")
+                    }
                 }
+                .disabled(isSyncingFiles)
 
                 if let error = filesCoordinator.lastError {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                    Label("同步失败：\(error)", systemImage: "exclamationmark.circle")
+                        .font(.subheadline)
+                } else if filesCoordinator.statusMessage != nil {
+                    Text("已同步 \(filesCoordinator.syncedDomainCount) 个位置")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
 
-                Button {
-                    Task {
-                        isSyncingFiles = true
-                        defer { isSyncingFiles = false }
-                        try? await filesCoordinator.sync(locations: store.locations)
-                    }
-                } label: {
-                    HStack {
-                        Label("同步到系统“文件” App", systemImage: "arrow.triangle.2.circlepath")
-                        Spacer()
-                        if isSyncingFiles { ProgressView() }
-                    }
-                }
-            }
-
-            Section("浏览") {
                 Toggle("显示隐藏文件夹", isOn: Binding(
                     get: { store.showsHiddenFolders },
                     set: { store.setShowsHiddenFolders($0) }
                 ))
             }
 
-            Section("开源许可") {
+            Section {
+                DisclosureGroup("当前位置说明") {
+                    Text("当前位置用于文件浏览和从分享菜单上传；可在文件管理页切换。")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
                 Button {
                     isShowingLicenseSheet = true
                 } label: {
                     HStack {
-                        Label("开源协议告知 (AMSMB2 / LGPL)", systemImage: "doc.text")
+                        Label("开源许可", systemImage: "doc.text")
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.caption)
                             .foregroundStyle(.tertiary)
+                            .accessibilityHidden(true)
                     }
                 }
             }
@@ -128,6 +112,15 @@ struct WebDAVSettingsView: View {
             Button("取消", role: .cancel) { pendingDeletion = nil }
         } message: { location in
             Text("将删除“\(location.name)”及其本机保存的登录凭据，不会删除服务器上的文件。")
+        }
+    }
+
+    private func syncToFiles() {
+        guard !isSyncingFiles else { return }
+        isSyncingFiles = true
+        Task {
+            defer { isSyncingFiles = false }
+            try? await filesCoordinator.sync(locations: store.locations)
         }
     }
 
@@ -231,93 +224,114 @@ private struct WebDAVLocationEditorView: View {
         _allowsInsecureHTTP = State(initialValue: location?.baseURL.scheme?.lowercased() == "http")
     }
 
+    private var requiresHTTPApproval: Bool {
+        protocolType == .webdav && usesInsecureHTTP && !allowsInsecureHTTP
+    }
+
     var body: some View {
         Form {
-            Section("协议选择") {
-                Picker("协议类型", selection: $protocolType) {
-                    Text("WebDAV (HTTP/HTTPS)").tag(ProtocolType.webdav)
-                    Text("SMB (Windows / NAS 共享)").tag(ProtocolType.smb)
+            Picker("协议", selection: $protocolType) {
+                Text("WebDAV").tag(ProtocolType.webdav)
+                Text("SMB").tag(ProtocolType.smb)
+            }
+            .pickerStyle(.segmented)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            .onChange(of: protocolType) { _, newType in adjustDefaultURL(for: newType) }
+
+            Section("连接") {
+                LabeledContent("服务器地址") {
+                    TextField("服务器地址", text: $baseURL, prompt: Text(protocolType == .smb ? "smb://" : "https://"))
+                        .multilineTextAlignment(.trailing)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled()
+                        .onChange(of: baseURL) {
+                            allowsInsecureHTTP = false
+                            errorMessage = nil
+                        }
                 }
-                .pickerStyle(.segmented)
-                .onChange(of: protocolType) { newType in
-                    adjustDefaultURL(for: newType)
+
+                TextField("名称（可选）", text: $name)
+
+                DisclosureGroup("地址格式与示例") {
+                    VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+                        if protocolType == .smb {
+                            Text("格式：smb://主机/共享名[/子文件夹]。匿名访问时可留空用户名。")
+                            Text("示例：smb://nas.example.test/share")
+                        } else {
+                            Text("示例：https://dav.example.com/files/")
+                            Text("若服务器要求应用专用密码，请用它代替账号密码。")
+                        }
+                        Text("名称留空时使用服务器主机名。")
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.vertical, ESUI.Space.xs)
                 }
             }
 
-            Section {
-                TextField(protocolType == .smb ? "例如 局域网 NAS" : "例如 云端网盘", text: $name)
-
-                TextField(serverAddressPlaceholder, text: $baseURL)
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                    .autocorrectionDisabled()
-
-                TextField(protocolType == .smb ? "用户名（匿名留空）" : "用户名（可选）", text: $username)
+            Section("凭据") {
+                TextField("用户名（可选）", text: $username)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
 
-                SecureField("密码或应用专用密码", text: $password)
+                SecureField("密码（可选）", text: $password)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+            }
 
-                if protocolType == .webdav && usesInsecureHTTP {
-                    Toggle("允许不安全的 HTTP 连接", isOn: $allowsInsecureHTTP)
+            if protocolType == .webdav && usesInsecureHTTP {
+                Section {
+                    VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+                        Label("HTTP 连接未加密", systemImage: "exclamationmark.shield")
+                            .font(.headline)
+                            .accessibilityAddTraits(.isHeader)
+                        Text("凭据会以明文传输。请优先使用 HTTPS，仅在可信局域网内允许 HTTP。")
+                            .font(.subheadline)
+                    }
+                    .padding(.vertical, ESUI.Space.xs)
+
+                    Toggle("允许不安全的 HTTP", isOn: $allowsInsecureHTTP)
                         .tint(.orange)
                 }
-            } header: {
-                Text("连接配置")
-            } footer: {
-                Text(connectionFooterText)
+                .listRowBackground(Color.orange.opacity(0.14))
             }
 
             Section {
-                Button {
-                    saveAndTest()
-                } label: {
-                    HStack {
-                        Label("保存并测试连接", systemImage: "checkmark.circle")
-                        Spacer()
-                        if isTesting { ProgressView() }
+                Button(action: saveAndTest) {
+                    Group {
+                        if isTesting {
+                            ProgressView("正在测试…").tint(.white)
+                        } else {
+                            Text("测试并保存").fontWeight(.semibold)
+                        }
                     }
+                    .frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .disabled(isTesting || baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
+                .buttonStyle(.borderedProminent)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+                .disabled(isTesting || requiresHTTPApproval || baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-            if let errorMessage {
-                Section {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
+                if let errorMessage {
+                    Label(errorMessage, systemImage: "exclamationmark.circle")
+                        .font(.subheadline)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
+        .disabled(isTesting)
         .navigationTitle(isNew ? "添加位置" : "编辑位置")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isTesting)
         .interactiveDismissDisabled(isTesting)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("取消") { dismiss() }
+                Button("取消", systemImage: "xmark") { dismiss() }
                     .disabled(isTesting)
             }
-        }
-    }
-
-    private var serverAddressPlaceholder: String {
-        switch protocolType {
-        case .webdav:
-            return "https://dav.example.com/files/"
-        case .smb:
-            return "smb://192.168.1.100/share"
-        }
-    }
-
-    private var connectionFooterText: String {
-        switch protocolType {
-        case .webdav:
-            return "建议使用 HTTPS；HTTP 仅适用于可信局域网。位置名称留空时使用服务器域名。"
-        case .smb:
-            return "SMB 地址格式为 smb://主机/共享名[/子文件夹]，例如 smb://192.168.1.100/data。支持 Windows 共享、群晖、TrueNAS 等。"
         }
     }
 
@@ -344,8 +358,8 @@ private struct WebDAVLocationEditorView: View {
 
     private func saveAndTest() {
         errorMessage = nil
-        if protocolType == .webdav, usesInsecureHTTP, !allowsInsecureHTTP {
-            errorMessage = "HTTP 会以明文传输凭据。确认这是可信局域网后，再开启“不安全的 HTTP 连接”。"
+        if requiresHTTPApproval {
+            errorMessage = "请先确认允许不安全的 HTTP。"
             return
         }
 

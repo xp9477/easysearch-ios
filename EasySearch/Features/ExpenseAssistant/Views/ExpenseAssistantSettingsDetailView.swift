@@ -46,8 +46,14 @@ struct ExpenseAssistantSettingsDetailView: View {
                 }
             } header: {
                 Text("单据逾期提醒")
-            } footer: {
-                Text("开启通知后，系统将在月底及出差结束后提醒你及时提交未完成报销单。")
+            }
+
+            Section {
+                DisclosureGroup("提醒规则") {
+                    Text("月底及出差结束后，系统将提醒你提交未完成的报销单。")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .listStyle(.insetGrouped)
