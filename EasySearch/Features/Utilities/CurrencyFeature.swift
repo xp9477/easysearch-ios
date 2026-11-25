@@ -3,7 +3,7 @@ import SwiftUI
 /// 汇率换算直达入口(取代原"实用工具"壳)。
 public struct CurrencyFeature: AppFeature {
     public var id: String = "currency"
-    public var title: String = "汇率"
+    public var title: String = "汇率换算"
     public var summary: String = "多币种实时汇率换算。"
     public var iconName: String = "yensign.circle"
     public var color: Color = .gray

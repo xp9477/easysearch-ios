@@ -4,6 +4,7 @@ import SwiftUI
 public struct TrainingLogView: View {
     @StateObject private var viewModel = TrainingLogViewModel()
     @State private var showingAddLine = false
+    @State private var showingClearConfirmation = false
 
     private let weekdaySymbols = ["一", "二", "三", "四", "五", "六", "日"]
     private let featureID = "training-log"
@@ -13,19 +14,14 @@ public struct TrainingLogView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
-                ESModuleHero(
-                    title: "训练记录",
-                    subtitle: "月历打卡 · 徒手动作",
-                    featureID: featureID,
-                    systemImage: "flame.fill"
-                )
-
                 monthCard
                 dayDetailCard
             }
             .padding(.horizontal, ESUI.screenHorizontalPadding)
             .padding(.top, ESUI.Space.md)
             .padding(.bottom, ESUI.Space.xxl)
+            .frame(maxWidth: 620)
+            .frame(maxWidth: .infinity)
         }
         .esScreenBackground()
         .navigationTitle("训练记录")
@@ -40,6 +36,14 @@ public struct TrainingLogView: View {
                         .font(.subheadline.weight(.semibold))
                 }
             }
+        }
+        .confirmationDialog("清空这一天的训练？", isPresented: $showingClearConfirmation, titleVisibility: .visible) {
+            Button("清空训练", role: .destructive) {
+                ESHaptics.impact(.rigid)
+                viewModel.clearSelectedDay()
+            }
+        } message: {
+            Text("会删除 \(viewModel.selectedDayTitle) 的全部动作和备注。")
         }
         .sheet(isPresented: $showingAddLine) {
             AddWorkoutLineSheet { exercise, amount in
@@ -62,8 +66,11 @@ public struct TrainingLogView: View {
                         .font(.body.weight(.semibold))
                         .frame(width: 36, height: 36)
                         .background(Circle().fill(ESUI.fill))
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("上个月")
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(viewModel.monthTitle)
@@ -83,8 +90,11 @@ public struct TrainingLogView: View {
                         .font(.body.weight(.semibold))
                         .frame(width: 36, height: 36)
                         .background(Circle().fill(ESUI.fill))
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("下个月")
             }
 
             weekdayHeader
@@ -146,7 +156,7 @@ public struct TrainingLogView: View {
                 Group {
                     if isSelected {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(accent)
+                            .fill(ESUI.primaryActionFill)
                     } else if isToday {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(ESUI.fill)
@@ -159,6 +169,7 @@ public struct TrainingLogView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityDayLabel(date: date, trained: trained, isToday: isToday))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private func accessibilityDayLabel(date: Date, trained: Bool, isToday: Bool) -> String {
@@ -176,73 +187,54 @@ public struct TrainingLogView: View {
     // MARK: - Day detail
 
     private var dayDetailCard: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.md) {
-            HStack(alignment: .firstTextBaseline) {
+        let previousWorkout = viewModel.lastTrainedDay(before: viewModel.selectedDay)
+        let hasLines = !viewModel.selectedLines.isEmpty
+        return VStack(alignment: .leading, spacing: ESUI.Space.sm) {
+            HStack(alignment: .top, spacing: ESUI.Space.sm) {
                 VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
                     Text(viewModel.selectedDayTitle)
                         .font(.title3.weight(.semibold))
-                    Text(viewModel.selectedLines.isEmpty ? "还没有记录" : "\(viewModel.selectedLines.count) 组动作")
-                        .font(.footnote)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(hasLines ? "\(viewModel.selectedLines.count) 组动作" : "当天还没有训练记录")
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
-            }
-
-            if viewModel.selectedLines.isEmpty {
-                ESEmptyState(
-                    title: "今天还没练",
-                    message: "从动作库添加一组记录吧",
-                    systemImage: "figure.walk",
-                    minHeight: 120
-                )
-            } else {
-                VStack(spacing: ESUI.Space.sm) {
-                    ForEach(viewModel.selectedLines) { line in
-                        workoutLineRow(line)
-                    }
-                }
-            }
-
-            HStack(spacing: ESUI.Space.sm) {
-                Button {
-                    ESHaptics.tap()
-                    showingAddLine = true
-                } label: {
-                    Label("添加动作", systemImage: "plus.circle.fill")
-                        .font(.body.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, ESUI.Space.xs)
-                }
-                .buttonStyle(.glassProminent)
-
-                if viewModel.lastTrainedDay(before: viewModel.selectedDay) != nil {
-                    Button {
-                        if viewModel.repeatLastWorkout() {
-                            ESHaptics.success()
-                        } else {
-                            ESHaptics.warning()
+                Spacer(minLength: 0)
+                if hasLines {
+                    Menu {
+                        Button("清空这一天", systemImage: "trash", role: .destructive) {
+                            showingClearConfirmation = true
                         }
                     } label: {
-                        Label("重复上次", systemImage: "arrow.counterclockwise")
-                            .font(.body.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, ESUI.Space.xs)
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title3)
+                            .frame(minWidth: 44, minHeight: 44)
                     }
-                    .buttonStyle(.glass)
+                    .accessibilityLabel("训练记录操作")
                 }
             }
 
-            if !viewModel.selectedLines.isEmpty {
-                Button(role: .destructive) {
-                    ESHaptics.impact(.rigid)
-                    viewModel.clearSelectedDay()
-                } label: {
-                    Text("清空当天")
-                        .font(.subheadline.weight(.medium))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, ESUI.Space.sm)
+            Button {
+                showingAddLine = true
+            } label: {
+                Label("添加动作", systemImage: "plus")
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(ESUI.primaryActionFill)
+
+            if previousWorkout != nil {
+                Button("重复上次训练", systemImage: "arrow.counterclockwise") {
+                    if viewModel.repeatLastWorkout() { ESHaptics.success() }
                 }
-                .buttonStyle(.plain)
+                .font(.subheadline.weight(.medium))
+                .frame(minHeight: 44)
+            }
+
+            ForEach(viewModel.selectedLines) { line in
+                Divider()
+                workoutLineRow(line)
             }
         }
         .esCard()

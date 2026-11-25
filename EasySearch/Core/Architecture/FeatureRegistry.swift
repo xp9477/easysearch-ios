@@ -33,8 +33,8 @@ public class FeatureRegistry: ObservableObject {
         features.append(TrainingLogFeature())
         features.append(ExpenseAssistantFeature())
         features.append(QingLongFeature())
-        features.append(CurrencyFeature())
         features.append(WebDAVFeature())
+        features.append(CurrencyFeature())
         features.append(HiddenSpaceFeature())
         reloadModuleFeatureOrder()
     }
@@ -48,7 +48,11 @@ public class FeatureRegistry: ObservableObject {
 
     /// Reorder features within a single group while preserving relative order of other groups.
     public func moveModuleFeatures(in group: AppFeatureGroup, fromOffsets: IndexSet, toOffset: Int) {
-        let groupIDs = moduleFeatures(in: group).map(\.id)
+        moveModuleFeatures(ids: moduleFeatures(in: group).map(\.id), fromOffsets: fromOffsets, toOffset: toOffset)
+    }
+
+    /// Reorder a visible section while keeping all other modules in their existing slots.
+    func moveModuleFeatures(ids groupIDs: [String], fromOffsets: IndexSet, toOffset: Int) {
         guard !groupIDs.isEmpty else { return }
 
         var mutableGroupIDs = groupIDs

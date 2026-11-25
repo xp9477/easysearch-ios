@@ -6,10 +6,12 @@ struct CategoryTabBar: View {
     @Binding var selectedCategory: SearchCategory
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Namespace private var indicatorNamespace
 
     var body: some View {
-        HStack(spacing: 0) {
+        let layout = dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
+        layout {
             ForEach(categories, id: \.self) { category in
                 let isSelected = category == selectedCategory
 
@@ -23,8 +25,9 @@ struct CategoryTabBar: View {
                     Text(category.displayName)
                         .font(.subheadline.weight(isSelected ? .semibold : .regular))
                         .foregroundStyle(isSelected ? Color.primary : Color.secondary)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .multilineTextAlignment(.center)
+                        .padding(.vertical, ESUI.Space.xxs)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                         .background {
                             if isSelected {
                                 RoundedRectangle(cornerRadius: ESUI.Radius.sm, style: .continuous)

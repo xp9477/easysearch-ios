@@ -64,33 +64,9 @@ public struct ExpenseAssistantView: View {
     private var overviewSection: some View {
         Section {
             VStack(alignment: .leading, spacing: ESUI.Space.md) {
-                ESModuleHero(
-                    title: "报销助手",
-                    subtitle: "单据跟踪与提醒",
-                    featureID: "expense-assistant",
-                    systemImage: "receipt"
-                )
-                HStack(alignment: .top, spacing: ESUI.Space.sm) {
-                    VStack(alignment: .leading, spacing: ESUI.Space.xxs) {
-                        Text("逾期概览")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(.primary)
-
-                        Text("未完成的上月月单和已结束出差会进入每日提醒。")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    Spacer(minLength: ESUI.Space.xs)
-
-                    Text("\(viewModel.overdueMonthlyClaims.count + viewModel.overdueTravelClaims.count)")
-                        .font(.system(.title, design: .rounded).weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .accessibilityLabel(
-                            "逾期 \(viewModel.overdueMonthlyClaims.count + viewModel.overdueTravelClaims.count) 项"
-                        )
-                }
+                Text("逾期待处理")
+                    .font(.headline)
+                    .accessibilityAddTraits(.isHeader)
 
                 HStack(spacing: ESUI.Space.sm) {
                     summaryChip(

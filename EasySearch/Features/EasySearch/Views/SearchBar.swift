@@ -14,7 +14,7 @@ struct SearchBar: View {
                 .foregroundStyle(isFocused.wrappedValue ? Color.accentColor : .secondary)
                 .accessibilityHidden(true)
 
-            TextField("输入搜索内容", text: $text)
+            TextField("输入关键词", text: $text)
                 .font(.body)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled(true)
@@ -38,8 +38,8 @@ struct SearchBar: View {
                 .accessibilityLabel("清除")
             } else if showsClipboardAction {
                 Button(action: onPasteClipboard) {
-                    Image(systemName: "doc.on.clipboard")
-                        .font(.footnote.weight(.semibold))
+                    Text("粘贴")
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(Color.accentColor)
                         .frame(minWidth: 44, minHeight: 44)
                         .contentShape(Rectangle())
@@ -49,7 +49,8 @@ struct SearchBar: View {
                 .accessibilityLabel("粘贴剪贴板内容")
             }
         }
-        .padding(.horizontal, ESUI.Space.md)
+        .padding(.leading, ESUI.Space.sm)
+        .padding(.trailing, ESUI.Space.xxs)
         .frame(maxWidth: .infinity, minHeight: 48)
         .background(
             RoundedRectangle(cornerRadius: ESUI.Radius.md, style: .continuous)

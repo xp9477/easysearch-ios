@@ -15,6 +15,16 @@ struct SearchEngine: Codable, Identifiable, Equatable {
         case category
     }
 
+    var searchCategory: SearchCategory {
+        category.flatMap(SearchCategory.init(rawValue:)) ?? .search
+    }
+
+    static func searchURL(template: String, query: String) -> URL? {
+        let unreserved = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        guard let encoded = query.addingPercentEncoding(withAllowedCharacters: unreserved) else { return nil }
+        return URL(string: template.replacingOccurrences(of: "{query}", with: encoded))
+    }
+
     var websiteHost: String? {
         URL(string: url.replacingOccurrences(of: "{query}", with: ""))?.host?.lowercased()
     }

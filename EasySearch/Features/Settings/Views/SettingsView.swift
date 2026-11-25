@@ -21,7 +21,7 @@ struct SettingsView: View {
             List {
                 Section("账户") {
                     NavigationLink(value: SettingsRoute.cloudSync) {
-                        SettingsNavigationRow(
+                        ESNavigationRow(
                             title: "云端同步", icon: "icloud.fill", color: .blue,
                             status: cloudStatus, needsAttention: cloudViewModel.isCloudIdentityMismatch
                         )
@@ -35,10 +35,12 @@ struct SettingsView: View {
                     moduleLink("外置存储", icon: "externaldrive.fill", id: "webdav", route: .webDAV)
                 }
 
-                Section("关于与更新") {
-                    LabeledContent("版本", value: appUpdateService.currentVersionLabel)
+                Section("应用") {
                     NavigationLink(value: SettingsRoute.softwareUpdate) {
-                        SettingsNavigationRow(title: "检测更新", icon: "arrow.clockwise", color: .blue)
+                        ESNavigationRow(
+                            title: "软件更新", icon: "arrow.clockwise", color: .blue,
+                            status: appUpdateService.currentVersionLabel
+                        )
                     }
                 }
             }
@@ -75,7 +77,7 @@ struct SettingsView: View {
         }
 
         return NavigationLink(value: route) {
-            SettingsNavigationRow(
+            ESNavigationRow(
                 title: title, icon: icon, color: ESUI.moduleColor(for: id), status: status,
                 needsAttention: summary.kind == .needsAuthorization || summary.kind == .recoverableFailure
             )
@@ -102,65 +104,29 @@ struct SettingsView: View {
     }
 }
 
-private struct SettingsNavigationRow: View {
-    let title: String
-    let icon: String
-    let color: Color
-    var status: String? = nil
-    var needsAttention = false
-
-    var body: some View {
-        HStack(spacing: ESUI.Space.sm) {
-            ESFeatureIcon(systemName: icon, color: color, size: 30)
-                .accessibilityHidden(true)
-
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: ESUI.Space.sm) {
-                    Text(title).fixedSize(horizontal: true, vertical: false)
-                    Spacer(minLength: 0)
-                    if let status {
-                        statusLabel(status).fixedSize(horizontal: true, vertical: false)
-                    }
-                }
-
-                VStack(alignment: .leading, spacing: ESUI.Space.xs) {
-                    Text(title)
-                    if let status { statusLabel(status) }
-                }
-            }
-        }
-        .frame(minHeight: 44)
-        .accessibilityElement(children: .combine)
-    }
-
-    private func statusLabel(_ status: String) -> some View {
-        Text(status)
-            .font(.subheadline)
-            .foregroundStyle(needsAttention ? Color.primary : Color.secondary)
-    }
-}
-
 private struct SoftwareUpdateView: View {
     @ObservedObject var service: AppUpdateService
     @State private var downloadFailure: String?
+    @State private var isVisible = false
 
     var body: some View {
         List {
-            if service.isChecking {
+            if service.isChecking || service.lastResult == nil {
                 ProgressView("正在检查更新…")
             } else if let result = service.lastResult {
                 resultSections(result)
-            } else {
-                LabeledContent("当前版本", value: service.currentVersionLabel)
             }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("软件更新")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { isVisible = true }
+        .onDisappear { isVisible = false }
         .task {
             guard !service.isDownloading else { return }
             await checkForUpdates()
         }
+        .refreshable { await checkForUpdates() }
     }
 
     @ViewBuilder
@@ -169,19 +135,70 @@ private struct SoftwareUpdateView: View {
         case let .updateAvailable(current, remote):
             Section {
                 versionSummary(
-                    "有新版本",
-                    version: "EasySearch \(remote.versionLabel)",
+                    "EasySearch \(remote.versionLabel)",
                     detail: remote.versionLabel == service.currentVersionLabel
-                        ? "构建 \(remote.build)"
-                        : "当前版本 \(service.currentVersionLabel)"
+                        ? "有新构建 · \(remote.build)"
+                        : "有新版本"
                 )
             }
 
             Section {
+                updateAction(for: remote)
+                if let downloadFailure, !service.isDownloading {
+                    Label(downloadFailure, systemImage: "exclamationmark.circle")
+                        .font(.subheadline)
+                }
+            } footer: {
+                Text("未签名 IPA，安装前需通过签名工具处理。")
+            }
+
+            releaseNotes(remote)
+            installedVersion(current)
+
+        case let .upToDate(current, remote):
+            Section {
+                versionSummary("EasySearch \(service.currentVersionLabel)", detail: "已是最新版本")
+                Button("重新检查", systemImage: "arrow.clockwise") { Task { await checkForUpdates() } }
+            }
+            if remote.resolvedBuildNumber == Int(service.currentBuild) { releaseNotes(remote) }
+            installedVersion(current)
+
+        case let .unavailable(message):
+            Section {
+                VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+                    Label("暂时无法检查更新", systemImage: "exclamationmark.circle")
+                        .font(.headline)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(message)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Button("重新检查") { Task { await checkForUpdates() } }
+            }
+            installedVersion(service.currentVersionText)
+        }
+    }
+
+    private func versionSummary(_ version: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+            Text(version).font(.title2.bold()).accessibilityAddTraits(.isHeader)
+            Text(detail).font(.subheadline).foregroundStyle(.secondary)
+        }
+        .padding(.vertical, ESUI.Space.xs)
+    }
+
+    @ViewBuilder
+    private func updateAction(for release: AppUpdateManifest) -> some View {
+        Group {
+            if let cached = service.cachedIPA(for: release) {
+                ShareLink(item: cached) {
+                    Text("分享已下载的 IPA").fontWeight(.semibold)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                }
+            } else {
                 Button(action: downloadIPA) {
-                    VStack(spacing: ESUI.Space.sm) {
-                        Text(service.isDownloading ? "正在下载 IPA…" : "下载并分享 IPA")
-                            .fontWeight(.semibold)
+                    VStack(spacing: ESUI.Space.xs) {
+                        Text(service.isDownloading ? "正在下载 IPA…" : "下载并分享 IPA").fontWeight(.semibold)
                         if service.isDownloading {
                             ProgressView(value: service.downloadProgress)
                                 .tint(.white)
@@ -190,75 +207,42 @@ private struct SoftwareUpdateView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 44)
                 }
-                .buttonStyle(.borderedProminent)
                 .disabled(service.isDownloading)
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-
-                if let downloadFailure {
-                    Label(downloadFailure, systemImage: "exclamationmark.circle")
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
-                }
-            } footer: {
-                Text("这是未签名 IPA，安装前需要签名。")
-            }
-
-            versionDetails(remote, current: current)
-
-        case let .upToDate(current, remote):
-            Section {
-                versionSummary("已是最新版本", version: "EasySearch \(service.currentVersionLabel)")
-            }
-            versionDetails(remote, current: current, showRemoteBuild: false)
-
-        case let .unavailable(message):
-            Section {
-                Label("暂时无法检查更新", systemImage: "exclamationmark.circle")
-                    .font(.headline)
-                    .accessibilityAddTraits(.isHeader)
-                Button("重新检查") { Task { await checkForUpdates() } }
-                DisclosureGroup("错误详情") {
-                    Text(message)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
             }
         }
+        .buttonStyle(.borderedProminent)
+        .tint(ESUI.primaryActionFill)
+        .listRowInsets(EdgeInsets())
+        .listRowBackground(Color.clear)
     }
 
-    private func versionSummary(_ status: String, version: String, detail: String? = nil) -> some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            Text(status).font(.subheadline.weight(.semibold)).foregroundStyle(Color.accentColor)
-            Text(version).font(.title2.bold()).accessibilityAddTraits(.isHeader)
-            if let detail { Text(detail).font(.subheadline).foregroundStyle(.secondary) }
-        }
-        .padding(.vertical, ESUI.Space.sm)
-    }
-
-    private func versionDetails(_ remote: AppUpdateManifest, current: String, showRemoteBuild: Bool = true) -> some View {
-        Section {
-            if (showRemoteBuild || remote.build == service.currentBuild),
-               let notes = remote.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
-                DisclosureGroup("更新内容") {
+    @ViewBuilder
+    private func releaseNotes(_ release: AppUpdateManifest) -> some View {
+        if let notes = release.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
+            Section {
+                VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+                    Text("更新内容").font(.headline).accessibilityAddTraits(.isHeader)
                     Text(notes)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.vertical, ESUI.Space.xs)
                         .textSelection(.enabled)
                 }
-                .id(remote.build)
+                .padding(.vertical, ESUI.Space.xs)
             }
+        }
+    }
 
-            DisclosureGroup("构建信息") {
-                LabeledContent("当前版本", value: current)
-                if showRemoteBuild { LabeledContent("可用更新", value: remote.displayVersion) }
-            }
+    private func installedVersion(_ current: String) -> some View {
+        Section {
+            LabeledContent("已安装", value: current)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .listRowBackground(Color.clear)
         }
     }
 
     private func checkForUpdates() async {
+        guard !service.isChecking, !service.isDownloading else { return }
         downloadFailure = nil
         await service.checkForUpdates()
         guard !Task.isCancelled else { return }
@@ -268,9 +252,15 @@ private struct SoftwareUpdateView: View {
     private func downloadIPA() {
         downloadFailure = nil
         Task {
-            if let fileURL = await service.downloadLatestIPA(), service.presentShareSheet(for: fileURL) { return }
-            downloadFailure = service.statusMessage ?? "无法下载，请重试。"
-            UIAccessibility.post(notification: .announcement, argument: downloadFailure)
+            let fileURL = await service.downloadLatestIPA()
+            guard isVisible else { return }
+            if let fileURL {
+                // The native ShareLink also remains available after dismissal or a failed presentation.
+                _ = service.presentShareSheet(for: fileURL)
+            } else {
+                downloadFailure = service.statusMessage ?? "无法下载，请重试。"
+                UIAccessibility.post(notification: .announcement, argument: downloadFailure)
+            }
         }
     }
 }

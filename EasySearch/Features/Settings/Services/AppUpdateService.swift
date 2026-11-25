@@ -53,7 +53,13 @@ final class AppUpdateService: ObservableObject {
     @Published private(set) var downloadProgress: Double = 0
     @Published private(set) var statusMessage: String?
     @Published private(set) var lastResult: AppUpdateCheckResult?
-    @Published private(set) var downloadedIPAURL: URL?
+    @Published private var downloadedUpdate: DownloadedUpdate?
+
+    private struct DownloadedUpdate {
+        let build: Int
+        let source: URL
+        let file: URL
+    }
 
     private let session: URLSession
     private var downloadTask: URLSessionDownloadTask?
@@ -71,8 +77,16 @@ final class AppUpdateService: ObservableObject {
     var currentVersionLabel: String { Self.localShortVersion.isEmpty ? currentVersionText : Self.localShortVersion }
     var currentBuild: String { Self.localBuild }
 
+    func cachedIPA(for release: AppUpdateManifest) -> URL? {
+        guard let cached = downloadedUpdate,
+              cached.build == release.resolvedBuildNumber,
+              cached.source == release.ipaURL,
+              FileManager.default.fileExists(atPath: cached.file.path) else { return nil }
+        return cached.file
+    }
+
     func checkForUpdates() async {
-        guard !isChecking else { return }
+        guard !isChecking, !isDownloading else { return }
         isChecking = true
         statusMessage = "正在检查更新…"
         defer { isChecking = false }
@@ -101,7 +115,8 @@ final class AppUpdateService: ObservableObject {
             statusMessage = "请先检查更新"
             return nil
         }
-        guard !isDownloading else { return nil }
+        guard !isDownloading, !isChecking else { return nil }
+        if let cached = cachedIPA(for: remote) { return cached }
 
         isDownloading = true
         downloadProgress = 0
@@ -116,7 +131,7 @@ final class AppUpdateService: ObservableObject {
 
         do {
             let fileURL = try await downloadFile(from: remote.ipaURL, suggestedName: "EasySearch-unsigned.ipa")
-            downloadedIPAURL = fileURL
+            downloadedUpdate = DownloadedUpdate(build: remote.resolvedBuildNumber, source: remote.ipaURL, file: fileURL)
             statusMessage = "下载完成，请分享到签名工具后重签安装"
             return fileURL
         } catch {

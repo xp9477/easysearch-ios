@@ -65,6 +65,41 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertEqual(remoteClient.downloadConfigCallCount, 1)
     }
 
+    func testDefaultPlatformNeverCrossesCategoryAndRemembersSelection() {
+        let defaults = makeUserDefaults()
+        let usageStore = SearchEngineUsageStore(userDefaults: defaults)
+        usageStore.recordUse(engineName: "Google")
+        let viewModel = SearchViewModel(userDefaults: defaults, remoteConfigURL: nil, usageStore: usageStore)
+        let baidu = makeEngine(name: "百度")
+        let google = makeEngine(name: "Google")
+        let ai = SearchEngine(name: "AI", url: "https://example.com/?q={query}", urlScheme: nil, category: "AI")
+        viewModel.searchEngines = [baidu, google, ai]
+
+        XCTAssertEqual(viewModel.filteredEngines, [baidu, google])
+        XCTAssertEqual(viewModel.defaultSearchEngine, google)
+        viewModel.selectPlatform(baidu)
+        viewModel.selectedCategory = .ai
+        XCTAssertEqual(viewModel.defaultSearchEngine, ai)
+        viewModel.selectPlatform(google)
+        XCTAssertEqual(viewModel.defaultSearchEngine, ai)
+        viewModel.selectedCategory = .search
+        XCTAssertEqual(viewModel.defaultSearchEngine, baidu)
+        viewModel.searchEngines = [google, ai]
+        XCTAssertEqual(viewModel.defaultSearchEngine, google)
+        viewModel.selectedCategory = .shopping
+        XCTAssertNil(viewModel.defaultSearchEngine)
+    }
+
+    func testQueryStaysInSingleQueryValueOrPathSegment() throws {
+        let query = "树 &a=b/# + 100%"
+        let url = try XCTUnwrap(SearchEngine.searchURL(template: "https://example.com/?q={query}&source=app", query: query))
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
+        XCTAssertEqual(items, [URLQueryItem(name: "q", value: query), URLQueryItem(name: "source", value: "app")])
+        let path = try XCTUnwrap(SearchEngine.searchURL(template: "https://example.com/search/{query}", query: query))
+        XCTAssertTrue(path.absoluteString.contains("%2F%23"))
+        XCTAssertNil(path.fragment)
+    }
+
     private func makeUserDefaults() -> UserDefaults {
         let suiteName = "SearchViewModelTests.\(UUID().uuidString)"
         let userDefaults = UserDefaults(suiteName: suiteName)!

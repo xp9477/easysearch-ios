@@ -56,6 +56,7 @@ class SearchViewModel: ObservableObject {
     @Published var searchEngines: [SearchEngine] = []
     @Published var searchQuery: String = ""
     @Published var selectedCategory: SearchCategory = .search
+    @Published private(set) var preferredPlatformNames: [String: String] = [:]
 
     // MARK: - Constants
 
@@ -70,32 +71,26 @@ class SearchViewModel: ObservableObject {
 
     // MARK: - Computed Properties
 
-    /// 按当前选中分类过滤后的搜索引擎列表(组内按使用频次排序)
     var filteredEngines: [SearchEngine] {
-        let engines = searchEngines.filter { engine in
-            engine.category == selectedCategory.rawValue ||
-            (engine.category == nil && selectedCategory == .search)
-        }
-        return usageStore.sortedByUsage(engines)
+        searchEngines.filter { $0.searchCategory == selectedCategory }
     }
 
-    /// 高频常用引擎(跨分类,用于置顶横滑行)
-    var frequentEngines: [SearchEngine] {
-        usageStore.frequentEngines(from: searchEngines)
-    }
-
-    /// 搜索框是否有有效内容
     var hasValidQuery: Bool {
         !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    /// 回车默认引擎:最近使用优先,回退到当前分类第一个。
+    /// Return and the visible search button always use the same platform in this category.
     var defaultSearchEngine: SearchEngine? {
-        if let lastUsed = usageStore.lastUsedEngineName,
-           let engine = searchEngines.first(where: { $0.name == lastUsed }) {
-            return engine
-        }
-        return filteredEngines.first
+        let engines = filteredEngines
+        let preferred = preferredPlatformNames[selectedCategory.rawValue]
+        return engines.first { $0.name == preferred }
+            ?? engines.first { $0.name == usageStore.lastUsedEngineName }
+            ?? engines.first
+    }
+
+    func selectPlatform(_ engine: SearchEngine) {
+        guard filteredEngines.contains(engine) else { return }
+        preferredPlatformNames[selectedCategory.rawValue] = engine.name
     }
 
     // MARK: - Initialization
@@ -153,37 +148,21 @@ class SearchViewModel: ObservableObject {
 
     // MARK: - Search Action
 
-    /// 执行搜索 - 在对应平台打开搜索结果
-    func performSearch(engine: SearchEngine) {
-        guard hasValidQuery else { return }
-
+    /// Try the app first, then the browser. Keep the query if neither opens.
+    func performSearch(engine: SearchEngine) async -> Bool {
+        guard hasValidQuery else { return false }
         let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let app = UIApplication.shared
+        if let scheme = engine.urlScheme,
+           let url = SearchEngine.searchURL(template: scheme, query: query),
+           app.canOpenURL(url), await app.open(url) {
+            usageStore.recordUse(engineName: engine.name)
+            return true
+        }
+
+        guard let url = SearchEngine.searchURL(template: engine.url, query: query),
+              await app.open(url) else { return false }
         usageStore.recordUse(engineName: engine.name)
-        guard let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return }
-
-        // iOS 上优先尝试 url_scheme（深度链接打开原生 App）
-        if let scheme = engine.urlScheme {
-            let schemeURL = scheme.replacingOccurrences(of: "{query}", with: encodedQuery)
-            if let url = URL(string: schemeURL), UIApplication.shared.canOpenURL(url) {
-                UIApplication.shared.open(url)
-                return
-            }
-        }
-
-        // 降级到浏览器 URL
-        let webURL = engine.url.replacingOccurrences(of: "{query}", with: encodedQuery)
-        if let url = URL(string: webURL) {
-            UIApplication.shared.open(url)
-        }
-    }
-
-    @discardableResult
-    func performDefaultSearch() -> Bool {
-        guard let engine = defaultSearchEngine, hasValidQuery else {
-            return false
-        }
-
-        performSearch(engine: engine)
         return true
     }
 

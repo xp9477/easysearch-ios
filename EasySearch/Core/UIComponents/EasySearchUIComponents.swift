@@ -42,6 +42,7 @@ enum ESUI {
     static var cardBackground: Color { surface }
 
     static let accent = Color.blue
+    static let primaryActionFill = Color(red: 36.0 / 255, green: 93.0 / 255, blue: 208.0 / 255)
     static let success = Color.green
     static let warning = Color.orange
     static let danger = Color.red
@@ -200,6 +201,53 @@ extension View {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .stroke(Color.primary.opacity(0.04), lineWidth: 0.5)
         )
+    }
+}
+
+// MARK: - Navigation Row
+
+struct ESNavigationRow: View {
+    let title: String
+    let icon: String
+    let color: Color
+    var status: String? = nil
+    var needsAttention = false
+    var showsChevron = false
+
+    var body: some View {
+        HStack(spacing: ESUI.Space.sm) {
+            ESFeatureIcon(systemName: icon, color: color, size: 30)
+                .accessibilityHidden(true)
+
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: ESUI.Space.sm) {
+                    Text(title).fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 0)
+                    if let status {
+                        statusLabel(status).fixedSize(horizontal: true, vertical: false)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+                    Text(title)
+                    if let status { statusLabel(status) }
+                }
+            }
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+        }
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func statusLabel(_ status: String) -> some View {
+        Text(status)
+            .font(.subheadline)
+            .foregroundStyle(needsAttention ? Color.primary : Color.secondary)
     }
 }
 

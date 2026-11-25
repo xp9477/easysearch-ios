@@ -18,6 +18,8 @@ public struct DashboardView: View {
     @State private var dashboardTapCount = 0
     @State private var hiddenModulesUnlocked = false
     @State private var selectedFeatureID: String?
+    @State private var snapshot: WorkbenchSnapshot?
+    @ObservedObject private var storage = WebDAVSettingsStore.shared
 
     public init(isTabActive: Bool = true) {
         self.isTabActive = isTabActive
@@ -27,6 +29,16 @@ public struct DashboardView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: ESUI.sectionSpacing) {
+                    Button(action: unlockHiddenModulesIfNeeded) {
+                        Text("工作台")
+                            .font(.largeTitle.bold())
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityHint("连续激活五次可解锁私密入口")
+
                     attentionBanner
 
                     if moduleFeatures.isEmpty && unlockedHiddenFeatures.isEmpty {
@@ -35,41 +47,25 @@ public struct DashboardView: View {
                             systemImage: "square.grid.2x2"
                         )
                     } else {
-                        ForEach(AppFeatureGroup.allCases) { group in
-                            let features = registry.moduleFeatures(in: group)
-                            if !features.isEmpty {
-                                moduleGroupSection(group: group, features: features)
-                            }
-                        }
+                        let records = moduleFeatures.filter { $0.group == .recordsAndProgress }
+                        let tools = moduleFeatures.filter { $0.group != .recordsAndProgress }
+                        if !records.isEmpty { moduleGroupSection(title: "记录", features: records) }
+                        if !tools.isEmpty { moduleGroupSection(title: "工具", features: tools) }
 
                         if !unlockedHiddenFeatures.isEmpty {
                             privateSection
                         }
                     }
                 }
-                .padding(.horizontal, ESUI.screenHorizontalPadding)
+                .padding(.horizontal, ESUI.Space.lg)
                 .padding(.top, ESUI.Space.sm)
                 .padding(.bottom, ESUI.Space.lg)
+                .frame(maxWidth: 620)
+                .frame(maxWidth: .infinity)
             }
-            .esBottomTabPadding()
             .esScreenBackground()
             .navigationTitle("工作台")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    // Keep the discreet unlock gesture while exposing a real control to assistive technologies.
-                    Button(action: unlockHiddenModulesIfNeeded) {
-                        Text("工作台")
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                            .frame(minWidth: 160, minHeight: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("工作台")
-                    .accessibilityHint("连续激活五次可解锁私密入口")
-                }
-            }
+            .toolbarVisibility(.hidden, for: .navigationBar)
             .navigationDestination(for: String.self) { featureId in
                 // Keep resolving hidden features even after the private section collapses,
                 // so nested routes (search / detail) don't flash "模块不存在".
@@ -78,6 +74,7 @@ public struct DashboardView: View {
                         .environmentObject(hidden4KHDViewModel)
                         .environmentObject(hiddenJavDBViewModel)
                         .environmentObject(hiddenPresentationState)
+                        .toolbarVisibility(.visible, for: .navigationBar)
                 } else {
                     ESEmptyState(title: "模块不存在", systemImage: "questionmark.circle")
                 }
@@ -100,8 +97,8 @@ public struct DashboardView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            guard phase != .active else { return }
-            lockHiddenModulesForPrivacyIfNeeded()
+            if phase == .active { refreshSnapshot() }
+            else { lockHiddenModulesForPrivacyIfNeeded() }
         }
         .onChange(of: isTabActive) { _, active in
             if active {
@@ -113,8 +110,15 @@ public struct DashboardView: View {
         .task(id: isTabActive) {
             guard isTabActive else { return }
             consumePendingWorkbenchRoute()
+            refreshSnapshot()
             await statusCenter.refresh()
         }
+        .onChange(of: path.isEmpty) {
+            if path.isEmpty && isTabActive { refreshSnapshot() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .utTrackerEntriesDidChange)) { _ in refreshSnapshot() }
+        .onReceive(NotificationCenter.default.publisher(for: .trainingLogDidChange)) { _ in refreshSnapshot() }
+        .onReceive(NotificationCenter.default.publisher(for: .expenseAssistantDataDidChange)) { _ in refreshSnapshot() }
         .onChange(of: navigationState.pendingWorkbenchFeatureID) {
             guard isTabActive else { return }
             consumePendingWorkbenchRoute()
@@ -168,89 +172,84 @@ public struct DashboardView: View {
 
     // MARK: - Sections
 
-    private func moduleGroupSection(group: AppFeatureGroup, features: [any AppFeature]) -> some View {
-        let columns = [
-            GridItem(.flexible(), spacing: ESUI.Space.sm),
-            GridItem(.flexible(), spacing: ESUI.Space.sm)
-        ]
+    private func moduleGroupSection(title: String, features: [any AppFeature]) -> some View {
+        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+            Text(title)
+                .font(.title3.bold())
+                .accessibilityAddTraits(.isHeader)
 
-        return VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            ESSectionHeader(title: group.title, trailing: "\(features.count)")
-
-            LazyVGrid(columns: columns, spacing: ESUI.Space.sm) {
+            VStack(spacing: 0) {
                 ForEach(Array(features.enumerated()), id: \.element.id) { index, feature in
+                    if index != 0 { Divider().padding(.leading, ESUI.Space.huge + ESUI.Space.sm) }
+                    let status = workbenchStatus(for: feature)
                     Button {
                         openFeature(feature)
                     } label: {
-                        moduleTile(for: feature, isPrivate: false)
+                        ESNavigationRow(
+                            title: feature.title, icon: feature.iconName, color: feature.color,
+                            status: status.text, needsAttention: status.needsAttention, showsChevron: true
+                        )
+                        .padding(.horizontal, ESUI.Space.md)
+                        .padding(.vertical, ESUI.Space.xs)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(ESCardButtonStyle())
                     .contextMenu {
-                        if features.count > 1 {
-                            if index > 0 {
-                                Button("上移") { moveFeature(feature, in: group, by: -1) }
-                            }
-                            if index < features.count - 1 {
-                                Button("下移") { moveFeature(feature, in: group, by: 1) }
-                            }
+                        if index > 0 {
+                            Button("上移") { moveFeature(at: index, in: features, by: -1) }
+                        }
+                        if index + 1 < features.count {
+                            Button("下移") { moveFeature(at: index, in: features, by: 1) }
                         }
                     }
                 }
             }
+            .esSurface()
         }
     }
 
     private var privateSection: some View {
-        VStack(alignment: .leading, spacing: ESUI.Space.sm) {
-            ESSectionHeader(title: "私密", subtitle: "受保护模块")
-
+        VStack(alignment: .leading, spacing: ESUI.Space.xs) {
+            Text("私密").font(.title3.bold()).accessibilityAddTraits(.isHeader)
             ForEach(unlockedHiddenFeatures, id: \.id) { feature in
                 Button {
                     openFeature(feature)
                 } label: {
-                    moduleTile(for: feature, isPrivate: true, isWide: true)
+                    ESNavigationRow(title: feature.title, icon: feature.iconName, color: feature.color, showsChevron: true)
+                        .padding(.horizontal, ESUI.Space.md)
+                        .padding(.vertical, ESUI.Space.xs)
+                        .esSurface()
                 }
                 .buttonStyle(ESCardButtonStyle())
             }
         }
     }
 
-    private func moduleTile(for feature: any AppFeature, isPrivate: Bool, isWide: Bool = false) -> some View {
-        let customIcon: AnyView? = {
-            switch feature.id {
-            case "uttracker":
-                return AnyView(UTModuleProgressIcon(color: feature.color))
-            case "training-log":
-                return AnyView(TrainingModuleStatusIcon(color: feature.color))
-            default:
-                return nil
+    private func workbenchStatus(for feature: any AppFeature) -> (text: String?, needsAttention: Bool) {
+        switch feature.id {
+        case "uttracker":
+            guard let snapshot else { return (nil, false) }
+            return ("本月进度 \(snapshot.utProgress.formatted(.percent.precision(.fractionLength(0))))", false)
+        case "training-log":
+            guard let snapshot else { return (nil, false) }
+            return (snapshot.trainedToday ? "今天已记录" : "今天未记录", false)
+        case "expense-assistant":
+            guard let snapshot else { return (nil, false) }
+            return snapshot.overdueExpenses > 0 ? ("\(snapshot.overdueExpenses) 笔逾期", true) : (nil, false)
+        case "webdav":
+            return (storage.locations.isEmpty ? "未配置" : "\(storage.locations.count) 个位置", false)
+        default:
+            let status = statusCenter.summary(for: feature.id)
+            switch status.kind {
+            case .ready, .empty: return (nil, false)
+            default: return (status.text, status.kind == .recoverableFailure || status.kind == .attentionNeeded)
             }
-        }()
-        let badge: Int? = feature.id == "expense-assistant" ? expensePendingCount : nil
-
-        return ESModuleTile(
-            title: feature.title,
-            systemImage: feature.iconName,
-            featureID: feature.id,
-            status: isPrivate ? nil : statusCenter.summary(for: feature.id),
-            badgeCount: isPrivate ? nil : badge,
-            isWide: isWide,
-            customIcon: customIcon
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: ESUI.tileCornerRadius, style: .continuous)
-                .stroke(
-                    isPrivate ? Color.secondary.opacity(0.35) : Color.clear,
-                    style: StrokeStyle(lineWidth: isPrivate ? 1 : 0, dash: isPrivate ? [5, 4] : [])
-                )
-        )
+        }
     }
 
-    private var expensePendingCount: Int {
-        let snapshot = ExpenseAssistantLocalStore().loadSnapshot()
-        let monthly = ExpenseAssistantReminderEngine.overdueMonthlyClaims(in: snapshot, asOf: Date()).count
-        let travel = ExpenseAssistantReminderEngine.overdueTravelClaims(in: snapshot, asOf: Date()).count
-        return monthly + travel
+    private func refreshSnapshot() {
+        guard isTabActive else { return }
+        snapshot = WorkbenchSnapshot.load()
     }
 
     // MARK: - Actions
@@ -321,12 +320,10 @@ public struct DashboardView: View {
         navigationStackIdentity = UUID()
     }
 
-    private func moveFeature(_ feature: any AppFeature, in group: AppFeatureGroup, by offset: Int) {
-        let features = registry.moduleFeatures(in: group)
-        guard let index = features.firstIndex(where: { $0.id == feature.id }) else { return }
+    private func moveFeature(at index: Int, in features: [any AppFeature], by offset: Int) {
         let target = index + offset
         guard features.indices.contains(target) else { return }
-        registry.moveModuleFeatures(in: group, fromOffsets: IndexSet(integer: index), toOffset: offset > 0 ? target + 1 : target)
+        registry.moveModuleFeatures(ids: features.map(\.id), fromOffsets: IndexSet(integer: index), toOffset: offset > 0 ? target + 1 : target)
     }
 
     @ViewBuilder
@@ -377,135 +374,24 @@ private extension DashboardView {
     }
 }
 
-// MARK: - Training Status Icon
+// MARK: - Workbench Summary
 
-private struct TrainingModuleStatusIcon: View {
-    let color: Color
+private struct WorkbenchSnapshot {
+    let utProgress: Double
+    let trainedToday: Bool
+    let overdueExpenses: Int
 
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var trainedToday = false
-    @State private var monthDayCount = 0
-
-    var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(trainedToday ? 0.16 : 0.1))
-                    .frame(width: 40, height: 40)
-
-                Image(systemName: trainedToday ? "flame.fill" : "flame")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(trainedToday ? color : Color.secondary)
-                    .contentTransition(.symbolEffect(.replace))
-            }
-
-            if trainedToday {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(ESUI.success)
-                    .background(Circle().fill(ESUI.surface).frame(width: 12, height: 12))
-                    .offset(x: 3, y: 2)
-            } else if monthDayCount > 0 {
-                Text("\(monthDayCount)")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 1)
-                    .background(Capsule().fill(ESUI.fill))
-                    .offset(x: 4, y: 2)
-            }
-        }
-        .frame(width: 40, height: 40)
-        .animation(ESMotion.quick, value: trainedToday)
-        .onAppear { refresh() }
-        .onReceive(NotificationCenter.default.publisher(for: .trainingLogDidChange)) { _ in
-            refresh()
-        }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { refresh() }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("训练记录")
-        .accessibilityValue(trainedToday ? "今天已训练" : "本月 \(monthDayCount) 天")
-    }
-
-    private func refresh() {
-        let snapshot = TrainingLogLocalStore().loadSnapshot()
-        let todayKey = TrainingLogCalendar.dayKey(for: Date())
-        trainedToday = (snapshot.days[todayKey]?.lines.isEmpty == false)
-
-        let monthPrefix = String(todayKey.prefix(7))
-        monthDayCount = snapshot.days
-            .filter { $0.key.hasPrefix(monthPrefix) && !$0.value.lines.isEmpty }
-            .count
-    }
-}
-
-// MARK: - UT Progress Icon
-
-private struct UTModuleProgressIcon: View {
-    let color: Color
-
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var summary = UTTrackerSnapshot.currentMonthSummary()
-
-    private var progress: Double {
-        min(max(summary.elapsedMonthProgress, 0), 1)
-    }
-
-    private var percentValue: Int {
-        Int((summary.elapsedMonthProgress * 100).rounded())
-    }
-
-    private var ringColor: Color {
-        if summary.totalHours <= 0.01 {
-            return .secondary.opacity(0.45)
-        }
-        return summary.isTargetMet ? .green : .orange
-    }
-
-    private var displayText: String {
-        "\(max(percentValue, 0))"
-    }
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(color.opacity(0.1))
-                .frame(width: 40, height: 40)
-
-            Circle()
-                .stroke(Color.primary.opacity(0.08), lineWidth: 3)
-                .frame(width: 32, height: 32)
-
-            Circle()
-                .trim(from: 0, to: progress)
-                .stroke(ringColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                .frame(width: 32, height: 32)
-                .rotationEffect(.degrees(-90))
-
-            Text(displayText)
-                .font(.system(size: displayText.count >= 3 ? 9 : 10, weight: .bold, design: .rounded))
-                .foregroundStyle(summary.totalHours <= 0.01 ? .secondary : .primary)
-        }
-        .frame(width: 40, height: 40)
-        .onAppear { refreshSummary() }
-        .onReceive(NotificationCenter.default.publisher(for: .utTrackerEntriesDidChange)) { _ in
-            refreshSummary()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
-            refreshSummary()
-        }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { refreshSummary() }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("UT 本月进度")
-        .accessibilityValue("\(displayText) 百分比")
-    }
-
-    private func refreshSummary() {
-        summary = UTTrackerSnapshot.currentMonthSummary()
+    static func load(asOf now: Date = .now) -> Self {
+        let ut = UTTrackerSnapshot.currentMonthSummary()
+        let training = TrainingLogLocalStore().loadSnapshot()
+        let expenses = ExpenseAssistantLocalStore().loadSnapshot()
+        let monthly = ExpenseAssistantReminderEngine.overdueMonthlyClaims(in: expenses, asOf: now).count
+        let travel = ExpenseAssistantReminderEngine.overdueTravelClaims(in: expenses, asOf: now).count
+        return Self(
+            utProgress: max(ut.elapsedMonthProgress, 0),
+            trainedToday: training.days[TrainingLogCalendar.dayKey(for: now)]?.hasTraining == true,
+            overdueExpenses: monthly + travel
+        )
     }
 }
 

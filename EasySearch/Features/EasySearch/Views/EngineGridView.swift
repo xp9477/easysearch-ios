@@ -2,28 +2,27 @@ import SwiftUI
 
 struct EngineGridView: View {
     let engines: [SearchEngine]
-    var isEnabled: Bool = true
+    let selectedID: String?
+    let opensOnTap: Bool
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let onSelect: (SearchEngine) -> Void
 
-    private let columns = [
-        GridItem(.flexible(), spacing: ESUI.Space.sm),
-        GridItem(.flexible(), spacing: ESUI.Space.sm)
-    ]
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: ESUI.Space.xs), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2)
+    }
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: ESUI.Space.sm) {
+        LazyVGrid(columns: columns, spacing: ESUI.Space.xs) {
             ForEach(engines) { engine in
                 Button {
                     onSelect(engine)
                 } label: {
-                    EngineTile(engine: engine)
-                        .opacity(isEnabled ? 1 : 0.45)
+                    EngineTile(engine: engine, isSelected: engine.id == selectedID)
                 }
                 .buttonStyle(ESCardButtonStyle())
-                .transition(ESMotion.pop)
-                .disabled(!isEnabled)
+                .accessibilityAddTraits(engine.id == selectedID ? .isSelected : [])
                 .accessibilityLabel(engine.name)
-                .accessibilityHint(isEnabled ? "打开搜索" : "请先输入搜索内容")
+                .accessibilityHint(opensOnTap ? "在此平台搜索" : "选用此平台并输入关键词")
             }
         }
     }
@@ -31,6 +30,7 @@ struct EngineGridView: View {
 
 private struct EngineTile: View {
     let engine: SearchEngine
+    let isSelected: Bool
     @State private var iconImage: UIImage?
 
     var body: some View {
@@ -38,13 +38,13 @@ private struct EngineTile: View {
             ZStack {
                 RoundedRectangle(cornerRadius: ESUI.Radius.md, style: .continuous)
                     .fill(ESUI.fill)
-                    .frame(width: 40, height: 40)
+                    .frame(width: 32, height: 32)
 
                 if let iconImage {
                     Image(uiImage: iconImage)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 40, height: 40)
+                        .frame(width: 32, height: 32)
                         .clipShape(RoundedRectangle(cornerRadius: ESUI.Radius.md, style: .continuous))
                 } else {
                     Image(systemName: fallbackIcon)
@@ -53,30 +53,22 @@ private struct EngineTile: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(engine.name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                if !engine.displayHost.isEmpty {
-                    Text(engine.displayHost)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
+            Text(engine.name)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: 0)
         }
-        .padding(ESUI.Space.sm)
-        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+        .padding(ESUI.Space.xs)
+        .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: ESUI.tileCornerRadius, style: .continuous)
-                .fill(ESUI.surface)
+                .fill(isSelected ? Color.accentColor.opacity(0.12) : ESUI.surface)
         )
         .overlay(
             RoundedRectangle(cornerRadius: ESUI.tileCornerRadius, style: .continuous)
-                .stroke(Color.primary.opacity(0.04), lineWidth: 0.5)
+                .strokeBorder(isSelected ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
         )
         .task(id: engine.faviconURL) {
             await loadIcon()
